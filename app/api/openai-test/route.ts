@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       success: true,
       result: completion.choices[0].message.content,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("OpenAI API error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to connect to OpenAI" },
