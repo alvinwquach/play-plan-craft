@@ -5,6 +5,38 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface Activity {
+  title: string;
+  activityType: string;
+  description: string;
+  durationMins: number;
+}
+
+interface Supply {
+  name: string;
+  quantity: number;
+  unit: string;
+  note: string | null;
+}
+
+interface DevelopmentGoal {
+  name: string;
+  description: string;
+}
+
+interface LessonPlan {
+  title: string;
+  ageGroup: string;
+  subject: string;
+  theme: string | null;
+  status: string;
+  duration: number;
+  activities: Activity[];
+  supplies: Supply[];
+  tags: string[];
+  developmentGoals: DevelopmentGoal[];
+}
+
 export async function POST(request: Request) {
   try {
     const { title, ageGroup, subject, theme, duration, activityTypes } =
@@ -100,40 +132,7 @@ export async function POST(request: Request) {
       - Relevant developmental goals for the age group
       - Tags for filtering (e.g., ENGAGING, EDUCATIONAL)
       - Status set to DRAFT
-      Return the response in JSON format matching this structure:
-      {
-        "lessonPlan": {
-          "title": string,
-          "ageGroup": string,
-          "subject": string,
-          "theme": string | null,
-          "status": string,
-          "duration": number,
-          "activities": [
-            {
-              "title": string,
-              "activityType": string,
-              "description": string,
-              "durationMins": number
-            }
-          ],
-          "supplies": [
-            {
-              "name": string,
-              "quantity": number,
-              "unit": string,
-              "note": string | null
-            }
-          ],
-          "tags": string[],
-          "developmentGoals": [
-            {
-              "name": string,
-              "description": string
-            }
-          ]
-        }
-      }
+      Return the response in JSON format matching this structure...
     `;
 
     const completion = await openai.chat.completions.create({
@@ -147,50 +146,62 @@ export async function POST(request: Request) {
       throw new Error("No content returned from OpenAI");
     }
 
-    let result;
+    let parsed: Record<string, any>;
     try {
-      result = JSON.parse(content);
+      parsed = JSON.parse(content);
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError);
       throw new Error("Invalid JSON response from OpenAI");
     }
 
-    if (!result.lessonPlan) {
-      throw new Error("Response missing lessonPlan object");
+    const lesson = parsed.lessonPlan;
+    if (
+      !lesson ||
+      typeof lesson.title !== "string" ||
+      typeof lesson.ageGroup !== "string" ||
+      typeof lesson.subject !== "string" ||
+      typeof lesson.status !== "string"
+    ) {
+      throw new Error("Incomplete lesson plan response");
     }
 
-    const lessonPlan = {
-      ...result.lessonPlan,
+    const lessonPlan: LessonPlan = {
+      title: lesson.title,
+      ageGroup: lesson.ageGroup,
+      subject: lesson.subject,
+      theme: lesson.theme ?? null,
+      status: lesson.status,
       duration: parseInt(
-        result.lessonPlan.duration.toString().replace("minutes", "").trim(),
+        lesson.duration?.toString().replace("minutes", "").trim() ?? "0",
         10
       ),
-      activities: result.lessonPlan.activities.map((activity: any) => ({
-        title: activity.title || activity.type,
-        activityType: activity.activityType || activity.type,
-        description: activity.description,
+      activities: (lesson.activities ?? []).map((activity: any) => ({
+        title: activity.title ?? "Untitled Activity",
+        activityType: activity.activityType ?? "UNKNOWN",
+        description: activity.description ?? "",
         durationMins: parseInt(
-          activity.durationMins?.toString().replace("minutes", "").trim() ||
-            activity.duration.replace("minutes", "").trim(),
+          activity.durationMins?.toString().replace("minutes", "").trim() ??
+            "0",
           10
         ),
       })),
       supplies: (
-        result.lessonPlan.supplies ||
-        result.lessonPlan.requiredSupplies ||
+        lesson.supplies ??
+        parsed.lessonPlan?.requiredSupplies ??
         []
-      ).map((supply: any) =>
-        typeof supply === "string"
-          ? { name: supply, quantity: 1, unit: "unit", note: null }
-          : {
-              name: supply.name,
-              quantity: supply.quantity || 1,
-              unit: supply.unit || "unit",
-              note: supply.note || null,
-            }
+      ).map(
+        (supply: any): Supply =>
+          typeof supply === "string"
+            ? { name: supply, quantity: 1, unit: "unit", note: null }
+            : {
+                name: supply.name ?? "Unnamed Supply",
+                quantity: supply.quantity ?? 1,
+                unit: supply.unit ?? "unit",
+                note: supply.note ?? null,
+              }
       ),
-      tags: result.lessonPlan.tags || ["ENGAGING", "EDUCATIONAL"],
-      developmentGoals: result.lessonPlan.developmentGoals || [
+      tags: lesson.tags ?? ["ENGAGING", "EDUCATIONAL"],
+      developmentGoals: lesson.developmentGoals ?? [
         {
           name: "Cognitive Development",
           description: "Enhance problem-solving and critical thinking",

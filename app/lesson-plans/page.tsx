@@ -46,7 +46,12 @@ export default function LessonPlans() {
           const parsed = JSON.parse(decodeURIComponent(lessonPlanData));
           setLessonPlan(parsed);
         } catch (err) {
-          setError("Failed to parse lesson plan data from query parameter");
+          console.error("Error parsing lesson plan:", err);
+          setError(
+            err instanceof Error
+              ? `Parse error: ${err.message}`
+              : "Failed to parse lesson plan data"
+          );
         }
         setLoading(false);
         return;
