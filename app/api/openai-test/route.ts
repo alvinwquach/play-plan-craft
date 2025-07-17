@@ -123,38 +123,66 @@ export async function POST(request: Request) {
     }
 
     const prompt = `
-      Generate a ${duration}-minute lesson plan for ${ageGroup.toLowerCase()} children focusing on ${subject.toLowerCase()}${
+You are a lesson planner AI. Generate a structured JSON response.
+
+Create a ${duration}-minute lesson plan for ${ageGroup.toLowerCase()} children focusing on ${subject.toLowerCase()}${
       theme ? ` with a ${theme.toLowerCase()} theme` : ""
-    }. 
-      Use the following inputs:
-      - Lesson plan title: ${
-        title
-          ? `"${title}"`
-          : `Generate a title (e.g., "${ageGroup} ${subject} Lesson on ${
-              theme || "General"
-            }")`
+    }.
+
+Use these activity types: ${activityTypes.join(", ")}.
+
+Ensure the JSON is strictly in this format:
+
+{
+  "lessonPlan": {
+    "title": string,
+    "ageGroup": "${ageGroup}",
+    "subject": "${subject}",
+    "theme": "${theme || null}",
+    "status": "DRAFT",
+    "duration": ${duration},
+    "activities": [
+      {
+        "title": string,
+        "activityType": string,
+        "description": string,
+        "durationMins": number
       }
-      - Activity types to include: ${activityTypes.join(", ")}
-      Include:
-      - A lesson plan title
-      - A list of activities (each with title, activityType, description, and duration in minutes, using the provided activity types)
-      - A list of required supplies with name, quantity, unit, and optional note
-      - Relevant developmental goals for the age group
-      - Tags for filtering (e.g., ENGAGING, EDUCATIONAL)
-      - Status set to DRAFT
-      Return the response in JSON format matching this structure...
-    `;
+    ],
+    "supplies": [
+      {
+        "name": string,
+        "quantity": number,
+        "unit": string,
+        "note": string | null
+      }
+    ],
+    "developmentGoals": [
+      {
+        "name": string,
+        "description": string
+      }
+    ],
+    "tags": [string]
+  }
+}
+
+Only output a valid JSON object. No markdown or extra text.
+`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
     });
 
     const content = completion.choices[0].message.content;
+
     if (!content) {
       throw new Error("No content returned from OpenAI");
     }
+
+    console.log("OpenAI raw response content:", content);
 
     let parsed: OpenAIResponse;
     try {
@@ -165,6 +193,7 @@ export async function POST(request: Request) {
     }
 
     const lesson = parsed.lessonPlan;
+
     if (
       !lesson ||
       typeof lesson.title !== "string" ||
@@ -176,29 +205,27 @@ export async function POST(request: Request) {
     }
 
     const lessonPlan: LessonPlan = {
-      title: lesson.title,
-      ageGroup: lesson.ageGroup,
-      subject: lesson.subject,
-      theme: lesson.theme ?? null,
-      status: lesson.status,
+      title: lesson.title ?? "Untitled Lesson",
+      ageGroup: lesson.ageGroup ?? ageGroup,
+      subject: lesson.subject ?? subject,
+      theme: lesson.theme ?? theme ?? null,
+      status: lesson.status ?? "DRAFT",
       duration: parseInt(
         lesson.duration?.toString().replace("minutes", "").trim() ?? "0",
         10
       ),
-      activities: (lesson.activities ?? []).map(
-        (activity: Partial<Activity>) => ({
-          title: activity.title ?? "Untitled Activity",
-          activityType: activity.activityType ?? "UNKNOWN",
-          description: activity.description ?? "",
-          durationMins: parseInt(
-            activity.durationMins?.toString().replace("minutes", "").trim() ??
-              "0",
-            10
-          ),
-        })
-      ),
+      activities: (lesson.activities ?? []).map((activity) => ({
+        title: activity.title ?? "Untitled Activity",
+        activityType: activity.activityType ?? "UNKNOWN",
+        description: activity.description ?? "",
+        durationMins: parseInt(
+          activity.durationMins?.toString().replace("minutes", "").trim() ??
+            "0",
+          10
+        ),
+      })),
       supplies: (lesson.supplies ?? lesson.requiredSupplies ?? []).map(
-        (supply: string | Partial<Supply>): Supply =>
+        (supply) =>
           typeof supply === "string"
             ? { name: supply, quantity: 1, unit: "unit", note: null }
             : {
