@@ -37,6 +37,16 @@ interface LessonPlan {
   developmentGoals: DevelopmentGoal[];
 }
 
+interface OpenAIResponse {
+  lessonPlan: Partial<LessonPlan> & {
+    activities?: Partial<Activity>[];
+    supplies?: (string | Partial<Supply>)[];
+    requiredSupplies?: (string | Partial<Supply>)[];
+    developmentGoals?: DevelopmentGoal[];
+    tags?: string[];
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const { title, ageGroup, subject, theme, duration, activityTypes } =
@@ -146,7 +156,7 @@ export async function POST(request: Request) {
       throw new Error("No content returned from OpenAI");
     }
 
-    let parsed: Record<string, any>;
+    let parsed: OpenAIResponse;
     try {
       parsed = JSON.parse(content);
     } catch (parseError) {
@@ -175,22 +185,20 @@ export async function POST(request: Request) {
         lesson.duration?.toString().replace("minutes", "").trim() ?? "0",
         10
       ),
-      activities: (lesson.activities ?? []).map((activity: any) => ({
-        title: activity.title ?? "Untitled Activity",
-        activityType: activity.activityType ?? "UNKNOWN",
-        description: activity.description ?? "",
-        durationMins: parseInt(
-          activity.durationMins?.toString().replace("minutes", "").trim() ??
-            "0",
-          10
-        ),
-      })),
-      supplies: (
-        lesson.supplies ??
-        parsed.lessonPlan?.requiredSupplies ??
-        []
-      ).map(
-        (supply: any): Supply =>
+      activities: (lesson.activities ?? []).map(
+        (activity: Partial<Activity>) => ({
+          title: activity.title ?? "Untitled Activity",
+          activityType: activity.activityType ?? "UNKNOWN",
+          description: activity.description ?? "",
+          durationMins: parseInt(
+            activity.durationMins?.toString().replace("minutes", "").trim() ??
+              "0",
+            10
+          ),
+        })
+      ),
+      supplies: (lesson.supplies ?? lesson.requiredSupplies ?? []).map(
+        (supply: string | Partial<Supply>): Supply =>
           typeof supply === "string"
             ? { name: supply, quantity: 1, unit: "unit", note: null }
             : {
