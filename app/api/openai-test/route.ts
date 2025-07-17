@@ -49,7 +49,7 @@ interface OpenAIResponse {
 
 export async function POST(request: Request) {
   try {
-    const { title, ageGroup, subject, theme, duration, activityTypes } =
+    const { ageGroup, subject, theme, duration, activityTypes } =
       await request.json();
 
     const validAgeGroups = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
