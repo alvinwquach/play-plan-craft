@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="bg-teal-50 text-gray-800 min-h-screen p-8 pb-20 sm:p-16">
@@ -11,12 +13,12 @@ export default function Home() {
             time by automating lesson planning, supply management, and
             scheduling, letting you focus on what truly matters—teaching.
           </p>
-          <a
-            href="#start-planning"
+          <Link
+            href="lesson-plan"
             className="mt-8 bg-teal-400 text-white py-3 px-8 rounded-full text-lg font-semibold hover:bg-teal-500 transition"
           >
             Start Planning Your Lesson
-          </a>
+          </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
           <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
