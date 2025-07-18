@@ -1,3 +1,4 @@
+// app/api/graphql/route.ts
 import { createSchema, createYoga } from "graphql-yoga";
 
 interface NextContext {
@@ -5,7 +6,7 @@ interface NextContext {
 }
 
 const CustomResponse = Response as typeof Response & {
-  json: (data: any, init?: ResponseInit) => Response;
+  json: (data: unknown, init?: ResponseInit) => Response;
 };
 
 const { handleRequest } = createYoga<NextContext>({
