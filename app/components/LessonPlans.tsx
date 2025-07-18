@@ -10,6 +10,7 @@ interface LessonPlan {
   theme: string | null;
   status: string;
   duration: number;
+  classroomSize: number;
   activities: {
     title: string;
     activityType: string;
@@ -21,6 +22,7 @@ interface LessonPlan {
     quantity: number;
     unit: string;
     note: string | null;
+    shoppingLink?: string;
   }[];
   tags: string[];
   developmentGoals: {
@@ -34,6 +36,42 @@ export default function LessonPlans() {
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedRetailer, setSelectedRetailer] = useState<
+    "google" | "amazon" | "walmart" | "lakeshore"
+  >("google");
+
+  const retailers = [
+    { value: "google", label: "Google Shopping" },
+    { value: "amazon", label: "Amazon" },
+    { value: "walmart", label: "Walmart" },
+    { value: "lakeshore", label: "Lakeshore Learning" },
+  ];
+
+  const generateShoppingLink = (
+    supply: LessonPlan["supplies"][0],
+    retailer: string
+  ): string => {
+    let query = supply.name;
+    if (supply.name.toLowerCase().includes("book")) {
+      const context = supply.note?.toLowerCase() || "preschool";
+      query = `preschool ${supply.name.toLowerCase()} ${context}`;
+    } else {
+      query = `${supply.name} classroom`;
+    }
+    const encodedQuery = encodeURIComponent(query.trim());
+
+    switch (retailer) {
+      case "amazon":
+        return `https://www.amazon.com/s?k=${encodedQuery}`;
+      case "walmart":
+        return `https://www.walmart.com/search?q=${encodedQuery}`;
+      case "lakeshore":
+        return `https://www.lakeshorelearning.com/search?Ntt=${encodedQuery}`;
+      case "google":
+      default:
+        return `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
+    }
+  };
 
   useEffect(() => {
     const fetchLessonPlan = async () => {
@@ -44,7 +82,13 @@ export default function LessonPlans() {
       if (lessonPlanData) {
         try {
           const parsed = JSON.parse(decodeURIComponent(lessonPlanData));
-          setLessonPlan(parsed);
+          const updatedSupplies = parsed.supplies.map(
+            (supply: LessonPlan["supplies"][0]) => ({
+              ...supply,
+              shoppingLink: generateShoppingLink(supply, selectedRetailer),
+            })
+          );
+          setLessonPlan({ ...parsed, supplies: updatedSupplies });
         } catch (err) {
           console.error("Error parsing lesson plan:", err);
           setError(
@@ -59,7 +103,7 @@ export default function LessonPlans() {
     };
 
     fetchLessonPlan();
-  }, [searchParams]);
+  }, [searchParams, selectedRetailer]);
 
   if (loading) {
     return (
@@ -135,6 +179,10 @@ export default function LessonPlans() {
               <li>
                 <strong>Duration:</strong> {lessonPlan.duration} minutes
               </li>
+              <li>
+                <strong>Classroom Size:</strong> {lessonPlan.classroomSize}{" "}
+                students
+              </li>
             </ul>
           </div>
           <div>
@@ -163,6 +211,30 @@ export default function LessonPlans() {
             <h2 className="text-xl font-semibold text-teal-800 mb-4">
               Supplies
             </h2>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Select Retailer
+              </label>
+              <select
+                value={selectedRetailer}
+                onChange={(e) =>
+                  setSelectedRetailer(
+                    e.target.value as
+                      | "google"
+                      | "amazon"
+                      | "walmart"
+                      | "lakeshore"
+                  )
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              >
+                {retailers.map((retailer) => (
+                  <option key={retailer.value} value={retailer.value}>
+                    {retailer.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {lessonPlan.supplies.length > 0 ? (
               <ul className="text-gray-600 list-inside list-disc space-y-2">
                 {lessonPlan.supplies.map((supply, index) => (
@@ -173,6 +245,22 @@ export default function LessonPlans() {
                     {supply.note && (
                       <p className="text-sm">
                         <strong>Note:</strong> {supply.note}
+                      </p>
+                    )}
+                    {supply.shoppingLink && (
+                      <p className="text-sm">
+                        <a
+                          href={supply.shoppingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-500 hover:underline"
+                        >
+                          Find {supply.name} on{" "}
+                          {
+                            retailers.find((r) => r.value === selectedRetailer)
+                              ?.label
+                          }
+                        </a>
                       </p>
                     )}
                   </li>

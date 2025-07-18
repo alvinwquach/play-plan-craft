@@ -10,6 +10,7 @@ interface FormData {
   theme: string;
   duration: number;
   activityTypes: string[];
+  classroomSize: number;
 }
 
 export default function LessonPlanForm() {
@@ -21,6 +22,7 @@ export default function LessonPlanForm() {
     theme: "",
     duration: 30,
     activityTypes: ["STORYTELLING"],
+    classroomSize: 10,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +72,12 @@ export default function LessonPlanForm() {
 
     if (formData.activityTypes.length === 0) {
       setError("At least one activity type is required.");
+      setLoading(false);
+      return;
+    }
+
+    if (formData.classroomSize < 1 || formData.classroomSize > 100) {
+      setError("Classroom size must be between 1 and 100 students.");
       setLoading(false);
       return;
     }
@@ -202,6 +210,26 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Classroom Size (number of students)
+              </label>
+              <input
+                type="number"
+                value={formData.classroomSize}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    classroomSize: Number(e.target.value),
+                  })
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                min="1"
+                max="100"
+                required
+                placeholder="Enter number of students"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Activity Types
               </label>
               <select
@@ -212,7 +240,6 @@ export default function LessonPlanForm() {
                     e.target.selectedOptions,
                     (option) => option.value
                   );
-                  console.log("Selected Activity Types:", selected); // Debug log
                   setFormData({
                     ...formData,
                     activityTypes: selected,

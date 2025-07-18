@@ -31,6 +31,7 @@ interface LessonPlan {
   theme: string | null;
   status: string;
   duration: number;
+  classroomSize: number;
   activities: Activity[];
   supplies: Supply[];
   tags: string[];
@@ -49,7 +50,7 @@ interface OpenAIResponse {
 
 export async function POST(request: Request) {
   try {
-    const { ageGroup, subject, theme, duration, activityTypes } =
+    const { ageGroup, subject, theme, duration, activityTypes, classroomSize } =
       await request.json();
 
     const validAgeGroups = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
@@ -121,15 +122,30 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (
+      typeof classroomSize !== "number" ||
+      classroomSize < 1 ||
+      classroomSize > 100
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid classroom size: ${classroomSize}. Must be between 1 and 100.`,
+        },
+        { status: 400 }
+      );
+    }
 
     const prompt = `
 You are a lesson planner AI. Generate a structured JSON response.
 
 Create a ${duration}-minute lesson plan for ${ageGroup.toLowerCase()} children focusing on ${subject.toLowerCase()}${
       theme ? ` with a ${theme.toLowerCase()} theme` : ""
-    }.
+    } for a classroom of ${classroomSize} students.
 
 Use these activity types: ${activityTypes.join(", ")}.
+
+Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example, for craft activities, provide enough materials for each student, and for shared items like books or tools, provide a reasonable number for group use.
 
 Ensure the JSON is strictly in this format:
 
@@ -141,6 +157,7 @@ Ensure the JSON is strictly in this format:
     "theme": "${theme || null}",
     "status": "DRAFT",
     "duration": ${duration},
+    "classroomSize": ${classroomSize},
     "activities": [
       {
         "title": string,
@@ -182,8 +199,6 @@ Only output a valid JSON object. No markdown or extra text.
       throw new Error("No content returned from OpenAI");
     }
 
-    console.log("OpenAI raw response content:", content);
-
     let parsed: OpenAIResponse;
     try {
       parsed = JSON.parse(content);
@@ -199,7 +214,8 @@ Only output a valid JSON object. No markdown or extra text.
       typeof lesson.title !== "string" ||
       typeof lesson.ageGroup !== "string" ||
       typeof lesson.subject !== "string" ||
-      typeof lesson.status !== "string"
+      typeof lesson.status !== "string" ||
+      typeof lesson.classroomSize !== "number"
     ) {
       throw new Error("Incomplete lesson plan response");
     }
@@ -214,6 +230,7 @@ Only output a valid JSON object. No markdown or extra text.
         lesson.duration?.toString().replace("minutes", "").trim() ?? "0",
         10
       ),
+      classroomSize: lesson.classroomSize ?? classroomSize,
       activities: (lesson.activities ?? []).map((activity) => ({
         title: activity.title ?? "Untitled Activity",
         activityType: activity.activityType ?? "UNKNOWN",
@@ -227,10 +244,15 @@ Only output a valid JSON object. No markdown or extra text.
       supplies: (lesson.supplies ?? lesson.requiredSupplies ?? []).map(
         (supply) =>
           typeof supply === "string"
-            ? { name: supply, quantity: 1, unit: "unit", note: null }
+            ? {
+                name: supply,
+                quantity: classroomSize,
+                unit: "unit",
+                note: null,
+              }
             : {
                 name: supply.name ?? "Unnamed Supply",
-                quantity: supply.quantity ?? 1,
+                quantity: supply.quantity ?? classroomSize,
                 unit: supply.unit ?? "unit",
                 note: supply.note ?? null,
               }
