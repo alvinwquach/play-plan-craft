@@ -543,7 +543,6 @@ export default function LessonPlanForm() {
                 Hold Ctrl/Cmd to select multiple activity types
               </p>
             </div>
-
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Learning Intention (Optional)
@@ -582,15 +581,12 @@ export default function LessonPlanForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-400 text-white py-3 px-8 rounded-full text-lg font-semibold hover:bg-teal-500 transition disabled:opacity-50"
+              className="w-full bg-teal-400 text-white py-3 px-4 rounded-full text-lg font-semibold hover:bg-teal-500 transition disabled:opacity-50"
             >
               {loading ? "Generating..." : "Generate Lesson Plan"}
             </button>
           </form>
         </div>
-        <footer className="text-center text-gray-600 text-sm py-4 bg-white shadow-inner">
-          © 2025 PlayPlanCraft. All rights reserved.
-        </footer>
       </main>
     </div>
   );
