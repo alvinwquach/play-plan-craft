@@ -266,6 +266,7 @@ export default function LessonPlanForm() {
     const validActivityTypes = formData.activityTypes.filter((type) =>
       availableActivityTypes.includes(type)
     );
+
     if (validActivityTypes.length !== formData.activityTypes.length) {
       setFormData((prev) => ({
         ...prev,
@@ -275,7 +276,12 @@ export default function LessonPlanForm() {
             : [availableActivityTypes[0]],
       }));
     }
-  }, [formData.gradeLevel]);
+  }, [
+    formData.activityTypes,
+    formData.gradeLevel,
+    formData.subject,
+    formData.theme,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,7 +311,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with 'I can'.");
+      setError("All success criteria must start with &apos;I can&apos;.");
       setLoading(false);
       return;
     }
