@@ -509,7 +509,8 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with 'I can')
+                Success Criteria (Optional, one per line, start with `&apos;I
+                can`&apos;)
               </label>
               <textarea
                 value={successCriteriaInput}
