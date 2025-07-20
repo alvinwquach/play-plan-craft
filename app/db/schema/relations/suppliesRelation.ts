@@ -1,14 +1,3 @@
-import {
-  pgTable,
-  text,
-  integer,
-  timestamp,
-  boolean,
-  index,
-  serial,
-  primaryKey,
-  varchar,
-} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { lessonPlanSupplies } from "../table/lessonPlanSupplies";
 import { reminders } from "../table/reminders";
