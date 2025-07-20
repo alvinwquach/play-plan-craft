@@ -24,6 +24,13 @@ interface DevelopmentGoal {
   description: string;
 }
 
+interface DrdpDomain {
+  code: string;
+  name: string;
+  description: string;
+  strategies: string[];
+}
+
 interface LessonPlan {
   title: string;
   gradeLevel: string;
@@ -38,6 +45,7 @@ interface LessonPlan {
   developmentGoals: DevelopmentGoal[];
   learningIntention: string;
   successCriteria: string[];
+  drdpDomains?: DrdpDomain[];
 }
 
 interface OpenAIResponse {
@@ -49,6 +57,7 @@ interface OpenAIResponse {
     tags?: string[];
     learningIntention?: string;
     successCriteria?: string[];
+    drdpDomains?: DrdpDomain[];
   };
 }
 
@@ -349,6 +358,22 @@ Include a "Learning Intention" (a clear statement of what students will learn) a
 
 Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example, for craft activities, provide enough materials for each student, and for shared items like books or tools, provide a reasonable number for group use.
 
+If gradeLevel is "PRESCHOOL", automatically generate DRDP domains based on the activities and development goals. Use these DRDP domains:
+- ATL-REG (Approaches to Learning–Self-Regulation)
+- SED (Social and Emotional Development)
+- LLD (Language and Literacy Development)
+- COG (Cognition, including Math and Science)
+- PD-HLTH (Physical Development–Health)
+
+Map activities to DRDP domains as follows:
+- STORYTELLING: LLD, SED
+- CRAFT: COG, PD-HLTH
+- MOVEMENT: PD-HLTH, ATL-REG
+- MUSIC: LLD, SED
+- FREE_PLAY: SED, ATL-REG
+- OUTDOOR (e.g., Chalk Art): COG, PD-HLTH, LLD, SED
+- Ensure each domain includes a code, name, description, and strategies array tailored to the activity. Only include DRDP domains relevant to the activities and goals.
+
 Ensure the JSON is strictly in this format:
 
 {
@@ -384,7 +409,15 @@ Ensure the JSON is strictly in this format:
         "description": string
       }
     ],
-    "tags": [string]
+    "tags": [string],
+    "drdpDomains": [
+      {
+        "code": string,
+        "name": string,
+        "description": string,
+        "strategies": [string]
+      }
+    ]
   }
 }
 
@@ -473,6 +506,10 @@ Only output a valid JSON object. No markdown or extra text.
           description: "Enhance problem-solving and critical thinking",
         },
       ],
+      drdpDomains:
+        lesson.drdpDomains && gradeLevel === "PRESCHOOL"
+          ? lesson.drdpDomains
+          : [],
     };
 
     return NextResponse.json({

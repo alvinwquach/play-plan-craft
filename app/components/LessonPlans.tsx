@@ -3,6 +3,33 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+interface Activity {
+  title: string;
+  activityType: string;
+  description: string;
+  durationMins: number;
+}
+
+interface Supply {
+  name: string;
+  quantity: number;
+  unit: string;
+  note: string | null;
+  shoppingLink?: string;
+}
+
+interface DevelopmentGoal {
+  name: string;
+  description: string;
+}
+
+interface DrdpDomain {
+  code: string;
+  name: string;
+  description: string;
+  strategies: string[];
+}
+
 interface LessonPlan {
   title: string;
   gradeLevel: string;
@@ -13,24 +40,11 @@ interface LessonPlan {
   classroomSize: number;
   learningIntention: string;
   successCriteria: string[];
-  activities: {
-    title: string;
-    activityType: string;
-    description: string;
-    durationMins: number;
-  }[];
-  supplies: {
-    name: string;
-    quantity: number;
-    unit: string;
-    note: string | null;
-    shoppingLink?: string;
-  }[];
+  activities: Activity[];
+  supplies: Supply[];
   tags: string[];
-  developmentGoals: {
-    name: string;
-    description: string;
-  }[];
+  developmentGoals: DevelopmentGoal[];
+  drdpDomains?: DrdpDomain[];
 }
 
 export default function LessonPlans() {
@@ -84,12 +98,10 @@ export default function LessonPlans() {
       if (lessonPlanData) {
         try {
           const parsed = JSON.parse(decodeURIComponent(lessonPlanData));
-          const updatedSupplies = parsed.supplies.map(
-            (supply: LessonPlan["supplies"][0]) => ({
-              ...supply,
-              shoppingLink: generateShoppingLink(supply, selectedRetailer),
-            })
-          );
+          const updatedSupplies = parsed.supplies.map((supply: Supply) => ({
+            ...supply,
+            shoppingLink: generateShoppingLink(supply, selectedRetailer),
+          }));
           setLessonPlan({ ...parsed, supplies: updatedSupplies });
         } catch (err) {
           console.error("Error parsing lesson plan:", err);
@@ -99,9 +111,8 @@ export default function LessonPlans() {
               : "Failed to parse lesson plan data"
           );
         }
-        setLoading(false);
-        return;
       }
+      setLoading(false);
     };
 
     fetchLessonPlan();
@@ -324,6 +335,34 @@ export default function LessonPlans() {
               <p className="text-gray-600">No developmental goals specified.</p>
             )}
           </div>
+          {lessonPlan.gradeLevel === "PRESCHOOL" && lessonPlan.drdpDomains && (
+            <div>
+              <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                DRDP Domains
+              </h2>
+              {lessonPlan.drdpDomains.length > 0 ? (
+                <ul className="text-gray-600 list-inside list-disc space-y-4">
+                  {lessonPlan.drdpDomains.map((domain, index) => (
+                    <li key={index}>
+                      <strong className="text-teal-800">
+                        {domain.code} - {domain.name}
+                      </strong>
+                      <p>{domain.description}</p>
+                      <ul className="list-inside list-disc ml-4 space-y-2">
+                        {domain.strategies.map((strategy, sIndex) => (
+                          <li key={sIndex}>{strategy}</li>
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-600">
+                  No DRDP domains generated for this plan.
+                </p>
+              )}
+            </div>
+          )}
           <button
             onClick={() => window.history.back()}
             className="w-full bg-teal-400 text-white py-3 px-8 rounded-full text-lg font-semibold hover:bg-teal-500 transition"
