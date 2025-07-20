@@ -358,7 +358,9 @@ Include a "Learning Intention" (a clear statement of what students will learn) a
 
 Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example, for craft activities, provide enough materials for each student, and for shared items like books or tools, provide a reasonable number for group use.
 
-If gradeLevel is "PRESCHOOL", automatically generate DRDP domains based on the activities and development goals. Use these DRDP domains:
+Always include "developmentGoals" with at least two goals, each with a "name" and a detailed "description" tailored to the subject, theme, and grade level to support student growth (e.g., cognitive, social-emotional, or physical development).
+
+If gradeLevel is "PRESCHOOL", automatically generate "drdpDomains" based on the activities and development goals. Use these DRDP domains:
 - ATL-REG (Approaches to Learning–Self-Regulation)
 - SED (Social and Emotional Development)
 - LLD (Language and Literacy Development)
@@ -372,7 +374,9 @@ Map activities to DRDP domains as follows:
 - MUSIC: LLD, SED
 - FREE_PLAY: SED, ATL-REG
 - OUTDOOR (e.g., Chalk Art): COG, PD-HLTH, LLD, SED
-- Ensure each domain includes a code, name, description, and strategies array tailored to the activity. Only include DRDP domains relevant to the activities and goals.
+- Ensure each domain includes a "code", "name", "description" (tailored to the activities), and a "strategies" array with at least two specific strategies to support development in that domain.
+
+For all other grade levels, include "drdpDomains" only if relevant, with generic developmental strategies if applicable.
 
 Ensure the JSON is strictly in this format:
 
@@ -504,6 +508,10 @@ Only output a valid JSON object. No markdown or extra text.
         {
           name: "Cognitive Development",
           description: "Enhance problem-solving and critical thinking",
+        },
+        {
+          name: "Social Development",
+          description: "Foster collaboration and communication skills",
         },
       ],
       drdpDomains:

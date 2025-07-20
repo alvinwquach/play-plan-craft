@@ -323,7 +323,7 @@ export default function LessonPlans() {
               Developmental Goals
             </h2>
             {lessonPlan.developmentGoals.length > 0 ? (
-              <ul className="text-gray-600 list-inside list-disc space-y-2">
+              <ul className="text-gray-600 list-inside list-disc space-y-4">
                 {lessonPlan.developmentGoals.map((goal, index) => (
                   <li key={index}>
                     <strong className="text-teal-800">{goal.name}</strong>
