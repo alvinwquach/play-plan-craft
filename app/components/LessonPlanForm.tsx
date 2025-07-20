@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 interface FormData {
@@ -32,88 +32,106 @@ export default function LessonPlanForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const gradeLevels = [
-    "INFANT",
-    "TODDLER",
-    "PRESCHOOL",
-    "KINDERGARTEN",
-    "GRADE_1",
-    "GRADE_2",
-    "GRADE_3",
-    "GRADE_4",
-    "GRADE_5",
-    "GRADE_6",
-    "GRADE_7",
-    "GRADE_8",
-    "GRADE_9",
-    "GRADE_10",
-    "GRADE_11",
-    "GRADE_12",
-  ];
+  const gradeLevels = useMemo(
+    () => [
+      "INFANT",
+      "TODDLER",
+      "PRESCHOOL",
+      "KINDERGARTEN",
+      "GRADE_1",
+      "GRADE_2",
+      "GRADE_3",
+      "GRADE_4",
+      "GRADE_5",
+      "GRADE_6",
+      "GRADE_7",
+      "GRADE_8",
+      "GRADE_9",
+      "GRADE_10",
+      "GRADE_11",
+      "GRADE_12",
+    ],
+    []
+  );
 
-  const allSubjects = [
-    "LITERACY",
-    "MATH",
-    "SCIENCE",
-    "ART",
-    "MUSIC",
-    "PHYSICAL_EDUCATION",
-    "SOCIAL_EMOTIONAL",
-    "HISTORY",
-    "LITERATURE",
-    "GEOGRAPHY",
-    "STEM",
-    "FOREIGN_LANGUAGE",
-    "COMPUTER_SCIENCE",
-    "CIVICS",
-  ];
+  const allSubjects = useMemo(
+    () => [
+      "LITERACY",
+      "MATH",
+      "SCIENCE",
+      "ART",
+      "MUSIC",
+      "PHYSICAL_EDUCATION",
+      "SOCIAL_EMOTIONAL",
+      "HISTORY",
+      "LITERATURE",
+      "GEOGRAPHY",
+      "STEM",
+      "FOREIGN_LANGUAGE",
+      "COMPUTER_SCIENCE",
+      "CIVICS",
+    ],
+    []
+  );
 
-  const allThemes = [
-    "SEASONS",
-    "NATURE",
-    "HOLIDAYS",
-    "EMOTIONS",
-    "COMMUNITY",
-    "ANIMALS",
-    "TRANSPORTATION",
-    "COLORS",
-    "SHAPES",
-    "NUMBERS",
-    "CULTURE",
-    "HISTORY",
-    "SCIENCE_FICTION",
-    "GLOBAL_ISSUES",
-    "TECHNOLOGY",
-    "LITERATURE",
-  ];
+  const allThemes = useMemo(
+    () => [
+      "SEASONS",
+      "NATURE",
+      "HOLIDAYS",
+      "EMOTIONS",
+      "COMMUNITY",
+      "ANIMALS",
+      "TRANSPORTATION",
+      "COLORS",
+      "SHAPES",
+      "NUMBERS",
+      "CULTURE",
+      "HISTORY",
+      "SCIENCE_FICTION",
+      "GLOBAL_ISSUES",
+      "TECHNOLOGY",
+      "LITERATURE",
+    ],
+    []
+  );
 
-  const allActivityTypes = [
-    "STORYTELLING",
-    "CRAFT",
-    "MOVEMENT",
-    "MUSIC",
-    "EXPERIMENT",
-    "FREE_PLAY",
-    "OUTDOOR",
-    "GROUP_DISCUSSION",
-    "PROJECT",
-    "PRESENTATION",
-    "WRITING",
-    "RESEARCH",
-    "DEBATE",
-    "CODING",
-  ];
+  const allActivityTypes = useMemo(
+    () => [
+      "STORYTELLING",
+      "CRAFT",
+      "MOVEMENT",
+      "MUSIC",
+      "EXPERIMENT",
+      "FREE_PLAY",
+      "OUTDOOR",
+      "GROUP_DISCUSSION",
+      "PROJECT",
+      "PRESENTATION",
+      "WRITING",
+      "RESEARCH",
+      "DEBATE",
+      "CODING",
+    ],
+    []
+  );
 
-  const earlyGrades = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
-  const elementaryGrades = [
-    "GRADE_1",
-    "GRADE_2",
-    "GRADE_3",
-    "GRADE_4",
-    "GRADE_5",
-  ];
-  const middleSchoolGrades = ["GRADE_6", "GRADE_7", "GRADE_8"];
-  const highSchoolGrades = ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"];
+  const earlyGrades = useMemo(
+    () => ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"],
+    []
+  );
+  const elementaryGrades = useMemo(
+    () => ["GRADE_1", "GRADE_2", "GRADE_3", "GRADE_4", "GRADE_5"],
+    []
+  );
+  const middleSchoolGrades = useMemo(
+    () => ["GRADE_6", "GRADE_7", "GRADE_8"],
+    []
+  );
+  const highSchoolGrades = useMemo(
+    () => ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"],
+    []
+  );
 
   const getAvailableSubjects = useCallback(
     (gradeLevel: string) => {
