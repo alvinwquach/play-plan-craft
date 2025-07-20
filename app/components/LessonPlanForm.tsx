@@ -369,7 +369,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with 'I can'.");
+      setError("All success criteria must start with &apos;I can&apos;.");
       setLoading(false);
       return;
     }
@@ -585,7 +585,8 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with 'I can')
+                Success Criteria (Optional, one per line, start with &apos;I
+                can&apos;)
               </label>
               <textarea
                 value={successCriteriaInput}
