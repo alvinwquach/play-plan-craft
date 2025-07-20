@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 interface FormData {
@@ -115,138 +115,165 @@ export default function LessonPlanForm() {
   const middleSchoolGrades = ["GRADE_6", "GRADE_7", "GRADE_8"];
   const highSchoolGrades = ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"];
 
-  const getAvailableSubjects = (gradeLevel: string) => {
-    if (earlyGrades.includes(gradeLevel)) {
-      return [
-        "LITERACY",
-        "MATH",
-        "SCIENCE",
-        "ART",
-        "MUSIC",
-        "PHYSICAL_EDUCATION",
-        "SOCIAL_EMOTIONAL",
-      ];
-    } else if (elementaryGrades.includes(gradeLevel)) {
-      return [
-        "LITERACY",
-        "MATH",
-        "SCIENCE",
-        "ART",
-        "MUSIC",
-        "PHYSICAL_EDUCATION",
-        "SOCIAL_EMOTIONAL",
-        "HISTORY",
-        "GEOGRAPHY",
-      ];
-    } else if (middleSchoolGrades.includes(gradeLevel)) {
-      return [
-        "LITERACY",
-        "MATH",
-        "SCIENCE",
-        "ART",
-        "MUSIC",
-        "PHYSICAL_EDUCATION",
-        "SOCIAL_EMOTIONAL",
-        "HISTORY",
-        "LITERATURE",
-        "GEOGRAPHY",
-        "STEM",
-      ];
-    } else if (highSchoolGrades.includes(gradeLevel)) {
-      return allSubjects;
-    }
-    return [];
-  };
+  const getAvailableSubjects = useCallback(
+    (gradeLevel: string) => {
+      if (earlyGrades.includes(gradeLevel)) {
+        return [
+          "LITERACY",
+          "MATH",
+          "SCIENCE",
+          "ART",
+          "MUSIC",
+          "PHYSICAL_EDUCATION",
+          "SOCIAL_EMOTIONAL",
+        ];
+      } else if (elementaryGrades.includes(gradeLevel)) {
+        return [
+          "LITERACY",
+          "MATH",
+          "SCIENCE",
+          "ART",
+          "MUSIC",
+          "PHYSICAL_EDUCATION",
+          "SOCIAL_EMOTIONAL",
+          "HISTORY",
+          "GEOGRAPHY",
+        ];
+      } else if (middleSchoolGrades.includes(gradeLevel)) {
+        return [
+          "LITERACY",
+          "MATH",
+          "SCIENCE",
+          "ART",
+          "MUSIC",
+          "PHYSICAL_EDUCATION",
+          "SOCIAL_EMOTIONAL",
+          "HISTORY",
+          "LITERATURE",
+          "GEOGRAPHY",
+          "STEM",
+        ];
+      } else if (highSchoolGrades.includes(gradeLevel)) {
+        return allSubjects;
+      }
+      return [];
+    },
+    [
+      allSubjects,
+      earlyGrades,
+      elementaryGrades,
+      middleSchoolGrades,
+      highSchoolGrades,
+    ]
+  );
 
-  const getAvailableThemes = (gradeLevel: string) => {
-    if (earlyGrades.includes(gradeLevel)) {
-      return [
-        "SEASONS",
-        "NATURE",
-        "HOLIDAYS",
-        "EMOTIONS",
-        "COMMUNITY",
-        "ANIMALS",
-        "TRANSPORTATION",
-        "COLORS",
-        "SHAPES",
-        "NUMBERS",
-      ];
-    } else if (elementaryGrades.includes(gradeLevel)) {
-      return [
-        "SEASONS",
-        "NATURE",
-        "HOLIDAYS",
-        "EMOTIONS",
-        "COMMUNITY",
-        "ANIMALS",
-        "TRANSPORTATION",
-        "COLORS",
-        "SHAPES",
-        "NUMBERS",
-        "CULTURE",
-        "HISTORY",
-      ];
-    } else if (middleSchoolGrades.includes(gradeLevel)) {
-      return [
-        "SEASONS",
-        "NATURE",
-        "HOLIDAYS",
-        "EMOTIONS",
-        "COMMUNITY",
-        "ANIMALS",
-        "TRANSPORTATION",
-        "CULTURE",
-        "HISTORY",
-        "SCIENCE_FICTION",
-        "TECHNOLOGY",
-      ];
-    } else if (highSchoolGrades.includes(gradeLevel)) {
-      return allThemes;
-    }
-    return [];
-  };
+  const getAvailableThemes = useCallback(
+    (gradeLevel: string) => {
+      if (earlyGrades.includes(gradeLevel)) {
+        return [
+          "SEASONS",
+          "NATURE",
+          "HOLIDAYS",
+          "EMOTIONS",
+          "COMMUNITY",
+          "ANIMALS",
+          "TRANSPORTATION",
+          "COLORS",
+          "SHAPES",
+          "NUMBERS",
+        ];
+      } else if (elementaryGrades.includes(gradeLevel)) {
+        return [
+          "SEASONS",
+          "NATURE",
+          "HOLIDAYS",
+          "EMOTIONS",
+          "COMMUNITY",
+          "ANIMALS",
+          "TRANSPORTATION",
+          "COLORS",
+          "SHAPES",
+          "NUMBERS",
+          "CULTURE",
+          "HISTORY",
+        ];
+      } else if (middleSchoolGrades.includes(gradeLevel)) {
+        return [
+          "SEASONS",
+          "NATURE",
+          "HOLIDAYS",
+          "EMOTIONS",
+          "COMMUNITY",
+          "ANIMALS",
+          "TRANSPORTATION",
+          "CULTURE",
+          "HISTORY",
+          "SCIENCE_FICTION",
+          "TECHNOLOGY",
+        ];
+      } else if (highSchoolGrades.includes(gradeLevel)) {
+        return allThemes;
+      }
+      return [];
+    },
+    [
+      allThemes,
+      earlyGrades,
+      elementaryGrades,
+      middleSchoolGrades,
+      highSchoolGrades,
+    ]
+  );
 
-  const getAvailableActivityTypes = (gradeLevel: string) => {
-    if (earlyGrades.includes(gradeLevel)) {
-      return [
-        "STORYTELLING",
-        "CRAFT",
-        "MOVEMENT",
-        "MUSIC",
-        "FREE_PLAY",
-        "OUTDOOR",
-      ];
-    } else if (elementaryGrades.includes(gradeLevel)) {
-      return [
-        "STORYTELLING",
-        "CRAFT",
-        "MOVEMENT",
-        "MUSIC",
-        "EXPERIMENT",
-        "FREE_PLAY",
-        "OUTDOOR",
-        "WRITING",
-        "PROJECT",
-      ];
-    } else if (middleSchoolGrades.includes(gradeLevel)) {
-      return [
-        "STORYTELLING",
-        "CRAFT",
-        "MOVEMENT",
-        "MUSIC",
-        "EXPERIMENT",
-        "OUTDOOR",
-        "GROUP_DISCUSSION",
-        "PROJECT",
-        "PRESENTATION",
-        "WRITING",
-      ];
-    } else if (highSchoolGrades.includes(gradeLevel)) {
-      return allActivityTypes;
-    }
-    return [];
-  };
+  const getAvailableActivityTypes = useCallback(
+    (gradeLevel: string) => {
+      if (earlyGrades.includes(gradeLevel)) {
+        return [
+          "STORYTELLING",
+          "CRAFT",
+          "MOVEMENT",
+          "MUSIC",
+          "FREE_PLAY",
+          "OUTDOOR",
+        ];
+      } else if (elementaryGrades.includes(gradeLevel)) {
+        return [
+          "STORYTELLING",
+          "CRAFT",
+          "MOVEMENT",
+          "MUSIC",
+          "EXPERIMENT",
+          "FREE_PLAY",
+          "OUTDOOR",
+          "WRITING",
+          "PROJECT",
+        ];
+      } else if (middleSchoolGrades.includes(gradeLevel)) {
+        return [
+          "STORYTELLING",
+          "CRAFT",
+          "MOVEMENT",
+          "MUSIC",
+          "EXPERIMENT",
+          "OUTDOOR",
+          "GROUP_DISCUSSION",
+          "PROJECT",
+          "PRESENTATION",
+          "WRITING",
+        ];
+      } else if (highSchoolGrades.includes(gradeLevel)) {
+        return allActivityTypes;
+      }
+      return [];
+    },
+    [
+      allActivityTypes,
+      earlyGrades,
+      elementaryGrades,
+      middleSchoolGrades,
+      highSchoolGrades,
+    ]
+  );
 
   useEffect(() => {
     const availableSubjects = getAvailableSubjects(formData.gradeLevel);
@@ -518,7 +545,7 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with 'I can')
+                Success Criteria (Optional, one per line, start with \'I can\')
               </label>
               <textarea
                 value={successCriteriaInput}
