@@ -281,6 +281,9 @@ export default function LessonPlanForm() {
     formData.gradeLevel,
     formData.subject,
     formData.theme,
+    getAvailableSubjects,
+    getAvailableThemes,
+    getAvailableActivityTypes,
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -311,7 +314,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with &apos;I can&apos;.");
+      setError("All success criteria must start with 'I can'.");
       setLoading(false);
       return;
     }
@@ -345,7 +348,7 @@ export default function LessonPlanForm() {
   return (
     <div className="bg-teal-50 text-gray-800 h-screen p-0 overflow-hidden">
       <main className="max-w-2xl mx-auto h-full flex flex-col">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 py-6 text-center bg-white  z-10">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 py-6 text-center bg-white z-10">
           Create Your Lesson Plan
         </h1>
         <div className="bg-white flex-1 overflow-y-auto p-6 sm:p-8 shadow-inner border-t border-gray-200">
