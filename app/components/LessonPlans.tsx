@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 interface LessonPlan {
   title: string;
-  ageGroup: string;
+  gradeLevel: string;
   subject: string;
   theme: string | null;
   status: string;
@@ -165,13 +165,15 @@ export default function LessonPlans() {
             </h2>
             <ul className="text-gray-600 list-inside list-disc">
               <li>
-                <strong>Age Group:</strong> {lessonPlan.ageGroup}
+                <strong>Grade Level:</strong>{" "}
+                {lessonPlan.gradeLevel.replace("_", " ")}{" "}
               </li>
               <li>
-                <strong>Subject:</strong> {lessonPlan.subject}
+                <strong>Subject:</strong> {lessonPlan.subject.replace("_", " ")}
               </li>
               <li>
-                <strong>Theme:</strong> {lessonPlan.theme || "None"}
+                <strong>Theme:</strong>{" "}
+                {lessonPlan.theme ? lessonPlan.theme.replace("_", " ") : "None"}
               </li>
               <li>
                 <strong>Status:</strong> {lessonPlan.status}
@@ -194,7 +196,8 @@ export default function LessonPlans() {
                 {lessonPlan.activities.map((activity, index) => (
                   <li key={index}>
                     <strong className="text-teal-800">
-                      {activity.title} ({activity.activityType})
+                      {activity.title} (
+                      {activity.activityType.replace("_", " ")})
                     </strong>
                     <p>{activity.description}</p>
                     <p className="text-sm">
