@@ -11,6 +11,8 @@ interface LessonPlan {
   status: string;
   duration: number;
   classroomSize: number;
+  learningIntention: string;
+  successCriteria: string[];
   activities: {
     title: string;
     activityType: string;
@@ -159,6 +161,26 @@ export default function LessonPlans() {
           {lessonPlan.title}
         </h1>
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-8">
+          <div>
+            <h2 className="text-xl font-semibold text-teal-800 mb-4">
+              Learning Intention
+            </h2>
+            <p className="text-gray-600">{lessonPlan.learningIntention}</p>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-teal-800 mb-4">
+              Success Criteria
+            </h2>
+            {lessonPlan.successCriteria.length > 0 ? (
+              <ul className="text-gray-600 list-inside list-disc space-y-2">
+                {lessonPlan.successCriteria.map((criterion, index) => (
+                  <li key={index}>{criterion}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-600">No success criteria specified.</p>
+            )}
+          </div>
           <div>
             <h2 className="text-xl font-semibold text-teal-800 mb-4">
               Details
