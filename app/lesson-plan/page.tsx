@@ -11,6 +11,8 @@ interface FormData {
   duration: number;
   activityTypes: string[];
   classroomSize: number;
+  learningIntention: string;
+  successCriteria: string[];
 }
 
 export default function LessonPlanForm() {
@@ -23,7 +25,10 @@ export default function LessonPlanForm() {
     duration: 30,
     activityTypes: ["STORYTELLING"],
     classroomSize: 10,
+    learningIntention: "",
+    successCriteria: [],
   });
+  const [successCriteriaInput, setSuccessCriteriaInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -295,11 +300,25 @@ export default function LessonPlanForm() {
       return;
     }
 
+    // Parse successCriteria from textarea input
+    const criteria = successCriteriaInput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
+      setError("All success criteria must start with 'I can'.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/openai-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          successCriteria: criteria,
+        }),
       });
 
       const data = await response.json();
@@ -470,6 +489,35 @@ export default function LessonPlanForm() {
               <p className="text-xs text-gray-500 mt-2">
                 Hold Ctrl/Cmd to select multiple activity types
               </p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Learning Intention (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.learningIntention}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    learningIntention: e.target.value,
+                  })
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                placeholder="Enter learning intention"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Success Criteria (Optional, one per line, start with 'I can')
+              </label>
+              <textarea
+                value={successCriteriaInput}
+                onChange={(e) => setSuccessCriteriaInput(e.target.value)}
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                placeholder="Enter success criteria, one per line (e.g., I can ...)"
+                rows={5}
+              />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button

@@ -36,6 +36,8 @@ interface LessonPlan {
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];
+  learningIntention: string;
+  successCriteria: string[];
 }
 
 interface OpenAIResponse {
@@ -45,6 +47,8 @@ interface OpenAIResponse {
     requiredSupplies?: (string | Partial<Supply>)[];
     developmentGoals?: DevelopmentGoal[];
     tags?: string[];
+    learningIntention?: string;
+    successCriteria?: string[];
   };
 }
 
@@ -333,13 +337,15 @@ export async function POST(request: Request) {
     }
 
     const prompt = `
-You are a lesson planner AI. Generate a structured JSON response.
+You are an AI lesson planner. Generate a structured JSON response.
 
 Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students focusing on ${subject.toLowerCase()}${
       theme ? ` with a ${theme.toLowerCase()} theme` : ""
     } for a classroom of ${classroomSize} students.
 
 Use these activity types: ${activityTypes.join(", ")}.
+
+Include a "Learning Intention" (a clear statement of what students will learn) and "Success Criteria" (a list of measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes").
 
 Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example, for craft activities, provide enough materials for each student, and for shared items like books or tools, provide a reasonable number for group use.
 
@@ -354,6 +360,8 @@ Ensure the JSON is strictly in this format:
     "status": "DRAFT",
     "duration": ${duration},
     "classroomSize": ${classroomSize},
+    "learningIntention": string,
+    "successCriteria": [string],
     "activities": [
       {
         "title": string,
@@ -427,6 +435,11 @@ Only output a valid JSON object. No markdown or extra text.
         10
       ),
       classroomSize: lesson.classroomSize ?? classroomSize,
+      learningIntention:
+        lesson.learningIntention ?? "To learn key concepts of the subject",
+      successCriteria: lesson.successCriteria ?? [
+        "I can demonstrate understanding of the lesson",
+      ],
       activities: (lesson.activities ?? []).map((activity) => ({
         title: activity.title ?? "Untitled Activity",
         activityType: activity.activityType ?? "UNKNOWN",
