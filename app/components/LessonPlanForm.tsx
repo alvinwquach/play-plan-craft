@@ -359,7 +359,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with 'I can'.");
+      setError("All success criteria must start with &apos;I can&apos;.");
       setLoading(false);
       return;
     }
