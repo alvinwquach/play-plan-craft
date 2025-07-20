@@ -26,7 +26,7 @@ interface DevelopmentGoal {
 
 interface LessonPlan {
   title: string;
-  ageGroup: string;
+  gradeLevel: string;
   subject: string;
   theme: string | null;
   status: string;
@@ -50,56 +50,248 @@ interface OpenAIResponse {
 
 export async function POST(request: Request) {
   try {
-    const { ageGroup, subject, theme, duration, activityTypes, classroomSize } =
-      await request.json();
+    const {
+      gradeLevel,
+      subject,
+      theme,
+      duration,
+      activityTypes,
+      classroomSize,
+    } = await request.json();
 
-    const validAgeGroups = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
-    const validSubjects = [
-      "LITERACY",
-      "MATH",
-      "SCIENCE",
-      "ART",
-      "MUSIC",
-      "PHYSICAL_EDUCATION",
-      "SOCIAL_EMOTIONAL",
-    ];
-    const validThemes = [
-      "SEASONS",
-      "NATURE",
-      "HOLIDAYS",
-      "EMOTIONS",
-      "COMMUNITY",
-      "ANIMALS",
-      "TRANSPORTATION",
-      "COLORS",
-      "SHAPES",
-      "NUMBERS",
-    ];
-    const validActivityTypes = [
-      "STORYTELLING",
-      "CRAFT",
-      "MOVEMENT",
-      "MUSIC",
-      "EXPERIMENT",
-      "FREE_PLAY",
-      "OUTDOOR",
+    const validGradeLevels = [
+      "INFANT",
+      "TODDLER",
+      "PRESCHOOL",
+      "KINDERGARTEN",
+      "GRADE_1",
+      "GRADE_2",
+      "GRADE_3",
+      "GRADE_4",
+      "GRADE_5",
+      "GRADE_6",
+      "GRADE_7",
+      "GRADE_8",
+      "GRADE_9",
+      "GRADE_10",
+      "GRADE_11",
+      "GRADE_12",
     ];
 
-    if (!validAgeGroups.includes(ageGroup)) {
+    const earlyGrades = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
+    const elementaryGrades = [
+      "GRADE_1",
+      "GRADE_2",
+      "GRADE_3",
+      "GRADE_4",
+      "GRADE_5",
+    ];
+    const middleSchoolGrades = ["GRADE_6", "GRADE_7", "GRADE_8"];
+    const highSchoolGrades = ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"];
+
+    const validSubjects = {
+      early: [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+      ],
+      elementary: [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "GEOGRAPHY",
+      ],
+      middle: [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "LITERATURE",
+        "GEOGRAPHY",
+        "STEM",
+      ],
+      high: [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "LITERATURE",
+        "GEOGRAPHY",
+        "STEM",
+        "FOREIGN_LANGUAGE",
+        "COMPUTER_SCIENCE",
+        "CIVICS",
+      ],
+    };
+
+    const validThemes = {
+      early: [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+      ],
+      elementary: [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+        "CULTURE",
+        "HISTORY",
+      ],
+      middle: [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "CULTURE",
+        "HISTORY",
+        "SCIENCE_FICTION",
+        "TECHNOLOGY",
+      ],
+      high: [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "CULTURE",
+        "HISTORY",
+        "SCIENCE_FICTION",
+        "GLOBAL_ISSUES",
+        "TECHNOLOGY",
+        "LITERATURE",
+      ],
+    };
+
+    const validActivityTypes = {
+      early: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "FREE_PLAY",
+        "OUTDOOR",
+      ],
+      elementary: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "FREE_PLAY",
+        "OUTDOOR",
+        "WRITING",
+        "PROJECT",
+      ],
+      middle: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+      ],
+      high: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+        "RESEARCH",
+        "DEBATE",
+        "CODING",
+      ],
+    };
+
+    let allowedSubjects: string[];
+    let allowedThemes: string[];
+    let allowedActivityTypes: string[];
+
+    if (earlyGrades.includes(gradeLevel)) {
+      allowedSubjects = validSubjects.early;
+      allowedThemes = validThemes.early;
+      allowedActivityTypes = validActivityTypes.early;
+    } else if (elementaryGrades.includes(gradeLevel)) {
+      allowedSubjects = validSubjects.elementary;
+      allowedThemes = validThemes.elementary;
+      allowedActivityTypes = validActivityTypes.elementary;
+    } else if (middleSchoolGrades.includes(gradeLevel)) {
+      allowedSubjects = validSubjects.middle;
+      allowedThemes = validThemes.middle;
+      allowedActivityTypes = validActivityTypes.middle;
+    } else if (highSchoolGrades.includes(gradeLevel)) {
+      allowedSubjects = validSubjects.high;
+      allowedThemes = validThemes.high;
+      allowedActivityTypes = validActivityTypes.high;
+    } else {
       return NextResponse.json(
-        { success: false, error: `Invalid ageGroup: ${ageGroup}` },
+        { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
         { status: 400 }
       );
     }
-    if (!validSubjects.includes(subject)) {
+
+    if (!validGradeLevels.includes(gradeLevel)) {
       return NextResponse.json(
-        { success: false, error: `Invalid subject: ${subject}` },
+        { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
         { status: 400 }
       );
     }
-    if (theme && !validThemes.includes(theme)) {
+    if (!allowedSubjects.includes(subject)) {
       return NextResponse.json(
-        { success: false, error: `Invalid theme: ${theme}` },
+        {
+          success: false,
+          error: `Invalid subject for ${gradeLevel}: ${subject}`,
+        },
+        { status: 400 }
+      );
+    }
+    if (theme && !allowedThemes.includes(theme)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid theme for ${gradeLevel}: ${theme}` },
         { status: 400 }
       );
     }
@@ -112,12 +304,16 @@ export async function POST(request: Request) {
     if (
       !Array.isArray(activityTypes) ||
       activityTypes.length === 0 ||
-      !activityTypes.every((type: string) => validActivityTypes.includes(type))
+      !activityTypes.every((type: string) =>
+        allowedActivityTypes.includes(type)
+      )
     ) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid activity types: ${activityTypes.join(", ")}`,
+          error: `Invalid activity types for ${gradeLevel}: ${activityTypes.join(
+            ", "
+          )}`,
         },
         { status: 400 }
       );
@@ -139,7 +335,7 @@ export async function POST(request: Request) {
     const prompt = `
 You are a lesson planner AI. Generate a structured JSON response.
 
-Create a ${duration}-minute lesson plan for ${ageGroup.toLowerCase()} children focusing on ${subject.toLowerCase()}${
+Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students focusing on ${subject.toLowerCase()}${
       theme ? ` with a ${theme.toLowerCase()} theme` : ""
     } for a classroom of ${classroomSize} students.
 
@@ -152,7 +348,7 @@ Ensure the JSON is strictly in this format:
 {
   "lessonPlan": {
     "title": string,
-    "ageGroup": "${ageGroup}",
+    "gradeLevel": "${gradeLevel}",
     "subject": "${subject}",
     "theme": "${theme || null}",
     "status": "DRAFT",
@@ -212,7 +408,7 @@ Only output a valid JSON object. No markdown or extra text.
     if (
       !lesson ||
       typeof lesson.title !== "string" ||
-      typeof lesson.ageGroup !== "string" ||
+      typeof lesson.gradeLevel !== "string" ||
       typeof lesson.subject !== "string" ||
       typeof lesson.status !== "string" ||
       typeof lesson.classroomSize !== "number"
@@ -222,7 +418,7 @@ Only output a valid JSON object. No markdown or extra text.
 
     const lessonPlan: LessonPlan = {
       title: lesson.title ?? "Untitled Lesson",
-      ageGroup: lesson.ageGroup ?? ageGroup,
+      gradeLevel: lesson.gradeLevel ?? gradeLevel,
       subject: lesson.subject ?? subject,
       theme: lesson.theme ?? theme ?? null,
       status: lesson.status ?? "DRAFT",

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface FormData {
   title: string;
-  ageGroup: string;
+  gradeLevel: string;
   subject: string;
   theme: string;
   duration: number;
@@ -17,7 +17,7 @@ export default function LessonPlanForm() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     title: "",
-    ageGroup: "PRESCHOOL",
+    gradeLevel: "PRESCHOOL",
     subject: "SCIENCE",
     theme: "",
     duration: 30,
@@ -27,8 +27,26 @@ export default function LessonPlanForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ageGroups = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
-  const subjects = [
+  const gradeLevels = [
+    "INFANT",
+    "TODDLER",
+    "PRESCHOOL",
+    "KINDERGARTEN",
+    "GRADE_1",
+    "GRADE_2",
+    "GRADE_3",
+    "GRADE_4",
+    "GRADE_5",
+    "GRADE_6",
+    "GRADE_7",
+    "GRADE_8",
+    "GRADE_9",
+    "GRADE_10",
+    "GRADE_11",
+    "GRADE_12",
+  ];
+
+  const allSubjects = [
     "LITERACY",
     "MATH",
     "SCIENCE",
@@ -36,8 +54,16 @@ export default function LessonPlanForm() {
     "MUSIC",
     "PHYSICAL_EDUCATION",
     "SOCIAL_EMOTIONAL",
+    "HISTORY",
+    "LITERATURE",
+    "GEOGRAPHY",
+    "STEM",
+    "FOREIGN_LANGUAGE",
+    "COMPUTER_SCIENCE",
+    "CIVICS",
   ];
-  const themes = [
+
+  const allThemes = [
     "SEASONS",
     "NATURE",
     "HOLIDAYS",
@@ -48,8 +74,15 @@ export default function LessonPlanForm() {
     "COLORS",
     "SHAPES",
     "NUMBERS",
+    "CULTURE",
+    "HISTORY",
+    "SCIENCE_FICTION",
+    "GLOBAL_ISSUES",
+    "TECHNOLOGY",
+    "LITERATURE",
   ];
-  const activityTypes = [
+
+  const allActivityTypes = [
     "STORYTELLING",
     "CRAFT",
     "MOVEMENT",
@@ -57,7 +90,187 @@ export default function LessonPlanForm() {
     "EXPERIMENT",
     "FREE_PLAY",
     "OUTDOOR",
+    "GROUP_DISCUSSION",
+    "PROJECT",
+    "PRESENTATION",
+    "WRITING",
+    "RESEARCH",
+    "DEBATE",
+    "CODING",
   ];
+
+  const earlyGrades = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
+  const elementaryGrades = [
+    "GRADE_1",
+    "GRADE_2",
+    "GRADE_3",
+    "GRADE_4",
+    "GRADE_5",
+  ];
+  const middleSchoolGrades = ["GRADE_6", "GRADE_7", "GRADE_8"];
+  const highSchoolGrades = ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"];
+
+  const getAvailableSubjects = (gradeLevel: string) => {
+    if (earlyGrades.includes(gradeLevel)) {
+      return [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+      ];
+    } else if (elementaryGrades.includes(gradeLevel)) {
+      return [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "GEOGRAPHY",
+      ];
+    } else if (middleSchoolGrades.includes(gradeLevel)) {
+      return [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "LITERATURE",
+        "GEOGRAPHY",
+        "STEM",
+      ];
+    } else if (highSchoolGrades.includes(gradeLevel)) {
+      return allSubjects;
+    }
+    return [];
+  };
+
+  const getAvailableThemes = (gradeLevel: string) => {
+    if (earlyGrades.includes(gradeLevel)) {
+      return [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+      ];
+    } else if (elementaryGrades.includes(gradeLevel)) {
+      return [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+        "CULTURE",
+        "HISTORY",
+      ];
+    } else if (middleSchoolGrades.includes(gradeLevel)) {
+      return [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "CULTURE",
+        "HISTORY",
+        "SCIENCE_FICTION",
+        "TECHNOLOGY",
+      ];
+    } else if (highSchoolGrades.includes(gradeLevel)) {
+      return allThemes;
+    }
+    return [];
+  };
+
+  const getAvailableActivityTypes = (gradeLevel: string) => {
+    if (earlyGrades.includes(gradeLevel)) {
+      return [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "FREE_PLAY",
+        "OUTDOOR",
+      ];
+    } else if (elementaryGrades.includes(gradeLevel)) {
+      return [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "FREE_PLAY",
+        "OUTDOOR",
+        "WRITING",
+        "PROJECT",
+      ];
+    } else if (middleSchoolGrades.includes(gradeLevel)) {
+      return [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+      ];
+    } else if (highSchoolGrades.includes(gradeLevel)) {
+      return allActivityTypes;
+    }
+    return [];
+  };
+
+  useEffect(() => {
+    const availableSubjects = getAvailableSubjects(formData.gradeLevel);
+    const availableThemes = getAvailableThemes(formData.gradeLevel);
+    const availableActivityTypes = getAvailableActivityTypes(
+      formData.gradeLevel
+    );
+
+    if (!availableSubjects.includes(formData.subject)) {
+      setFormData((prev) => ({ ...prev, subject: availableSubjects[0] || "" }));
+    }
+
+    if (formData.theme && !availableThemes.includes(formData.theme)) {
+      setFormData((prev) => ({ ...prev, theme: "" }));
+    }
+
+    const validActivityTypes = formData.activityTypes.filter((type) =>
+      availableActivityTypes.includes(type)
+    );
+    if (validActivityTypes.length !== formData.activityTypes.length) {
+      setFormData((prev) => ({
+        ...prev,
+        activityTypes:
+          validActivityTypes.length > 0
+            ? validActivityTypes
+            : [availableActivityTypes[0]],
+      }));
+    }
+  }, [formData.gradeLevel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,19 +343,19 @@ export default function LessonPlanForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-teal-800 mb-2">
-                  Age Group
+                  Grade Level
                 </label>
                 <select
-                  value={formData.ageGroup}
+                  value={formData.gradeLevel}
                   onChange={(e) =>
-                    setFormData({ ...formData, ageGroup: e.target.value })
+                    setFormData({ ...formData, gradeLevel: e.target.value })
                   }
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   required
                 >
-                  {ageGroups.map((age) => (
-                    <option key={age} value={age}>
-                      {age}
+                  {gradeLevels.map((grade) => (
+                    <option key={grade} value={grade}>
+                      {grade.replace("_", " ")}
                     </option>
                   ))}
                 </select>
@@ -159,9 +372,9 @@ export default function LessonPlanForm() {
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   required
                 >
-                  {subjects.map((subject) => (
+                  {getAvailableSubjects(formData.gradeLevel).map((subject) => (
                     <option key={subject} value={subject}>
-                      {subject}
+                      {subject.replace("_", " ")}
                     </option>
                   ))}
                 </select>
@@ -180,9 +393,9 @@ export default function LessonPlanForm() {
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 >
                   <option value="">Select a theme</option>
-                  {themes.map((theme) => (
+                  {getAvailableThemes(formData.gradeLevel).map((theme) => (
                     <option key={theme} value={theme}>
-                      {theme}
+                      {theme.replace("_", " ")}
                     </option>
                   ))}
                 </select>
@@ -248,9 +461,9 @@ export default function LessonPlanForm() {
                 className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 required
               >
-                {activityTypes.map((type) => (
+                {getAvailableActivityTypes(formData.gradeLevel).map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {type.replace("_", " ")}
                   </option>
                 ))}
               </select>
