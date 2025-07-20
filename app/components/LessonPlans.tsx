@@ -78,6 +78,11 @@ interface DrdpDomain {
   strategies: string[];
 }
 
+interface Standard {
+  code: string;
+  description: string;
+}
+
 interface LessonPlan {
   title: string;
   gradeLevel: string;
@@ -93,6 +98,7 @@ interface LessonPlan {
   tags: string[];
   developmentGoals: DevelopmentGoal[];
   drdpDomains?: DrdpDomain[];
+  standards?: Standard[];
 }
 
 const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
@@ -219,6 +225,21 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
           )}
         </View>
       )}
+      {lessonPlan.standards && (
+        <View style={styles.section}>
+          <Text style={styles.heading}>Standards Alignment</Text>
+          {lessonPlan.standards.length > 0 ? (
+            lessonPlan.standards.map((standard, index) => (
+              <View key={index} style={styles.bullet}>
+                <Text style={styles.text}>{standard.code}</Text>
+                <Text style={styles.text}>{standard.description}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.text}>No standards specified.</Text>
+          )}
+        </View>
+      )}
     </Page>
   </Document>
 );
@@ -256,6 +277,10 @@ const LessonPlanSkeleton = () => (
         <div>
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
           <Skeleton className="h-4 w-3/4 bg-gray-200" />
+        </div>
+        <div>
+          <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
+          <Skeleton className="h-4 w-full bg-gray-200" />
         </div>
         <div>
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
@@ -478,6 +503,21 @@ export default function LessonPlans() {
                             bullet: { level: 1 },
                           })
                       ),
+                    ]),
+                  ]
+                : []),
+              ...(lessonPlan.standards
+                ? [
+                    new Paragraph({
+                      text: "Standards Alignment",
+                      heading: "Heading2",
+                    }),
+                    ...lessonPlan.standards.flatMap((standard) => [
+                      new Paragraph({
+                        text: standard.code,
+                        bullet: { level: 0 },
+                      }),
+                      new Paragraph({ text: standard.description }),
                     ]),
                   ]
                 : []),
@@ -814,6 +854,27 @@ export default function LessonPlans() {
                   )}
                 </div>
               )}
+            {lessonPlan.standards && (
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                  Standards Alignment
+                </h2>
+                {lessonPlan.standards.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-4">
+                    {lessonPlan.standards.map((standard, index) => (
+                      <li key={index}>
+                        <strong className="text-teal-800">
+                          {standard.code}
+                        </strong>
+                        <p>{standard.description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">No standards specified.</p>
+                )}
+              </div>
+            )}
             <div className="flex justify-end gap-2 mt-4">
               <Tooltip>
                 <TooltipTrigger asChild>

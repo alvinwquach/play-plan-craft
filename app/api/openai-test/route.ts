@@ -31,6 +31,11 @@ interface DrdpDomain {
   strategies: string[];
 }
 
+interface Standard {
+  code: string;
+  description: string;
+}
+
 interface LessonPlan {
   title: string;
   gradeLevel: string;
@@ -46,6 +51,7 @@ interface LessonPlan {
   learningIntention: string;
   successCriteria: string[];
   drdpDomains?: DrdpDomain[];
+  standards?: Standard[];
 }
 
 interface OpenAIResponse {
@@ -58,6 +64,7 @@ interface OpenAIResponse {
     learningIntention?: string;
     successCriteria?: string[];
     drdpDomains?: DrdpDomain[];
+    standards?: Standard[];
   };
 }
 
@@ -70,6 +77,8 @@ export async function POST(request: Request) {
       duration,
       activityTypes,
       classroomSize,
+      standardsFramework,
+      standards,
     } = await request.json();
 
     const validGradeLevels = [
@@ -345,6 +354,33 @@ export async function POST(request: Request) {
       );
     }
 
+    const validStandardsFrameworks = ["COMMON_CORE", "NGSS", "STATE_SPECIFIC"];
+    if (
+      standardsFramework &&
+      !validStandardsFrameworks.includes(standardsFramework)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid standards framework: ${standardsFramework}`,
+        },
+        { status: 400 }
+      );
+    }
+    if (
+      standardsFramework &&
+      (!Array.isArray(standards) || standards.length === 0)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Standards must be provided when a standards framework is selected.",
+        },
+        { status: 400 }
+      );
+    }
+
     const prompt = `
 You are an AI lesson planner. Generate a structured JSON response.
 
@@ -377,6 +413,12 @@ Map activities to DRDP domains as follows:
 - Ensure each domain includes a "code", "name", "description" (tailored to the activities), and a "strategies" array with at least two specific strategies to support development in that domain.
 
 For all other grade levels, include "drdpDomains" only if relevant, with generic developmental strategies if applicable.
+
+If a standards framework is provided (e.g., ${
+      standardsFramework || "none"
+    }), align the lesson plan with the specified standards: ${
+      standards?.join(", ") || "none"
+    }. Include a "standards" array with each standard having a "code" (e.g., "CCSS.MATH.CONTENT.2.OA.A.1") and a "description" (e.g., "Use addition and subtraction within 100 to solve one- and two-step word problems"). Ensure activities and success criteria align with these standards.
 
 Ensure the JSON is strictly in this format:
 
@@ -420,6 +462,12 @@ Ensure the JSON is strictly in this format:
         "name": string,
         "description": string,
         "strategies": [string]
+      }
+    ],
+    "standards": [
+      {
+        "code": string,
+        "description": string
       }
     ]
   }
@@ -518,6 +566,7 @@ Only output a valid JSON object. No markdown or extra text.
         lesson.drdpDomains && gradeLevel === "PRESCHOOL"
           ? lesson.drdpDomains
           : [],
+      standards: lesson.standards ?? [],
     };
 
     return NextResponse.json({

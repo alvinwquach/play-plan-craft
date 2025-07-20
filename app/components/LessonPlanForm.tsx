@@ -13,6 +13,8 @@ interface FormData {
   classroomSize: number;
   learningIntention: string;
   successCriteria: string[];
+  standardsFramework: string;
+  standards: string[];
 }
 
 export default function LessonPlanForm() {
@@ -27,8 +29,11 @@ export default function LessonPlanForm() {
     classroomSize: 10,
     learningIntention: "",
     successCriteria: [],
+    standardsFramework: "",
+    standards: [],
   });
   const [successCriteriaInput, setSuccessCriteriaInput] = useState<string>("");
+  const [standardsInput, setStandardsInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,6 +118,11 @@ export default function LessonPlanForm() {
       "DEBATE",
       "CODING",
     ],
+    []
+  );
+
+  const standardsFrameworks = useMemo(
+    () => ["COMMON_CORE", "NGSS", "STATE_SPECIFIC"],
     []
   );
 
@@ -359,7 +369,19 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with &apos;I can&apos;.");
+      setError("All success criteria must start with 'I can'.");
+      setLoading(false);
+      return;
+    }
+
+    const standards = standardsInput
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    if (formData.standardsFramework && standards.length === 0) {
+      setError(
+        "At least one standard is required when a standards framework is selected."
+      );
       setLoading(false);
       return;
     }
@@ -371,6 +393,7 @@ export default function LessonPlanForm() {
         body: JSON.stringify({
           ...formData,
           successCriteria: criteria,
+          standards,
         }),
       });
 
@@ -562,8 +585,7 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with &apos;I
-                can&apos;)
+                Success Criteria (Optional, one per line, start with 'I can')
               </label>
               <textarea
                 value={successCriteriaInput}
@@ -573,9 +595,47 @@ export default function LessonPlanForm() {
                 rows={5}
               />
             </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Standards Framework (Optional)
+              </label>
+              <select
+                value={formData.standardsFramework}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    standardsFramework: e.target.value,
+                    standards: [],
+                  })
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              >
+                <option value="">Select a standards framework</option>
+                {standardsFrameworks.map((framework) => (
+                  <option key={framework} value={framework}>
+                    {framework.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {formData.standardsFramework && (
+              <div>
+                <label className="block text-sm font-semibold text-teal-800 mb-2">
+                  Standards (Optional, one per line, e.g.,
+                  CCSS.MATH.CONTENT.2.OA.A.1)
+                </label>
+                <textarea
+                  value={standardsInput}
+                  onChange={(e) => setStandardsInput(e.target.value)}
+                  className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  placeholder="Enter standards, one per line (e.g., CCSS.MATH.CONTENT.2.OA.A.1)"
+                  rows={5}
+                />
+              </div>
+            )}
             <p className="text-sm text-gray-600">
-              Note: Development goals and strategies will be automatically
-              generated based on your input.
+              Note: Development goals, strategies, and standards alignment will
+              be automatically generated based on your input.
             </p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
