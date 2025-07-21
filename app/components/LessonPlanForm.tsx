@@ -579,30 +579,35 @@ export default function LessonPlanForm() {
               <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Activity Types
               </label>
-              <select
-                multiple
-                value={formData.activityTypes}
-                onChange={(e) => {
-                  const selected = Array.from(
-                    e.target.selectedOptions,
-                    (option) => option.value
-                  );
-                  setFormData({
-                    ...formData,
-                    activityTypes: selected,
-                  });
-                }}
-                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                required
-              >
+              <div className="space-y-2">
                 {getAvailableActivityTypes(formData.gradeLevel).map((type) => (
-                  <option key={type} value={type}>
-                    {type.replace("_", " ")}
-                  </option>
+                  <div key={type} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={type}
+                      value={type}
+                      checked={formData.activityTypes.includes(type)}
+                      onChange={(e) => {
+                        const selectedTypes = e.target.checked
+                          ? [...formData.activityTypes, type]
+                          : formData.activityTypes.filter(
+                              (item) => item !== type
+                            );
+                        setFormData({
+                          ...formData,
+                          activityTypes: selectedTypes,
+                        });
+                      }}
+                      className="h-4 w-4 text-teal-400 focus:ring-teal-400"
+                    />
+                    <label htmlFor={type} className="ml-2 text-gray-600">
+                      {type.replace("_", " ")}
+                    </label>
+                  </div>
                 ))}
-              </select>
+              </div>
               <p className="text-xs text-gray-500 mt-2">
-                Hold Ctrl/Cmd to select multiple activity types
+                Select multiple activity types by checking the boxes.
               </p>
             </div>
             <div>
