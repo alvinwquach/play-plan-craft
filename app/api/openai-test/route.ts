@@ -5,11 +5,18 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface Source {
+  name: string;
+  url: string;
+  description: string;
+}
+
 interface Activity {
   title: string;
   activityType: string;
   description: string;
   durationMins: number;
+  source: Source;
 }
 
 interface Supply {
@@ -34,6 +41,13 @@ interface DrdpDomain {
 interface Standard {
   code: string;
   description: string;
+  source?: Source;
+}
+
+interface SourceMetadata {
+  name: string;
+  url: string;
+  description: string;
 }
 
 interface LessonPlan {
@@ -52,11 +66,13 @@ interface LessonPlan {
   successCriteria: string[];
   drdpDomains?: DrdpDomain[];
   standards?: Standard[];
+  sourceMetadata?: SourceMetadata[];
+  citationScore?: number;
 }
 
 interface OpenAIResponse {
   lessonPlan: Partial<LessonPlan> & {
-    activities?: Partial<Activity>[];
+    activities?: (Partial<Activity> & { source?: Source })[];
     supplies?: (string | Partial<Supply>)[];
     requiredSupplies?: (string | Partial<Supply>)[];
     developmentGoals?: DevelopmentGoal[];
@@ -64,7 +80,9 @@ interface OpenAIResponse {
     learningIntention?: string;
     successCriteria?: string[];
     drdpDomains?: DrdpDomain[];
-    standards?: Standard[];
+    standards?: (Standard & { source?: Source })[];
+    sourceMetadata?: SourceMetadata[];
+    citationScore?: number;
   };
 }
 
@@ -77,8 +95,11 @@ export async function POST(request: Request) {
       duration,
       activityTypes,
       classroomSize,
+      learningIntention,
+      successCriteria,
       standardsFramework,
       standards,
+      preferredSources,
     } = await request.json();
 
     const validGradeLevels = [
@@ -381,6 +402,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // Default sources if none provided
+    const defaultSources: Source[] = [
+      {
+        name: "Khan Academy",
+        url: "https://www.khanacademy.org",
+        description: "Used for activity ideas and educational content",
+      },
+      {
+        name: "NSTA",
+        url: "https://www.nsta.org",
+        description: "Used for science education resources",
+      },
+    ];
+
+    const sources =
+      Array.isArray(preferredSources) && preferredSources.length > 0
+        ? preferredSources
+        : defaultSources;
+
     const prompt = `
 You are an AI lesson planner. Generate a structured JSON response.
 
@@ -389,8 +429,18 @@ Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students
     } for a classroom of ${classroomSize} students.
 
 Use these activity types: ${activityTypes.join(", ")}.
-
-Include a "Learning Intention" (a clear statement of what students will learn) and "Success Criteria" (a list of measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes").
+${
+  learningIntention
+    ? `Use this learning intention: "${learningIntention}".`
+    : 'Generate a "Learning Intention" (a clear statement of what students will learn).'
+}
+${
+  successCriteria && successCriteria.length > 0
+    ? `Use these success criteria: ${successCriteria
+        .map((c: string) => `"${c}"`)
+        .join(", ")}.`
+    : 'Generate "Success Criteria" (a list of measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes").'
+}
 
 Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example, for craft activities, provide enough materials for each student, and for shared items like books or tools, provide a reasonable number for group use.
 
@@ -418,7 +468,23 @@ If a standards framework is provided (e.g., ${
       standardsFramework || "none"
     }), align the lesson plan with the specified standards: ${
       standards?.join(", ") || "none"
-    }. Include a "standards" array with each standard having a "code" (e.g., "CCSS.MATH.CONTENT.2.OA.A.1") and a "description" (e.g., "Use addition and subtraction within 100 to solve one- and two-step word problems"). Ensure activities and success criteria align with these standards.
+    }. Include a "standards" array with each standard having a "code" (e.g., "CCSS.MATH.CONTENT.2.OA.A.1"), a "description" (e.g., "Use addition and subtraction within 100 to solve one- and two-step word problems"), and a "source" object with "name" (e.g., "Common Core") and "url" (e.g., "http://www.corestandards.org/Math/Content/2/OA/").
+
+For each activity, assign a trusted source from the following list of preferred sources: ${JSON.stringify(
+      sources
+    )}. Cycle through the provided sources to assign one to each activity. If no preferred sources are provided, use default sources: ${JSON.stringify(
+      defaultSources
+    )}. Each activity must have a "source" object with:
+- "name": string (e.g., "Khan Academy")
+- "url": string (e.g., "https://www.khanacademy.org")
+- "description": string (brief explanation of how the source was used, e.g., "Provided activity inspiration")
+
+Include a "sourceMetadata" array containing all provided sources (or default sources if none provided). Each source should have:
+- "name": string
+- "url": string
+- "description": string
+
+Include a "citationScore" (0-100) indicating the reliability of the sources used, based on their authority (e.g., 90 for Common Core, 85 for Khan Academy, 80 for NSTA). Calculate the citation score as an average of the scores of all sources used (assume provided sources have a score of 85 unless they match Common Core or NGSS, which are 90).
 
 Ensure the JSON is strictly in this format:
 
@@ -438,7 +504,12 @@ Ensure the JSON is strictly in this format:
         "title": string,
         "activityType": string,
         "description": string,
-        "durationMins": number
+        "durationMins": number,
+        "source": {
+          "name": string,
+          "url": string,
+          "description": string
+        }
       }
     ],
     "supplies": [
@@ -467,9 +538,21 @@ Ensure the JSON is strictly in this format:
     "standards": [
       {
         "code": string,
+        "description": string,
+        "source": {
+          "name": string,
+          "url": string
+        }
+      }
+    ],
+    "sourceMetadata": [
+      {
+        "name": string,
+        "url": string,
         "description": string
       }
-    ]
+    ],
+    "citationScore": number
   }
 }
 
@@ -509,6 +592,55 @@ Only output a valid JSON object. No markdown or extra text.
       throw new Error("Incomplete lesson plan response");
     }
 
+    const activitiesWithSources = (lesson.activities ?? []).map(
+      (activity, index) => {
+        const sourceIndex = index % sources.length;
+        const source = activity.source ?? sources[sourceIndex];
+        return {
+          title: activity.title ?? "Untitled Activity",
+          activityType: activity.activityType ?? "UNKNOWN",
+          description: activity.description ?? "",
+          durationMins: parseInt(
+            activity.durationMins?.toString().replace("minutes", "").trim() ??
+              "0",
+            10
+          ),
+          source: {
+            name: source.name ?? "Unknown Source",
+            url: source.url ?? "https://www.example.com",
+            description:
+              source.description ?? "Source used for activity inspiration",
+          },
+        };
+      }
+    );
+
+    const sourceScores: { [key: string]: number } = {
+      "Common Core": 90,
+      NGSS: 90,
+      "Khan Academy": 85,
+      NSTA: 80,
+    };
+    const usedSources = [
+      ...new Set(
+        [
+          ...activitiesWithSources.map((a) => a.source.name),
+          ...(lesson.sourceMetadata?.map((s) => s.name) ?? []),
+          ...(lesson.standards
+            ?.map((s) => s.source?.name)
+            .filter((name): name is string => !!name) ?? []),
+        ].filter((name): name is string => !!name)
+      ),
+    ];
+    const citationScore =
+      usedSources.length > 0
+        ? Math.round(
+            usedSources
+              .map((name) => sourceScores[name] ?? 85)
+              .reduce((sum, score) => sum + score, 0) / usedSources.length
+          )
+        : 80;
+
     const lessonPlan: LessonPlan = {
       title: lesson.title ?? "Untitled Lesson",
       gradeLevel: lesson.gradeLevel ?? gradeLevel,
@@ -521,20 +653,12 @@ Only output a valid JSON object. No markdown or extra text.
       ),
       classroomSize: lesson.classroomSize ?? classroomSize,
       learningIntention:
-        lesson.learningIntention ?? "To learn key concepts of the subject",
-      successCriteria: lesson.successCriteria ?? [
-        "I can demonstrate understanding of the lesson",
-      ],
-      activities: (lesson.activities ?? []).map((activity) => ({
-        title: activity.title ?? "Untitled Activity",
-        activityType: activity.activityType ?? "UNKNOWN",
-        description: activity.description ?? "",
-        durationMins: parseInt(
-          activity.durationMins?.toString().replace("minutes", "").trim() ??
-            "0",
-          10
-        ),
-      })),
+        lesson.learningIntention ??
+        learningIntention ??
+        "To learn key concepts of the subject",
+      successCriteria: lesson.successCriteria ??
+        successCriteria ?? ["I can demonstrate understanding of the lesson"],
+      activities: activitiesWithSources,
       supplies: (lesson.supplies ?? lesson.requiredSupplies ?? []).map(
         (supply) =>
           typeof supply === "string"
@@ -566,7 +690,13 @@ Only output a valid JSON object. No markdown or extra text.
         lesson.drdpDomains && gradeLevel === "PRESCHOOL"
           ? lesson.drdpDomains
           : [],
-      standards: lesson.standards ?? [],
+      standards: (lesson.standards ?? []).map((standard) => ({
+        code: standard.code ?? "UNKNOWN",
+        description: standard.description ?? "",
+        source: standard.source ?? undefined,
+      })),
+      sourceMetadata: lesson.sourceMetadata ?? sources,
+      citationScore: lesson.citationScore ?? citationScore,
     };
 
     return NextResponse.json({

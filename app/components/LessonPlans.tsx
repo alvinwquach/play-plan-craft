@@ -50,8 +50,11 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     marginBottom: 5,
   },
+  link: {
+    color: "blue",
+    textDecoration: "underline",
+  },
 });
-
 
 const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
   <Document>
@@ -92,6 +95,11 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
         <Text style={styles.bullet}>
           • Classroom Size: {lessonPlan.classroomSize} students
         </Text>
+        {lessonPlan.scheduledDate && (
+          <Text style={styles.bullet}>
+            • Scheduled: {new Date(lessonPlan.scheduledDate).toLocaleString()}
+          </Text>
+        )}
       </View>
       <View style={styles.section}>
         <Text style={styles.heading}>Activities</Text>
@@ -105,6 +113,19 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
               <Text style={styles.text}>
                 Duration: {activity.durationMins} minutes
               </Text>
+              {activity.source ? (
+                <>
+                  <Text style={styles.text}>
+                    Source: {activity.source.name}
+                  </Text>
+                  <Text style={[styles.text, styles.link]}>
+                    {activity.source.url}
+                  </Text>
+                  <Text style={styles.text}>{activity.source.description}</Text>
+                </>
+              ) : (
+                <Text style={styles.text}>No source provided.</Text>
+              )}
             </View>
           ))
         ) : (
@@ -121,6 +142,11 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
               </Text>
               {supply.note && (
                 <Text style={styles.text}>Note: {supply.note}</Text>
+              )}
+              {supply.shoppingLink && (
+                <Text style={[styles.text, styles.link]}>
+                  Shopping Link: {supply.shoppingLink}
+                </Text>
               )}
             </View>
           ))
@@ -185,11 +211,36 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
               <View key={index} style={styles.bullet}>
                 <Text style={styles.text}>{standard.code}</Text>
                 <Text style={styles.text}>{standard.description}</Text>
+                {standard.source && (
+                  <Text style={[styles.text, styles.link]}>
+                    Source: {standard.source.name} ({standard.source.url})
+                  </Text>
+                )}
               </View>
             ))
           ) : (
             <Text style={styles.text}>No standards specified.</Text>
           )}
+        </View>
+      )}
+      {lessonPlan.sourceMetadata && lessonPlan.sourceMetadata.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.heading}>General Source Metadata</Text>
+          {lessonPlan.sourceMetadata.map((source, index) => (
+            <View key={index} style={styles.bullet}>
+              <Text style={styles.text}>{source.name}</Text>
+              <Text style={[styles.text, styles.link]}>{source.url}</Text>
+              <Text style={styles.text}>{source.description}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {lessonPlan.citationScore !== undefined && (
+        <View style={styles.section}>
+          <Text style={styles.heading}>Citation Score</Text>
+          <Text style={styles.text}>
+            {lessonPlan.citationScore}% (indicates reliability of sources used)
+          </Text>
         </View>
       )}
     </Page>
@@ -220,6 +271,7 @@ const LessonPlanSkeleton = () => (
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
           <Skeleton className="h-4 w-full bg-gray-200" />
           <Skeleton className="h-4 w-full mt-2 bg-gray-200" />
+          <Skeleton className="h-4 w-full mt-2 bg-gray-200" />
         </div>
         <div>
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
@@ -229,6 +281,10 @@ const LessonPlanSkeleton = () => (
         <div>
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
           <Skeleton className="h-4 w-3/4 bg-gray-200" />
+        </div>
+        <div>
+          <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
+          <Skeleton className="h-4 w-full bg-gray-200" />
         </div>
         <div>
           <Skeleton className="h-6 w-1/4 mb-4 bg-gray-200" />
@@ -383,6 +439,16 @@ export default function LessonPlans() {
                 text: `Classroom Size: ${lessonPlan.classroomSize} students`,
                 bullet: { level: 0 },
               }),
+              ...(lessonPlan.scheduledDate
+                ? [
+                    new Paragraph({
+                      text: `Scheduled: ${new Date(
+                        lessonPlan.scheduledDate
+                      ).toLocaleString()}`,
+                      bullet: { level: 0 },
+                    }),
+                  ]
+                : []),
               new Paragraph({
                 text: "Activities",
                 heading: "Heading2",
@@ -399,6 +465,19 @@ export default function LessonPlans() {
                 new Paragraph({
                   text: `Duration: ${activity.durationMins} minutes`,
                 }),
+                ...(activity.source
+                  ? [
+                      new Paragraph({
+                        text: `Source: ${activity.source.name}`,
+                      }),
+                      new Paragraph({
+                        text: `URL: ${activity.source.url}`,
+                      }),
+                      new Paragraph({
+                        text: activity.source.description,
+                      }),
+                    ]
+                  : [new Paragraph({ text: "No source provided." })]),
               ]),
               new Paragraph({
                 text: "Supplies",
@@ -411,6 +490,13 @@ export default function LessonPlans() {
                 }),
                 ...(supply.note
                   ? [new Paragraph({ text: `Note: ${supply.note}` })]
+                  : []),
+                ...(supply.shoppingLink
+                  ? [
+                      new Paragraph({
+                        text: `Shopping Link: ${supply.shoppingLink}`,
+                      }),
+                    ]
                   : []),
               ]),
               new Paragraph({
@@ -470,7 +556,42 @@ export default function LessonPlans() {
                         bullet: { level: 0 },
                       }),
                       new Paragraph({ text: standard.description }),
+                      ...(standard.source
+                        ? [
+                            new Paragraph({
+                              text: `Source: ${standard.source.name} (${standard.source.url})`,
+                            }),
+                          ]
+                        : []),
                     ]),
+                  ]
+                : []),
+              ...(lessonPlan.sourceMetadata &&
+              lessonPlan.sourceMetadata.length > 0
+                ? [
+                    new Paragraph({
+                      text: "General Source Metadata",
+                      heading: "Heading2",
+                    }),
+                    ...lessonPlan.sourceMetadata.flatMap((source) => [
+                      new Paragraph({
+                        text: source.name,
+                        bullet: { level: 0 },
+                      }),
+                      new Paragraph({ text: `URL: ${source.url}` }),
+                      new Paragraph({ text: source.description }),
+                    ]),
+                  ]
+                : []),
+              ...(lessonPlan.citationScore !== undefined
+                ? [
+                    new Paragraph({
+                      text: "Citation Score",
+                      heading: "Heading2",
+                    }),
+                    new Paragraph({
+                      text: `${lessonPlan.citationScore}% (indicates reliability of sources used)`,
+                    }),
                   ]
                 : []),
             ],
@@ -656,6 +777,12 @@ export default function LessonPlans() {
                   <strong>Classroom Size:</strong> {lessonPlan.classroomSize}{" "}
                   students
                 </li>
+                {lessonPlan.scheduledDate && (
+                  <li>
+                    <strong>Scheduled:</strong>{" "}
+                    {new Date(lessonPlan.scheduledDate).toLocaleString()}
+                  </li>
+                )}
               </ul>
             </div>
             <div>
@@ -675,6 +802,25 @@ export default function LessonPlans() {
                         <strong>Duration:</strong> {activity.durationMins}{" "}
                         minutes
                       </p>
+                      {activity.source ? (
+                        <p className="text-sm">
+                          <strong>Source:</strong>{" "}
+                          <a
+                            href={activity.source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-500 hover:underline"
+                          >
+                            {activity.source.name}
+                          </a>
+                          <br />
+                          {activity.source.description}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          No source provided.
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -819,12 +965,61 @@ export default function LessonPlans() {
                           {standard.code}
                         </strong>
                         <p>{standard.description}</p>
+                        {standard.source && (
+                          <p className="text-sm">
+                            <a
+                              href={standard.source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-500 hover:underline"
+                            >
+                              Source: {standard.source.name}
+                            </a>
+                          </p>
+                        )}
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-gray-600">No standards specified.</p>
                 )}
+              </div>
+            )}
+            {lessonPlan.sourceMetadata &&
+              lessonPlan.sourceMetadata.length > 0 && (
+                <div>
+                  <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    General Source Metadata
+                  </h2>
+                  <ul className="text-gray-600 list-inside list-disc space-y-4">
+                    {lessonPlan.sourceMetadata.map((source, index) => (
+                      <li key={index}>
+                        <strong className="text-teal-800">{source.name}</strong>
+                        <p>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-500 hover:underline"
+                          >
+                            {source.url}
+                          </a>
+                        </p>
+                        <p>{source.description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            {lessonPlan.citationScore !== undefined && (
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                  Citation Score
+                </h2>
+                <p className="text-gray-600">
+                  {lessonPlan.citationScore}% (indicates reliability of sources
+                  used)
+                </p>
               </div>
             )}
             <div className="flex justify-end gap-2 mt-4">
