@@ -18,6 +18,7 @@ import Link from "next/link";
 import { LessonPlan } from "../types/lessonPlan";
 import ical from "ical-generator";
 import { FaRegCalendarAlt } from "react-icons/fa";
+import { SiGooglecalendar } from "react-icons/si";
 import {
   Tooltip,
   TooltipContent,
@@ -49,15 +50,15 @@ export default function Calendar() {
     extendedProps: { lesson },
   }));
 
-  const exportToICal = () => {
-    const calendar = ical({ name: "PlayPlanCraft Lesson Plans" });
+  const formatGoogleCalendarDate = (date: Date) => {
+    return date
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}/, "");
+  };
 
-    lessonPlans.forEach((lesson) => {
-      if (lesson.scheduledDate) {
-        const start = new Date(lesson.scheduledDate);
-        const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
-
-        const description = `
+  const generateEventDescription = (lesson: LessonPlan): string => {
+    return `
 Title: ${lesson.title}
 
 Learning Intention: ${lesson.learningIntention || "None"}
@@ -65,22 +66,22 @@ Learning Intention: ${lesson.learningIntention || "None"}
 Success Criteria:
 ${
   lesson.successCriteria.length > 0
-    ? lesson.successCriteria.map((criterion) => `- ${criterion}`).join("\n")
+    ? lesson.successCriteria.join("\n- ")
     : "No success criteria specified."
 }
 
 Details:
-- Grade Level: ${lesson.gradeLevel.replace("_", " ")}
-- Subject: ${lesson.subject.replace("_", " ")}
-- Theme: ${lesson.theme ? lesson.theme.replace("_", " ") : "None"}
-- Status: ${lesson.status}
-- Duration: ${lesson.duration} minutes
-- Classroom Size: ${lesson.classroomSize} students
-- Scheduled: ${
-          lesson.scheduledDate
-            ? new Date(lesson.scheduledDate).toLocaleString()
-            : "Not scheduled"
-        }
+Grade Level: ${lesson.gradeLevel.replace("_", " ")}
+Subject: ${lesson.subject.replace("_", " ")}
+Theme: ${lesson.theme ? lesson.theme.replace("_", " ") : "None"}
+Status: ${lesson.status}
+Duration: ${lesson.duration} minutes
+Classroom Size: ${lesson.classroomSize} students
+Scheduled: ${
+      lesson.scheduledDate
+        ? new Date(lesson.scheduledDate).toLocaleString()
+        : "Not scheduled"
+    }
 
 Activities:
 ${
@@ -91,9 +92,7 @@ ${
             `- ${activity.title} (${activity.activityType.replace(
               "_",
               " "
-            )})\n Description: ${activity.description}\n Duration: ${
-              activity.durationMins
-            } minutes`
+            )}): ${activity.description} (${activity.durationMins} minutes)`
         )
         .join("\n")
     : "No activities available."
@@ -105,20 +104,15 @@ ${
     ? lesson.supplies
         .map(
           (supply) =>
-            `- ${supply.name} (${supply.quantity} ${supply.unit})${
-              supply.note ? `\n Note: ${supply.note}` : ""
-            }`
+            `- ${supply.name} (${supply.quantity} ${supply.unit}${
+              supply.note ? `, Note: ${supply.note}` : ""
+            })`
         )
         .join("\n")
     : "No supplies required."
 }
 
-Tags:
-${
-  lesson.tags.length > 0
-    ? lesson.tags.map((tag) => `- ${tag}`).join("\n")
-    : "No tags specified."
-}
+Tags: ${lesson.tags.length > 0 ? lesson.tags.join(", ") : "No tags specified."}
 
 Developmental Goals:
 ${
@@ -131,21 +125,18 @@ ${
 
 ${
   lesson.gradeLevel === "PRESCHOOL" && lesson.drdpDomains
-    ? `DRDP Domains:
-${
-  lesson.drdpDomains.length > 0
-    ? lesson.drdpDomains
-        .map(
-          (domain) =>
-            `- ${domain.code} - ${domain.name}\n Description: ${
-              domain.description
-            }\n Strategies:\n${domain.strategies
-              .map((strategy) => ` - ${strategy}`)
-              .join("\n")}`
-        )
-        .join("\n")
-    : "No DRDP domains generated for this plan."
-}`
+    ? `DRDP Domains:\n${
+        lesson.drdpDomains.length > 0
+          ? lesson.drdpDomains
+              .map(
+                (domain) =>
+                  `- ${domain.code} - ${domain.name}: ${
+                    domain.description
+                  }. Strategies: ${domain.strategies.join("; ")}`
+              )
+              .join("\n")
+          : "No DRDP domains generated for this plan."
+      }`
     : ""
 }
 
@@ -157,7 +148,17 @@ ${
         .join("\n")
     : "No standards specified."
 }
-`;
+`.trim();
+  };
+
+  const exportToICal = () => {
+    const calendar = ical({ name: "PlayPlanCraft Lesson Plans" });
+
+    lessonPlans.forEach((lesson) => {
+      if (lesson.scheduledDate) {
+        const start = new Date(lesson.scheduledDate);
+        const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
+        const description = generateEventDescription(lesson);
 
         calendar.createEvent({
           start,
@@ -186,6 +187,46 @@ ${
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
+    });
+  };
+
+  const exportToGoogleCalendar = (lesson?: LessonPlan) => {
+    const lessonsToExport = lesson ? [lesson] : lessonPlans;
+
+    lessonsToExport.forEach((lesson) => {
+      if (lesson.scheduledDate) {
+        const start = new Date(lesson.scheduledDate);
+        const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
+        const description = generateEventDescription(lesson);
+
+        const googleCalendarUrl = new URL(
+          "https://www.google.com/calendar/render"
+        );
+        googleCalendarUrl.searchParams.append("action", "TEMPLATE");
+        googleCalendarUrl.searchParams.append("text", lesson.title);
+        googleCalendarUrl.searchParams.append(
+          "dates",
+          `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`
+        );
+        googleCalendarUrl.searchParams.append("details", description);
+        if (lesson.theme) {
+          googleCalendarUrl.searchParams.append(
+            "location",
+            lesson.theme.replace("_", " ")
+          );
+        }
+
+        window.open(googleCalendarUrl.toString(), "_blank");
+
+        toast.success(`Opened Google Calendar for "${lesson.title}"!`, {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
     });
   };
 
@@ -243,6 +284,19 @@ ${
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center">
                   Export to iCal
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => exportToGoogleCalendar()}
+                    className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
+                  >
+                    <SiGooglecalendar className="text-xl" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="center">
+                  Add to Google Calendar
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -504,6 +558,24 @@ ${
                       }}
                       className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                      Add to Google Calendar
+                    </h2>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => exportToGoogleCalendar(selectedLesson)}
+                          className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
+                        >
+                          <SiGooglecalendar className="text-xl" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="center">
+                        Add to Google Calendar
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               )}
