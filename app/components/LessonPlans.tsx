@@ -9,9 +9,10 @@ import {
   View,
   StyleSheet,
   pdf,
+  Font,
 } from "@react-pdf/renderer";
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
-import { FaRegFileWord, FaFilePdf } from "react-icons/fa";
+import { FaRegFileWord, FaFilePdf, FaPrint } from "react-icons/fa";
 import { CiShare2 } from "react-icons/ci";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
@@ -26,45 +27,74 @@ import "react-toastify/dist/ReactToastify.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LessonPlan, Supply, Activity } from "../types/lessonPlan";
 
+Font.register({
+  family: "Roboto",
+  fonts: [
+    { src: "https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Mu4mxP.ttf" },
+    {
+      src: "https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmEU9fBBc9.ttf",
+      fontWeight: "bold",
+    },
+  ],
+});
+
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
-    fontSize: 12,
+    padding: 40,
+    fontFamily: "Roboto",
+    fontSize: 11,
+    lineHeight: 1.6,
+    color: "#333",
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 20,
+    textAlign: "center",
+    color: "#1a5f5f",
   },
   section: {
-    marginBottom: 10,
+    marginBottom: 15,
+    padding: 10,
+    borderBottom: "1px solid #e0e0e0",
   },
   heading: {
     fontSize: 14,
     fontWeight: "bold",
-    marginBottom: 5,
+    marginBottom: 8,
+    color: "#1a5f5f",
   },
   text: {
-    marginBottom: 5,
-    lineHeight: 1.5,
+    marginBottom: 6,
+    lineHeight: 1.6,
   },
   bullet: {
-    marginLeft: 10,
-    marginBottom: 5,
+    marginLeft: 12,
+    marginBottom: 6,
   },
   link: {
-    color: "blue",
+    color: "#0066cc",
     textDecoration: "underline",
+  },
+  subSection: {
+    marginLeft: 20,
   },
 });
 
 const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
-  <Document>
+  <Document
+    title={lessonPlan.title}
+    author="PlayPlanCraft"
+    creator="PlayPlanCraft Lesson Planner"
+    subject="Lesson Plan"
+  >
     <Page size="A4" style={styles.page}>
       <Text style={styles.title}>{lessonPlan.title}</Text>
       <View style={styles.section}>
         <Text style={styles.heading}>Learning Intention</Text>
-        <Text style={styles.text}>{lessonPlan.learningIntention}</Text>
+        <Text style={styles.text}>
+          {lessonPlan.learningIntention || "No learning intention specified."}
+        </Text>
       </View>
       <View style={styles.section}>
         <Text style={styles.heading}>Success Criteria</Text>
@@ -111,17 +141,19 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
               <Text style={styles.text}>
                 {activity.title} ({activity.activityType.replace("_", " ")})
               </Text>
-              <Text style={styles.text}>{activity.description}</Text>
-              <Text style={styles.text}>
+              <Text style={[styles.text, styles.subSection]}>
+                {activity.description}
+              </Text>
+              <Text style={[styles.text, styles.subSection]}>
                 Duration: {activity.durationMins} minutes
               </Text>
-              <Text style={styles.text}>
+              <Text style={[styles.text, styles.subSection]}>
                 Scores: Engagement ({activity.engagementScore}%), Alignment (
                 {activity.alignmentScore}%), Feasibility (
                 {activity.feasibilityScore}%)
               </Text>
-              {activity.source ? (
-                <>
+              {activity.source && (
+                <View style={styles.subSection}>
                   <Text style={styles.text}>
                     Source: {activity.source.name}
                   </Text>
@@ -129,9 +161,7 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
                     {activity.source.url}
                   </Text>
                   <Text style={styles.text}>{activity.source.description}</Text>
-                </>
-              ) : (
-                <Text style={styles.text}>No source provided.</Text>
+                </View>
               )}
             </View>
           ))
@@ -139,53 +169,52 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
           <Text style={styles.text}>No activities available.</Text>
         )}
       </View>
-      {lessonPlan.alternateActivities && (
-        <View style={styles.section}>
-          <Text style={styles.heading}>Alternate Activities</Text>
-          {Object.entries(lessonPlan.alternateActivities).map(
-            ([activityType, activities], index) =>
-              activities.length > 0 ? (
-                <View key={index} style={styles.bullet}>
-                  <Text style={styles.text}>
-                    {activityType.replace("_", " ")}
-                  </Text>
-                  {activities.map((activity, aIndex) => (
-                    <View key={aIndex} style={styles.bullet}>
-                      <Text style={styles.text}>
-                        {activity.title} (
-                        {activity.activityType.replace("_", " ")})
-                      </Text>
-                      <Text style={styles.text}>{activity.description}</Text>
-                      <Text style={styles.text}>
-                        Duration: {activity.durationMins} minutes
-                      </Text>
-                      <Text style={styles.text}>
-                        Scores: Engagement ({activity.engagementScore}%),
-                        Alignment ({activity.alignmentScore}%), Feasibility (
-                        {activity.feasibilityScore}%)
-                      </Text>
-                      {activity.source ? (
-                        <>
-                          <Text style={styles.text}>
-                            Source: {activity.source.name}
-                          </Text>
-                          <Text style={[styles.text, styles.link]}>
-                            {activity.source.url}
-                          </Text>
-                          <Text style={styles.text}>
-                            {activity.source.description}
-                          </Text>
-                        </>
-                      ) : (
-                        <Text style={styles.text}>No source provided.</Text>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              ) : null
-          )}
-        </View>
-      )}
+      {lessonPlan.alternateActivities &&
+        Object.keys(lessonPlan.alternateActivities).length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.heading}>Alternate Activities</Text>
+            {Object.entries(lessonPlan.alternateActivities).map(
+              ([activityType, activities], index) =>
+                activities.length > 0 ? (
+                  <View key={index} style={styles.bullet}>
+                    <Text style={styles.text}>
+                      {activityType.replace("_", " ")}
+                    </Text>
+                    {activities.map((activity, aIndex) => (
+                      <View key={aIndex} style={styles.subSection}>
+                        <Text style={styles.text}>
+                          {activity.title} (
+                          {activity.activityType.replace("_", " ")})
+                        </Text>
+                        <Text style={styles.text}>{activity.description}</Text>
+                        <Text style={styles.text}>
+                          Duration: {activity.durationMins} minutes
+                        </Text>
+                        <Text style={styles.text}>
+                          Scores: Engagement ({activity.engagementScore}%),
+                          Alignment ({activity.alignmentScore}%), Feasibility (
+                          {activity.feasibilityScore}%)
+                        </Text>
+                        {activity.source && (
+                          <>
+                            <Text style={styles.text}>
+                              Source: {activity.source.name}
+                            </Text>
+                            <Text style={[styles.text, styles.link]}>
+                              {activity.source.url}
+                            </Text>
+                            <Text style={styles.text}>
+                              {activity.source.description}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                ) : null
+            )}
+          </View>
+        )}
       <View style={styles.section}>
         <Text style={styles.heading}>Supplies</Text>
         {lessonPlan.supplies.length > 0 ? (
@@ -244,7 +273,7 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
                 </Text>
                 <Text style={styles.text}>{domain.description}</Text>
                 {domain.strategies.map((strategy, sIndex) => (
-                  <Text key={sIndex} style={styles.bullet}>
+                  <Text key={sIndex} style={[styles.bullet, styles.subSection]}>
                     • {strategy}
                   </Text>
                 ))}
@@ -257,24 +286,20 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
           )}
         </View>
       )}
-      {lessonPlan.standards && (
+      {lessonPlan.standards && lessonPlan.standards.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.heading}>Standards Alignment</Text>
-          {lessonPlan.standards.length > 0 ? (
-            lessonPlan.standards.map((standard, index) => (
-              <View key={index} style={styles.bullet}>
-                <Text style={styles.text}>{standard.code}</Text>
-                <Text style={styles.text}>{standard.description}</Text>
-                {standard.source && (
-                  <Text style={[styles.text, styles.link]}>
-                    Source: {standard.source.name} ({standard.source.url})
-                  </Text>
-                )}
-              </View>
-            ))
-          ) : (
-            <Text style={styles.text}>No standards specified.</Text>
-          )}
+          {lessonPlan.standards.map((standard, index) => (
+            <View key={index} style={styles.bullet}>
+              <Text style={styles.text}>{standard.code}</Text>
+              <Text style={styles.text}>{standard.description}</Text>
+              {standard.source && (
+                <Text style={[styles.text, styles.link]}>
+                  Source: {standard.source.name} ({standard.source.url})
+                </Text>
+              )}
+            </View>
+          ))}
         </View>
       )}
       {lessonPlan.sourceMetadata && lessonPlan.sourceMetadata.length > 0 && (
@@ -352,6 +377,7 @@ const LessonPlanSkeleton = () => (
           <Skeleton className="h-6 w-6 bg-gray-200" />
           <Skeleton className="h-6 w-6 bg-gray-200" />
           <Skeleton className="h-6 w-6 bg-gray-200" />
+          <Skeleton className="h-6 w-6 bg-gray-200" />
         </div>
         <Skeleton className="h-12 w-full bg-gray-200" />
       </div>
@@ -364,6 +390,8 @@ export default function LessonPlans() {
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
   const [selectedRetailer, setSelectedRetailer] = useState<
     "google" | "amazon" | "walmart" | "lakeshore"
   >("google");
@@ -458,9 +486,18 @@ export default function LessonPlans() {
   const exportToPDF = async () => {
     if (!lessonPlan) return;
 
+    setPdfLoading(true);
     try {
+      const updatedLessonPlan = {
+        ...lessonPlan,
+        supplies: lessonPlan.supplies.map((supply) => ({
+          ...supply,
+          shoppingLink: generateShoppingLink(supply, selectedRetailer),
+        })),
+      };
+
       const blob = await pdf(
-        <LessonPlannerPDF lessonPlan={lessonPlan} />
+        <LessonPlannerPDF lessonPlan={updatedLessonPlan} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -478,7 +515,51 @@ export default function LessonPlans() {
       });
     } catch (err) {
       console.error("Error generating PDF:", err);
-      toast.error("Failed to generate PDF.", {
+      toast.error(
+        `Failed to generate PDF: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const printPDF = async () => {
+    if (!lessonPlan) return;
+
+    setPrintLoading(true);
+    try {
+      const updatedLessonPlan = {
+        ...lessonPlan,
+        supplies: lessonPlan.supplies.map((supply) => ({
+          ...supply,
+          shoppingLink: generateShoppingLink(supply, selectedRetailer),
+        })),
+      };
+
+      const blob = await pdf(
+        <LessonPlannerPDF lessonPlan={updatedLessonPlan} />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url);
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+      } else {
+        throw new Error("Failed to open print window");
+      }
+      toast.success("PDF opened for printing!", {
         position: "top-right",
         autoClose: 3000,
         hideProgressBar: false,
@@ -486,6 +567,23 @@ export default function LessonPlans() {
         pauseOnHover: true,
         draggable: true,
       });
+    } catch (err) {
+      console.error("Error generating PDF for printing:", err);
+      toast.error(
+        `Failed to print PDF: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -505,7 +603,11 @@ export default function LessonPlans() {
                 text: "Learning Intention",
                 heading: "Heading2",
               }),
-              new Paragraph({ text: lessonPlan.learningIntention }),
+              new Paragraph({
+                text:
+                  lessonPlan.learningIntention ||
+                  "No learning intention specified.",
+              }),
               new Paragraph({
                 text: "Success Criteria",
                 heading: "Heading2",
@@ -781,14 +883,19 @@ export default function LessonPlans() {
       });
     } catch (err) {
       console.error("Error generating Word document:", err);
-      toast.error("Failed to generate Word document.", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      toast.error(
+        `Failed to generate Word document: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+        {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
     }
   };
 
@@ -809,14 +916,19 @@ export default function LessonPlans() {
       })
       .catch((err) => {
         console.error("Error copying link:", err);
-        toast.error("Failed to copy link.", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.error(
+          `Failed to copy link: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`,
+          {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
       });
   };
 
@@ -897,7 +1009,10 @@ export default function LessonPlans() {
               <h2 className="text-xl font-semibold text-teal-800 mb-4">
                 Learning Intention
               </h2>
-              <p className="text-gray-600">{lessonPlan.learningIntention}</p>
+              <p className="text-gray-600">
+                {lessonPlan.learningIntention ||
+                  "No learning intention specified."}
+              </p>
             </div>
             <div>
               <h2 className="text-xl font-semibold text-teal-800 mb-4">
@@ -1291,27 +1406,65 @@ export default function LessonPlans() {
             <div className="flex justify-end gap-2 mt-4">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-block">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={exportToPDF}
+                    disabled={pdfLoading || printLoading}
+                    aria-label="Export to PDF"
+                  >
                     <FaFilePdf
-                      onClick={exportToPDF}
-                      className="h-6 w-6 text-teal-600 hover:text-teal-800 cursor-pointer transition-colors"
-                      aria-label="Export to PDF"
+                      className={`h-6 w-6 ${
+                        pdfLoading || printLoading
+                          ? "text-gray-400"
+                          : "text-teal-600 hover:text-teal-800"
+                      } transition-colors`}
                     />
-                  </span>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Export to PDF</p>
+                  <p>{pdfLoading ? "Generating PDF..." : "Export to PDF"}</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-block">
-                    <FaRegFileWord
-                      onClick={exportToWord}
-                      className="h-6 w-6 text-teal-600 hover:text-teal-800 cursor-pointer transition-colors"
-                      aria-label="Export to Word"
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={printPDF}
+                    disabled={pdfLoading || printLoading}
+                    aria-label="Print PDF"
+                  >
+                    <FaPrint
+                      className={`h-6 w-6 ${
+                        printLoading || pdfLoading
+                          ? "text-gray-400"
+                          : "text-teal-600 hover:text-teal-800"
+                      } transition-colors`}
                     />
-                  </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{printLoading ? "Preparing to print..." : "Print PDF"}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={exportToWord}
+                    disabled={pdfLoading || printLoading}
+                    aria-label="Export to Word"
+                  >
+                    <FaRegFileWord
+                      className={`h-6 w-6 ${
+                        pdfLoading || printLoading
+                          ? "text-gray-400"
+                          : "text-teal-600 hover:text-teal-800"
+                      } transition-colors`}
+                    />
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Export to Word</p>
@@ -1319,13 +1472,21 @@ export default function LessonPlans() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-block">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={shareLessonPlan}
+                    disabled={pdfLoading || printLoading}
+                    aria-label="Share Lesson Plan"
+                  >
                     <CiShare2
-                      onClick={shareLessonPlan}
-                      className="h-6 w-6 text-teal-600 hover:text-teal-800 cursor-pointer transition-colors"
-                      aria-label="Share Lesson Plan"
+                      className={`h-6 w-6 ${
+                        pdfLoading || printLoading
+                          ? "text-gray-400"
+                          : "text-teal-600 hover:text-teal-800"
+                      } transition-colors`}
                     />
-                  </span>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Share Lesson Plan</p>
