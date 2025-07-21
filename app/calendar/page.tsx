@@ -5,6 +5,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { EventInput, EventClickArg, EventDropArg } from "@fullcalendar/core";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -28,7 +29,7 @@ export default function Calendar() {
     }
   }, []);
 
-  const events = lessonPlans.map((lesson) => ({
+  const events: EventInput[] = lessonPlans.map((lesson) => ({
     id: lesson.id || lesson.title,
     title: lesson.title,
     start: lesson.scheduledDate || new Date().toISOString(),
@@ -40,15 +41,15 @@ export default function Calendar() {
     extendedProps: { lesson },
   }));
 
-  const handleEventClick = (info: any) => {
-    setSelectedLesson(info.event.extendedProps.lesson);
+  const handleEventClick = (info: EventClickArg) => {
+    setSelectedLesson(info.event.extendedProps.lesson as LessonPlan);
     setIsModalOpen(true);
   };
 
-  const handleEventDrop = (info: any) => {
-    const updatedLesson = {
+  const handleEventDrop = (info: EventDropArg) => {
+    const updatedLesson: LessonPlan = {
       ...info.event.extendedProps.lesson,
-      scheduledDate: info.event.start.toISOString(),
+      scheduledDate: info?.event?.start?.toISOString(),
     };
     const updatedPlans = lessonPlans.map((lp) =>
       lp.id === updatedLesson.id ? updatedLesson : lp
@@ -76,14 +77,14 @@ export default function Calendar() {
             Weekly Lesson Planner
           </h1>
           <Link
-            href="/lesson-plans/form"
+            href="/lesson-plans"
             className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition"
           >
             Create New Lesson
           </Link>
         </div>
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} // Added interactionPlugin
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
           editable={true}
           selectable={false}
@@ -313,7 +314,7 @@ export default function Calendar() {
                     value={selectedLesson.scheduledDate || ""}
                     onChange={(e) => {
                       if (!selectedLesson) return;
-                      const updatedLesson = {
+                      const updatedLesson: LessonPlan = {
                         ...selectedLesson,
                         scheduledDate: e.target.value,
                       };
