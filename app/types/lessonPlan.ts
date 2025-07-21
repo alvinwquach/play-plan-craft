@@ -43,6 +43,7 @@ export interface Standard {
 }
 
 export interface LessonPlan {
+  id: number;
   title: string;
   learningIntention: string;
   successCriteria: string[];
