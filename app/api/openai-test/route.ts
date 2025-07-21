@@ -755,7 +755,7 @@ Only output a valid JSON object. No markdown or extra text.
          alignmentScore: 70,
          feasibilityScore: 70,
        });
-       // Add placeholder alternate activities
+
        formattedAlternateActivities[type] = [
          {
            title: `Alternate Placeholder ${type} Activity 1`,
