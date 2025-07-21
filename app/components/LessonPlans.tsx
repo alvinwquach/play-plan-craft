@@ -22,6 +22,7 @@ import {
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LessonPlan, Supply } from "../types/lessonPlan";
 
 const styles = StyleSheet.create({
   page: {
@@ -51,55 +52,6 @@ const styles = StyleSheet.create({
   },
 });
 
-interface Activity {
-  title: string;
-  activityType: string;
-  description: string;
-  durationMins: number;
-}
-
-interface Supply {
-  name: string;
-  quantity: number;
-  unit: string;
-  note: string | null;
-  shoppingLink?: string;
-}
-
-interface DevelopmentGoal {
-  name: string;
-  description: string;
-}
-
-interface DrdpDomain {
-  code: string;
-  name: string;
-  description: string;
-  strategies: string[];
-}
-
-interface Standard {
-  code: string;
-  description: string;
-}
-
-interface LessonPlan {
-  title: string;
-  gradeLevel: string;
-  subject: string;
-  theme: string | null;
-  status: string;
-  duration: number;
-  classroomSize: number;
-  learningIntention: string;
-  successCriteria: string[];
-  activities: Activity[];
-  supplies: Supply[];
-  tags: string[];
-  developmentGoals: DevelopmentGoal[];
-  drdpDomains?: DrdpDomain[];
-  standards?: Standard[];
-}
 
 const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
   <Document>
