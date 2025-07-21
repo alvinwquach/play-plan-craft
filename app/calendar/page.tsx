@@ -87,7 +87,7 @@ ${
   lesson.activities.length > 0
     ? lesson.activities
         .map(
-          (activity, index) =>
+          (activity) =>
             `- ${activity.title} (${activity.activityType.replace(
               "_",
               " "
