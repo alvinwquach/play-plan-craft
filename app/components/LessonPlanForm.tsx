@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
-import { LessonPlan } from "../types/lessonPlan";
+import { LessonPlan, Source } from "../types/lessonPlan";
 
 interface FormData {
   title: string;
@@ -19,6 +19,7 @@ interface FormData {
   standardsFramework: string;
   standards: string[];
   scheduledDate: string;
+  preferredSources: Source[];
 }
 
 export default function LessonPlanForm() {
@@ -36,9 +37,25 @@ export default function LessonPlanForm() {
     standardsFramework: "",
     standards: [],
     scheduledDate: "",
+    preferredSources: [
+      {
+        name: "Khan Academy",
+        url: "https://www.khanacademy.org",
+        description: "Used for activity ideas and educational content.",
+      },
+    ],
   });
   const [successCriteriaInput, setSuccessCriteriaInput] = useState<string>("");
   const [standardsInput, setStandardsInput] = useState<string>("");
+  const [sourceInputs, setSourceInputs] = useState<
+    { name: string; url: string; description: string }[]
+  >([
+    {
+      name: "Khan Academy",
+      url: "https://www.khanacademy.org",
+      description: "Used for activity ideas and educational content.",
+    },
+  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -346,6 +363,39 @@ export default function LessonPlanForm() {
     getAvailableActivityTypes,
   ]);
 
+  const handleAddSource = () => {
+    setSourceInputs((prev) => [
+      ...prev,
+      { name: "", url: "", description: "" },
+    ]);
+  };
+
+  const handleRemoveSource = (index: number) => {
+    setSourceInputs((prev) => prev.filter((_, i) => i !== index));
+    setFormData((prev) => ({
+      ...prev,
+      preferredSources: prev.preferredSources.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSourceChange = (
+    index: number,
+    field: keyof Source,
+    value: string
+  ) => {
+    setSourceInputs((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+    setFormData((prev) => ({
+      ...prev,
+      preferredSources: sourceInputs.map((input, i) =>
+        i === index ? { ...input, [field]: value } : input
+      ),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -391,6 +441,18 @@ export default function LessonPlanForm() {
       return;
     }
 
+    // Validate source URLs
+    const invalidSource = formData.preferredSources.find(
+      (source) =>
+        source.url &&
+        !/^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/.*)?$/.test(source.url)
+    );
+    if (invalidSource) {
+      setError(`Invalid URL for source: ${invalidSource.name || "Unnamed"}`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/openai-test", {
         method: "POST",
@@ -403,7 +465,7 @@ export default function LessonPlanForm() {
       });
 
       const data = await response.json();
-      if (!data.success) {
+      if (!response.ok || !data.lessonPlan) {
         throw new Error(data.error || "Failed to generate lesson plan");
       }
 
@@ -419,7 +481,11 @@ export default function LessonPlanForm() {
       const updatedPlans = [...existingPlans, lessonPlanWithId];
       localStorage.setItem("lessonPlans", JSON.stringify(updatedPlans));
 
-      router.push("/calendar");
+      router.push(
+        `/lesson-plans?lessonPlan=${encodeURIComponent(
+          JSON.stringify(lessonPlanWithId)
+        )}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -629,8 +695,7 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with &apos;I
-                can&apos;)
+                Success Criteria (Optional, one per line, start with 'I can')
               </label>
               <textarea
                 value={successCriteriaInput}
@@ -678,9 +743,67 @@ export default function LessonPlanForm() {
                 />
               </div>
             )}
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Preferred Sources (Optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Add trusted sources for activities and lesson content (e.g.,
+                Khan Academy, NSTA). If none provided, default sources will be
+                used.
+              </p>
+              {sourceInputs.map((source, index) => (
+                <div key={index} className="space-y-2 mb-4">
+                  <input
+                    type="text"
+                    value={source.name}
+                    onChange={(e) =>
+                      handleSourceChange(index, "name", e.target.value)
+                    }
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    placeholder="Source Name (e.g., Khan Academy)"
+                  />
+                  <input
+                    type="url"
+                    value={source.url}
+                    onChange={(e) =>
+                      handleSourceChange(index, "url", e.target.value)
+                    }
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    placeholder="Source URL (e.g., https://www.khanacademy.org)"
+                  />
+                  <input
+                    type="text"
+                    value={source.description}
+                    onChange={(e) =>
+                      handleSourceChange(index, "description", e.target.value)
+                    }
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    placeholder="Description (e.g., Used for activity ideas)"
+                  />
+                  {sourceInputs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSource(index)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Remove Source
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={handleAddSource}
+                className="text-teal-500 hover:text-teal-700 text-sm"
+              >
+                + Add Source
+              </button>
+            </div>
             <p className="text-sm text-gray-600">
-              Note: Development goals, strategies, and standards alignment will
-              be automatically generated based on your input.
+              Note: Development goals, strategies, standards alignment, and
+              source metadata will be automatically generated based on your
+              input.
             </p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button

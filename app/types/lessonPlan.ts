@@ -1,8 +1,15 @@
+export interface Source {
+  name: string;
+  url: string;
+  description: string;
+}
+
 export interface Activity {
   title: string;
   activityType: string;
   description: string;
   durationMins: number;
+  source?: Source;
 }
 
 export interface Supply {
@@ -28,6 +35,7 @@ export interface DrdpDomain {
 export interface Standard {
   code: string;
   description: string;
+  source?: Source;
 }
 
 export interface LessonPlan {
@@ -39,13 +47,15 @@ export interface LessonPlan {
   status: string;
   duration: number;
   classroomSize: number;
-  learningIntention: string;
-  successCriteria: string[];
   activities: Activity[];
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];
+  learningIntention: string;
+  successCriteria: string[];
   drdpDomains?: DrdpDomain[];
   standards?: Standard[];
+  sourceMetadata?: Source[];
+  citationScore?: number;
   scheduledDate?: string;
 }
