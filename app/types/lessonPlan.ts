@@ -43,7 +43,7 @@ export interface Standard {
 }
 
 export interface LessonPlan {
-  id: string | undefined;
+  id?: string | undefined;
   title: string;
   learningIntention: string;
   successCriteria: string[];
