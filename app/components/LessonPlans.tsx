@@ -13,16 +13,18 @@ import {
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { FaRegFileWord, FaFilePdf } from "react-icons/fa";
 import { CiShare2 } from "react-icons/ci";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LessonPlan, Supply } from "../types/lessonPlan";
+import { LessonPlan, Supply, Activity } from "../types/lessonPlan";
 
 const styles = StyleSheet.create({
   page: {
@@ -113,6 +115,11 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
               <Text style={styles.text}>
                 Duration: {activity.durationMins} minutes
               </Text>
+              <Text style={styles.text}>
+                Scores: Engagement ({activity.engagementScore}%), Alignment (
+                {activity.alignmentScore}%), Feasibility (
+                {activity.feasibilityScore}%)
+              </Text>
               {activity.source ? (
                 <>
                   <Text style={styles.text}>
@@ -132,6 +139,53 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
           <Text style={styles.text}>No activities available.</Text>
         )}
       </View>
+      {lessonPlan.alternateActivities && (
+        <View style={styles.section}>
+          <Text style={styles.heading}>Alternate Activities</Text>
+          {Object.entries(lessonPlan.alternateActivities).map(
+            ([activityType, activities], index) =>
+              activities.length > 0 ? (
+                <View key={index} style={styles.bullet}>
+                  <Text style={styles.text}>
+                    {activityType.replace("_", " ")}
+                  </Text>
+                  {activities.map((activity, aIndex) => (
+                    <View key={aIndex} style={styles.bullet}>
+                      <Text style={styles.text}>
+                        {activity.title} (
+                        {activity.activityType.replace("_", " ")})
+                      </Text>
+                      <Text style={styles.text}>{activity.description}</Text>
+                      <Text style={styles.text}>
+                        Duration: {activity.durationMins} minutes
+                      </Text>
+                      <Text style={styles.text}>
+                        Scores: Engagement ({activity.engagementScore}%),
+                        Alignment ({activity.alignmentScore}%), Feasibility (
+                        {activity.feasibilityScore}%)
+                      </Text>
+                      {activity.source ? (
+                        <>
+                          <Text style={styles.text}>
+                            Source: {activity.source.name}
+                          </Text>
+                          <Text style={[styles.text, styles.link]}>
+                            {activity.source.url}
+                          </Text>
+                          <Text style={styles.text}>
+                            {activity.source.description}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.text}>No source provided.</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ) : null
+          )}
+        </View>
+      )}
       <View style={styles.section}>
         <Text style={styles.heading}>Supplies</Text>
         {lessonPlan.supplies.length > 0 ? (
@@ -313,6 +367,9 @@ export default function LessonPlans() {
   const [selectedRetailer, setSelectedRetailer] = useState<
     "google" | "amazon" | "walmart" | "lakeshore"
   >("google");
+  const [expandedActivityTypes, setExpandedActivityTypes] = useState<
+    Set<string>
+  >(new Set());
 
   const retailers = [
     { value: "google", label: "Google Shopping" },
@@ -321,10 +378,7 @@ export default function LessonPlans() {
     { value: "lakeshore", label: "Lakeshore Learning" },
   ] as const;
 
-  const generateShoppingLink = (
-    supply: LessonPlan["supplies"][0],
-    retailer: string
-  ): string => {
+  const generateShoppingLink = (supply: Supply, retailer: string): string => {
     let query = supply.name;
     if (supply.name.toLowerCase().includes("book")) {
       const context = supply.note?.toLowerCase() || "preschool";
@@ -345,6 +399,60 @@ export default function LessonPlans() {
       default:
         return `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
     }
+  };
+
+  const toggleActivityType = (activityType: string) => {
+    setExpandedActivityTypes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(activityType)) {
+        newSet.delete(activityType);
+      } else {
+        newSet.add(activityType);
+      }
+      return newSet;
+    });
+  };
+
+  const selectActivity = (activityType: string, selectedActivity: Activity) => {
+    if (!lessonPlan) return;
+
+    const updatedActivities = lessonPlan.activities.map((activity) =>
+      activity.activityType === activityType ? selectedActivity : activity
+    );
+
+    const allSupplies = updatedActivities.flatMap((act) => act.supplies || []);
+    const uniqueSupplies = Array.from(
+      new Map(
+        allSupplies.map((supply) => [
+          supply.name,
+          {
+            ...supply,
+            shoppingLink: generateShoppingLink(supply, selectedRetailer),
+          },
+        ])
+      ).values()
+    );
+
+    setLessonPlan({
+      ...lessonPlan,
+      activities: updatedActivities,
+      supplies: uniqueSupplies,
+    });
+
+    toast.success(
+      `Selected "${selectedActivity.title}" for ${activityType.replace(
+        "_",
+        " "
+      )}`,
+      {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      }
+    );
   };
 
   const exportToPDF = async () => {
@@ -465,6 +573,9 @@ export default function LessonPlans() {
                 new Paragraph({
                   text: `Duration: ${activity.durationMins} minutes`,
                 }),
+                new Paragraph({
+                  text: `Scores: Engagement (${activity.engagementScore}%), Alignment (${activity.alignmentScore}%), Feasibility (${activity.feasibilityScore}%)`,
+                }),
                 ...(activity.source
                   ? [
                       new Paragraph({
@@ -479,6 +590,60 @@ export default function LessonPlans() {
                     ]
                   : [new Paragraph({ text: "No source provided." })]),
               ]),
+              ...(lessonPlan.alternateActivities
+                ? [
+                    new Paragraph({
+                      text: "Alternate Activities",
+                      heading: "Heading2",
+                    }),
+                    ...Object.entries(lessonPlan.alternateActivities).flatMap(
+                      ([activityType, activities]) =>
+                        activities.length > 0
+                          ? [
+                              new Paragraph({
+                                text: activityType.replace("_", " "),
+                                bullet: { level: 0 },
+                              }),
+                              ...activities.flatMap((activity) => [
+                                new Paragraph({
+                                  text: `${
+                                    activity.title
+                                  } (${activity.activityType.replace(
+                                    "_",
+                                    " "
+                                  )})`,
+                                  bullet: { level: 1 },
+                                }),
+                                new Paragraph({ text: activity.description }),
+                                new Paragraph({
+                                  text: `Duration: ${activity.durationMins} minutes`,
+                                }),
+                                new Paragraph({
+                                  text: `Scores: Engagement (${activity.engagementScore}%), Alignment (${activity.alignmentScore}%), Feasibility (${activity.feasibilityScore}%)`,
+                                }),
+                                ...(activity.source
+                                  ? [
+                                      new Paragraph({
+                                        text: `Source: ${activity.source.name}`,
+                                      }),
+                                      new Paragraph({
+                                        text: `URL: ${activity.source.url}`,
+                                      }),
+                                      new Paragraph({
+                                        text: activity.source.description,
+                                      }),
+                                    ]
+                                  : [
+                                      new Paragraph({
+                                        text: "No source provided.",
+                                      }),
+                                    ]),
+                              ]),
+                            ]
+                          : []
+                    ),
+                  ]
+                : []),
               new Paragraph({
                 text: "Supplies",
                 heading: "Heading2",
@@ -793,14 +958,43 @@ export default function LessonPlans() {
                 <ul className="text-gray-600 list-inside list-disc space-y-4">
                   {lessonPlan.activities.map((activity, index) => (
                     <li key={index}>
-                      <strong className="text-teal-800">
-                        {activity.title} (
-                        {activity.activityType.replace("_", " ")})
-                      </strong>
+                      <div className="flex items-center justify-between">
+                        <strong className="text-teal-800">
+                          {activity.title} (
+                          {activity.activityType.replace("_", " ")})
+                        </strong>
+                        {lessonPlan.alternateActivities?.[
+                          activity.activityType
+                        ] && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              toggleActivityType(activity.activityType)
+                            }
+                            className="flex items-center gap-1"
+                          >
+                            {expandedActivityTypes.has(
+                              activity.activityType
+                            ) ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                            <span>Alternatives</span>
+                          </Button>
+                        )}
+                      </div>
                       <p>{activity.description}</p>
                       <p className="text-sm">
                         <strong>Duration:</strong> {activity.durationMins}{" "}
                         minutes
+                      </p>
+                      <p className="text-sm">
+                        <strong>Scores:</strong> Engagement (
+                        {activity.engagementScore}%), Alignment (
+                        {activity.alignmentScore}%), Feasibility (
+                        {activity.feasibilityScore}%)
                       </p>
                       {activity.source ? (
                         <p className="text-sm">
@@ -821,6 +1015,78 @@ export default function LessonPlans() {
                           No source provided.
                         </p>
                       )}
+                      {lessonPlan.alternateActivities?.[
+                        activity.activityType
+                      ] &&
+                        expandedActivityTypes.has(activity.activityType) && (
+                          <div className="ml-6 mt-2 space-y-2">
+                            <h3 className="text-sm font-semibold text-teal-800">
+                              Alternate Activities for{" "}
+                              {activity.activityType.replace("_", " ")}
+                            </h3>
+                            <ul className="list-inside list-disc space-y-2">
+                              {lessonPlan.alternateActivities[
+                                activity.activityType
+                              ].map((altActivity, altIndex) => (
+                                <li
+                                  key={altIndex}
+                                  className="border-t pt-2 mt-2"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <strong className="text-teal-800">
+                                        {altActivity.title}
+                                      </strong>
+                                      <p>{altActivity.description}</p>
+                                      <p className="text-sm">
+                                        <strong>Duration:</strong>{" "}
+                                        {altActivity.durationMins} minutes
+                                      </p>
+                                      <p className="text-sm">
+                                        <strong>Scores:</strong> Engagement (
+                                        {altActivity.engagementScore}%),
+                                        Alignment ({altActivity.alignmentScore}
+                                        %), Feasibility (
+                                        {altActivity.feasibilityScore}%)
+                                      </p>
+                                      {altActivity.source ? (
+                                        <p className="text-sm">
+                                          <strong>Source:</strong>{" "}
+                                          <a
+                                            href={altActivity.source.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-teal-500 hover:underline"
+                                          >
+                                            {altActivity.source.name}
+                                          </a>
+                                          <br />
+                                          {altActivity.source.description}
+                                        </p>
+                                      ) : (
+                                        <p className="text-sm text-gray-500">
+                                          No source provided.
+                                        </p>
+                                      )}
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        selectActivity(
+                                          activity.activityType,
+                                          altActivity
+                                        )
+                                      }
+                                    >
+                                      Select
+                                    </Button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                     </li>
                   ))}
                 </ul>
