@@ -582,9 +582,6 @@ ${
             </DialogContent>
           </Dialog>
         </main>
-        <footer className="text-center text-gray-600 mt-8">
-          <p className="text-sm">© 2025 PlayPlanCraft. All rights reserved.</p>
-        </footer>
         <ToastContainer
           position="top-right"
           autoClose={3000}
