@@ -192,6 +192,10 @@ const { handleRequest } = createYoga<NextContext>({
         lessonPlans: [LessonPlan!]!
       }
 
+      type AuthResponse {
+        accessToken: String!
+        user: User!
+      }
       type Query {
         greetings: String
       }
