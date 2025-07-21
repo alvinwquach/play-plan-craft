@@ -39,7 +39,7 @@ export default function Home() {
 
   return (
     <div className="relative bg-teal-50 text-gray-800 min-h-screen p-8 pt-56 sm:pt-64 pb-20 sm:p-16 overflow-hidden">
-      <div className="absolute top-20 left-20 sm:top-24 sm:left-32 lg:top-24 lg:left-36 z-0 w-28 h-28">
+      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 sm:top-24 z-0 w-28 h-28">
         <div className="relative w-full h-full flex items-center justify-center">
           {[...Array(12)].map((_, i) => (
             <div
