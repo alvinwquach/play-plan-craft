@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
+import Link from "next/link";
+import { LessonPlan } from "../types/lessonPlan";
 
 interface FormData {
   title: string;
@@ -15,6 +18,7 @@ interface FormData {
   successCriteria: string[];
   standardsFramework: string;
   standards: string[];
+  scheduledDate: string;
 }
 
 export default function LessonPlanForm() {
@@ -31,6 +35,7 @@ export default function LessonPlanForm() {
     successCriteria: [],
     standardsFramework: "",
     standards: [],
+    scheduledDate: "",
   });
   const [successCriteriaInput, setSuccessCriteriaInput] = useState<string>("");
   const [standardsInput, setStandardsInput] = useState<string>("");
@@ -369,7 +374,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with &apos;I can&apos;.");
+      setError("All success criteria must start with 'I can'.");
       setLoading(false);
       return;
     }
@@ -402,10 +407,19 @@ export default function LessonPlanForm() {
         throw new Error(data.error || "Failed to generate lesson plan");
       }
 
-      const encodedLessonPlan = encodeURIComponent(
-        JSON.stringify(data.lessonPlan)
+      const lessonPlanWithId: LessonPlan = {
+        ...data.lessonPlan,
+        id: uuidv4(),
+        scheduledDate: formData.scheduledDate || new Date().toISOString(),
+      };
+
+      const existingPlans = JSON.parse(
+        localStorage.getItem("lessonPlans") || "[]"
       );
-      router.push(`/lesson-plans?lessonPlan=${encodedLessonPlan}`);
+      const updatedPlans = [...existingPlans, lessonPlanWithId];
+      localStorage.setItem("lessonPlans", JSON.stringify(updatedPlans));
+
+      router.push("/calendar");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -416,9 +430,17 @@ export default function LessonPlanForm() {
   return (
     <div className="bg-teal-50 text-gray-800 h-screen p-0 overflow-hidden">
       <main className="max-w-2xl mx-auto h-full flex flex-col">
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 py-6 text-center bg-white z-10">
-          Create Your Lesson Plan
-        </h1>
+        <div className="flex justify-between items-center py-6 px-8 bg-white z-10">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 text-center">
+            Create Your Lesson Plan
+          </h1>
+          <Link
+            href="/calendar"
+            className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition"
+          >
+            View Calendar
+          </Link>
+        </div>
         <div className="bg-white flex-1 overflow-y-auto p-6 sm:p-8 shadow-inner border-t border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-6 pb-12">
             <div>
@@ -534,6 +556,23 @@ export default function LessonPlanForm() {
                 max="100"
                 required
                 placeholder="Enter number of students"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Scheduled Date & Time (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.scheduledDate}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    scheduledDate: e.target.value,
+                  })
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                placeholder="Select date and time"
               />
             </div>
             <div>
