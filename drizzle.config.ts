@@ -1,7 +1,10 @@
-import "dotenv/config";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-const connectionString =
-  process.env.DATABASE_URL ?? "postgresql://localhost:5432/database";
-export const client = postgres(connectionString, { prepare: false });
-export const db = drizzle(client);
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "app/db/schema/**/*.ts",
+  out: "./drizzle/migrations",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
