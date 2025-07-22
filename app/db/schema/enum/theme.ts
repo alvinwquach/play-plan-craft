@@ -1,5 +1,6 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
+// Theme enum: Defines themes for lesson plans
 export const theme = pgEnum("Theme", [
   "SEASONS",
   "NATURE",
@@ -11,6 +12,16 @@ export const theme = pgEnum("Theme", [
   "COLORS",
   "SHAPES",
   "NUMBERS",
+  "CULTURE",
+  "HISTORY",
+  "SCIENCE_FICTION",
+  "GLOBAL_ISSUES",
+  "LITERATURE",
+  "INDIGENOUS_CULTURE",
+  "AUSTRALIAN_HISTORY",
+  "SUSTAINABILITY",
+  "COLOURS",
+  "TRANSPORT",
   "SPACE",
   "OCEANS",
   "WEATHER",
@@ -22,7 +33,6 @@ export const theme = pgEnum("Theme", [
   "HEALTH",
   "SAFETY",
   "SCIENCE",
-  "HISTORY",
   "GEOGRAPHY",
   "ENVIRONMENT",
   "TECHNOLOGY",
@@ -31,26 +41,19 @@ export const theme = pgEnum("Theme", [
   "DIVERSITY",
   "HERITAGE",
   "EXPLORATION",
-
-  // Middle School Themes
   "PHYSICS",
   "BIOLOGY",
   "CHEMISTRY",
   "ECONOMICS",
   "GOVERNMENT",
-  "CULTURE",
-  "TECHNOLOGY",
-  "ENVIRONMENTALISM",
   "SOCIALJUSTICE",
   "GLOBALISSUES",
   "PHILOSOPHY",
   "ETHICS",
   "RESEARCH",
   "ENTREPRENEURSHIP",
-  "SUSTAINABILITY",
   "GLOBALCITIZENSHIP",
   "CAREERDEVELOPMENT",
   "LEADERSHIP",
-  "INNOVATION",
   "CRITICALTHINKING",
 ]);

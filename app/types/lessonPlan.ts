@@ -94,3 +94,8 @@ export interface OpenAIResponse {
 }
 
 export type Retailer = "google" | "amazon" | "walmart";
+
+export interface AlternateActivityGroup {
+  activityType: string;
+  activities: Activity[];
+}
