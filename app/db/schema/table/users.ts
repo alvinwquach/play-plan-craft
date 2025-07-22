@@ -4,8 +4,8 @@ import {
   integer,
   timestamp,
   index,
-  serial,
   varchar,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { userRoleEnum } from "../enum/userRole";
 
@@ -13,9 +13,9 @@ import { userRoleEnum } from "../enum/userRole";
 export const users = pgTable(
   "users",
   {
-    id: serial("id").primaryKey(), // Auto-incrementing integer ID
+    id: uuid("id").primaryKey(), // Matches auth.users UUID
     email: varchar("email", { length: 254 }).unique().notNull(), // Unique email, required, limited to 254 characters per RFC 5321
-    password: text("password").notNull(), // Required password, stored as hash, uses text for flexibility with varying hash lengths
+    password: text("password"), // Nullable for Google OAuth users (no password)
     name: varchar("name", { length: 100 }).notNull(), // Required name, limited to 100 characters for typical user names
     role: userRoleEnum("role").default("EDUCATOR").notNull(), // User role with default value
     createdAt: timestamp("createdAt").defaultNow().notNull(), // Creation timestamp, defaults to current time
