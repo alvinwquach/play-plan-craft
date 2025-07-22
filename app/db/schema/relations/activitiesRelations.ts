@@ -11,10 +11,11 @@ export const activitiesRelations = relations(activities, ({ one, many }) => ({
     fields: [activities.lessonPlanId],
     references: [lessonPlans.id],
   }),
+
   // Many-to-many: One activity is linked to one or more development goals via lesson plan.
   developmentGoals: many(developmentGoals, {
-    fields: [lessonPlansDevelopmentGoals.developmentGoalId],
-    references: [developmentGoals.id],
+    fields: [lessonPlansDevelopmentGoals.lessonPlanId],
+    references: [lessonPlans.id],
     where: (lessonPlansDevelopmentGoals) =>
       lessonPlansDevelopmentGoals.lessonPlanId.equals(activities.lessonPlanId),
   }),
