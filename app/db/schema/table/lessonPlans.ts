@@ -1,26 +1,28 @@
 import {
+  pgTable,
+  serial,
+  varchar,
+  text,
+  jsonb,
+  integer,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
+import {
+  ageGroup,
+  subject,
+  theme,
+  lessonStatus,
+  curriculumEnum,
+} from "../enum/enums";
+import { users } from "./users";
+import {
+  Source,
   Standard,
   DrdpDomain,
   Supply,
   AlternateActivityGroup,
 } from "@/app/types/lessonPlan";
-import {
-  pgTable,
-  integer,
-  timestamp,
-  index,
-  serial,
-  varchar,
-  jsonb,
-  text,
-} from "drizzle-orm/pg-core";
-import { Source } from "graphql";
-import { ageGroup } from "../enum/ageGroup";
-import { curriculumEnum } from "../enum/curriculumEnum";
-import { lessonStatus } from "../enum/lessonStatus";
-import { subject } from "../enum/subject";
-import { theme } from "../enum/theme";
-import { users } from "./users";
 
 export const lessonPlans = pgTable(
   "lesson_plans",

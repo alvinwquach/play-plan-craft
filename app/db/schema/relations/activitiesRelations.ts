@@ -6,7 +6,7 @@ import { lessonPlans } from "../table/lessonPlans";
 export const activitiesRelations = relations(activities, ({ one }) => ({
   // Many-to-one: One activity belongs to one lesson plan.
   lessonPlan: one(lessonPlans, {
-    fields: [activities.lessonPlanId],
+    fields: [activities.lesson_plan_id],
     references: [lessonPlans.id],
   }),
 }));
