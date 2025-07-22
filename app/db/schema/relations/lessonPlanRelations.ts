@@ -13,7 +13,7 @@ import { users } from "../table/users";
 export const lessonPlansRelations = relations(lessonPlans, ({ one, many }) => ({
   // Many-to-one: One lesson plan is created by one user.
   createdBy: one(users, {
-    fields: [lessonPlans.createdById],
+    fields: [lessonPlans.created_by_id],
     references: [users.id],
   }),
   // One-to-many: One lesson plan contains many activities.
