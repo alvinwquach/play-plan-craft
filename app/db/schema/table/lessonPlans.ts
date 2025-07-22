@@ -8,13 +8,11 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import {
-  ageGroup,
-  subject,
-  theme,
-  lessonStatus,
-  curriculumEnum,
-} from "../enum/enums";
+import { ageGroup } from "../enum/ageGroup";
+import { subject } from "../enum/subject";
+import { theme } from "../enum/theme";
+import { lessonStatus } from "../enum/lessonStatus";
+import { curriculumEnum } from "../enum/curriculumEnum";
 import { users } from "./users";
 import {
   Source,
