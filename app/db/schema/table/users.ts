@@ -11,7 +11,7 @@ import { userRoleEnum } from "../enum/userRole";
 
 // User table: Represents educators, admins, or assistants who create lesson plans, schedules, etc.
 export const users = pgTable(
-  "User",
+  "users",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
     email: varchar("email", { length: 254 }).unique().notNull(), // Unique email, required, limited to 254 characters per RFC 5321
