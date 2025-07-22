@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LessonPlan, Supply, Activity } from "../types/lessonPlan";
+import { LessonPlan, Supply, Activity, Retailer } from "../types/lessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -127,6 +127,7 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
         <Text style={styles.bullet}>
           • Classroom Size: {lessonPlan.classroomSize} students
         </Text>
+        <Text style={styles.bullet}>• Curriculum: {lessonPlan.curriculum}</Text>
         {lessonPlan.scheduledDate && (
           <Text style={styles.bullet}>
             • Scheduled: {new Date(lessonPlan.scheduledDate).toLocaleString()}
@@ -376,7 +377,7 @@ const LessonPlanSkeleton = () => (
         <div className="flex justify-end gap-2 mt-4">
           <Skeleton className="h-6 w-6 bg-gray-200" />
           <Skeleton className="h-6 w-6 bg-gray-200" />
-          <Skeleton className="h-6 w-6 bg-gray-200" />
+          <Skeleton className="h-7 w-6 bg-gray-200" />
           <Skeleton className="h-6 w-6 bg-gray-200" />
         </div>
         <Skeleton className="h-12 w-full bg-gray-200" />
@@ -392,9 +393,7 @@ export default function LessonPlans() {
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
-  const [selectedRetailer, setSelectedRetailer] = useState<
-    "google" | "amazon" | "walmart" | "lakeshore"
-  >("google");
+  const [selectedRetailer, setSelectedRetailer] = useState<Retailer>("google");
   const [expandedActivityTypes, setExpandedActivityTypes] = useState<
     Set<string>
   >(new Set());
@@ -403,26 +402,23 @@ export default function LessonPlans() {
     { value: "google", label: "Google Shopping" },
     { value: "amazon", label: "Amazon" },
     { value: "walmart", label: "Walmart" },
-    { value: "lakeshore", label: "Lakeshore Learning" },
   ] as const;
 
   const generateShoppingLink = (supply: Supply, retailer: string): string => {
-    let query = supply.name;
-    if (supply.name.toLowerCase().includes("book")) {
-      const context = supply.note?.toLowerCase() || "preschool";
-      query = `preschool ${supply.name.toLowerCase()} ${context}`;
-    } else {
-      query = `${supply.name} classroom`;
+    const queryParts = [supply.name];
+    if (supply.note) {
+      queryParts.push(supply.note);
     }
-    const encodedQuery = encodeURIComponent(query.trim());
+    queryParts.push("classroom");
 
-    switch (retailer) {
+    const query = queryParts.join(" ").toLowerCase().trim();
+    const encodedQuery = encodeURIComponent(query);
+
+    switch (retailer.toLowerCase()) {
       case "amazon":
         return `https://www.amazon.com/s?k=${encodedQuery}`;
       case "walmart":
-        return `https://www.walmart.com/search?q=${encodedQuery}`;
-      case "lakeshore":
-        return `https://www.lakeshorelearning.com/search?Ntt=${encodedQuery}`;
+        return `https://www.walmart.com/search?q=${encodedQuery}&typeahead=${encodedQuery}`;
       case "google":
       default:
         return `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
@@ -647,6 +643,10 @@ export default function LessonPlans() {
               }),
               new Paragraph({
                 text: `Classroom Size: ${lessonPlan.classroomSize} students`,
+                bullet: { level: 0 },
+              }),
+              new Paragraph({
+                text: `Curriculum: ${lessonPlan.curriculum}`,
                 bullet: { level: 0 },
               }),
               ...(lessonPlan.scheduledDate
@@ -1057,6 +1057,9 @@ export default function LessonPlans() {
                   <strong>Classroom Size:</strong> {lessonPlan.classroomSize}{" "}
                   students
                 </li>
+                <li>
+                  <strong>Curriculum:</strong> {lessonPlan.curriculum}
+                </li>
                 {lessonPlan.scheduledDate && (
                   <li>
                     <strong>Scheduled:</strong>{" "}
@@ -1221,11 +1224,7 @@ export default function LessonPlans() {
                   value={selectedRetailer}
                   onChange={(e) =>
                     setSelectedRetailer(
-                      e.target.value as
-                        | "google"
-                        | "amazon"
-                        | "walmart"
-                        | "lakeshore"
+                      e.target.value as "google" | "amazon" | "walmart"
                     )
                   }
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
@@ -1249,23 +1248,18 @@ export default function LessonPlans() {
                           <strong>Note:</strong> {supply.note}
                         </p>
                       )}
-                      {supply.shoppingLink && (
-                        <p className="text-sm">
-                          <a
-                            href={supply.shoppingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-teal-500 hover:underline"
-                          >
-                            Find {supply.name} on{" "}
-                            {
-                              retailers.find(
-                                (r) => r.value === selectedRetailer
-                              )?.label
-                            }
-                          </a>
-                        </p>
-                      )}
+                      <p className="text-sm">
+                        <a
+                          href={generateShoppingLink(supply, selectedRetailer)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-teal-500 hover:underline"
+                        >
+                          Find {supply.name} on{" "}
+                          {retailers.find((r) => r.value === selectedRetailer)
+                            ?.label || "Retailer"}
+                        </a>
+                      </p>
                     </li>
                   ))}
                 </ul>

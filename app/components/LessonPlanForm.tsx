@@ -1,10 +1,11 @@
 "use client";
 
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
-import { LessonPlan, Source } from "../types/lessonPlan";
+import { LessonPlan, Source, Curriculum } from "../types/lessonPlan";
 
 interface FormData {
   title: string;
@@ -20,6 +21,7 @@ interface FormData {
   standards: string[];
   scheduledDate: string;
   preferredSources: Source[];
+  curriculum: Curriculum;
 }
 
 export default function LessonPlanForm() {
@@ -40,10 +42,11 @@ export default function LessonPlanForm() {
     preferredSources: [
       {
         name: "Khan Academy",
-        url: "https://www.khanacademy.org",
+        url: " yli://www.khanacademy.org",
         description: "Used for activity ideas and educational content.",
       },
     ],
+    curriculum: "US",
   });
   const [successCriteriaInput, setSuccessCriteriaInput] = useState<string>("");
   const [standardsInput, setStandardsInput] = useState<string>("");
@@ -82,69 +85,123 @@ export default function LessonPlanForm() {
   );
 
   const allSubjects = useMemo(
-    () => [
-      "LITERACY",
-      "MATH",
-      "SCIENCE",
-      "ART",
-      "MUSIC",
-      "PHYSICAL_EDUCATION",
-      "SOCIAL_EMOTIONAL",
-      "HISTORY",
-      "LITERATURE",
-      "GEOGRAPHY",
-      "STEM",
-      "FOREIGN_LANGUAGE",
-      "COMPUTER_SCIENCE",
-      "CIVICS",
-    ],
+    () => ({
+      US: [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "LITERATURE",
+        "GEOGRAPHY",
+        "STEM",
+        "FOREIGN_LANGUAGE",
+        "COMPUTER_SCIENCE",
+        "CIVICS",
+      ],
+      AUS: [
+        "ENGLISH",
+        "MATHEMATICS",
+        "SCIENCE",
+        "THE_ARTS",
+        "HEALTH_PE",
+        "SOCIAL_EMOTIONAL",
+        "HUMANITIES_SOCIAL_SCIENCES",
+        "TECHNOLOGIES",
+        "LANGUAGES",
+        "CIVICS_CITIZENSHIP",
+      ],
+    }),
     []
   );
 
   const allThemes = useMemo(
-    () => [
-      "SEASONS",
-      "NATURE",
-      "HOLIDAYS",
-      "EMOTIONS",
-      "COMMUNITY",
-      "ANIMALS",
-      "TRANSPORTATION",
-      "COLORS",
-      "SHAPES",
-      "NUMBERS",
-      "CULTURE",
-      "HISTORY",
-      "SCIENCE_FICTION",
-      "GLOBAL_ISSUES",
-      "TECHNOLOGY",
-      "LITERATURE",
-    ],
+    () => ({
+      US: [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+        "CULTURE",
+        "HISTORY",
+        "SCIENCE_FICTION",
+        "GLOBAL_ISSUES",
+        "TECHNOLOGY",
+        "LITERATURE",
+      ],
+      AUS: [
+        "SEASONS",
+        "NATURE",
+        "INDIGENOUS_CULTURE",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORT",
+        "COLOURS",
+        "SHAPES",
+        "NUMBERS",
+        "AUSTRALIAN_HISTORY",
+        "SUSTAINABILITY",
+        "TECHNOLOGY",
+        "GLOBAL_ISSUES",
+        "LITERATURE",
+      ],
+    }),
     []
   );
 
   const allActivityTypes = useMemo(
-    () => [
-      "STORYTELLING",
-      "CRAFT",
-      "MOVEMENT",
-      "MUSIC",
-      "EXPERIMENT",
-      "FREE_PLAY",
-      "OUTDOOR",
-      "GROUP_DISCUSSION",
-      "PROJECT",
-      "PRESENTATION",
-      "WRITING",
-      "RESEARCH",
-      "DEBATE",
-      "CODING",
-    ],
+    () => ({
+      US: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "FREE_PLAY",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+        "RESEARCH",
+        "DEBATE",
+        "CODING",
+      ],
+      AUS: [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "FREE_PLAY",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+        "RESEARCH",
+        "DEBATE",
+        "CODING",
+        "INDIGENOUS_STORY",
+      ],
+    }),
     []
   );
 
   const standardsFrameworks = useMemo(
-    () => ["COMMON_CORE", "NGSS", "STATE_SPECIFIC"],
+    () => ({
+      US: ["COMMON_CORE", "NGSS", "STATE_SPECIFIC"],
+      AUS: ["ACARA"],
+    }),
     []
   );
 
@@ -166,45 +223,77 @@ export default function LessonPlanForm() {
   );
 
   const getAvailableSubjects = useCallback(
-    (gradeLevel: string) => {
+    (gradeLevel: string, curriculum: string) => {
       if (earlyGrades.includes(gradeLevel)) {
-        return [
-          "LITERACY",
-          "MATH",
-          "SCIENCE",
-          "ART",
-          "MUSIC",
-          "PHYSICAL_EDUCATION",
-          "SOCIAL_EMOTIONAL",
-        ];
+        return curriculum === "US"
+          ? [
+              "LITERACY",
+              "MATH",
+              "SCIENCE",
+              "ART",
+              "MUSIC",
+              "PHYSICAL_EDUCATION",
+              "SOCIAL_EMOTIONAL",
+            ]
+          : [
+              "ENGLISH",
+              "MATHEMATICS",
+              "SCIENCE",
+              "THE_ARTS",
+              "HEALTH_PE",
+              "SOCIAL_EMOTIONAL",
+            ];
       } else if (elementaryGrades.includes(gradeLevel)) {
-        return [
-          "LITERACY",
-          "MATH",
-          "SCIENCE",
-          "ART",
-          "MUSIC",
-          "PHYSICAL_EDUCATION",
-          "SOCIAL_EMOTIONAL",
-          "HISTORY",
-          "GEOGRAPHY",
-        ];
+        return curriculum === "US"
+          ? [
+              "LITERACY",
+              "MATH",
+              "SCIENCE",
+              "ART",
+              "MUSIC",
+              "PHYSICAL_EDUCATION",
+              "SOCIAL_EMOTIONAL",
+              "HISTORY",
+              "GEOGRAPHY",
+            ]
+          : [
+              "ENGLISH",
+              "MATHEMATICS",
+              "SCIENCE",
+              "THE_ARTS",
+              "HEALTH_PE",
+              "SOCIAL_EMOTIONAL",
+              "HUMANITIES_SOCIAL_SCIENCES",
+              "TECHNOLOGIES",
+            ];
       } else if (middleSchoolGrades.includes(gradeLevel)) {
-        return [
-          "LITERACY",
-          "MATH",
-          "SCIENCE",
-          "ART",
-          "MUSIC",
-          "PHYSICAL_EDUCATION",
-          "SOCIAL_EMOTIONAL",
-          "HISTORY",
-          "LITERATURE",
-          "GEOGRAPHY",
-          "STEM",
-        ];
+        return curriculum === "US"
+          ? [
+              "LITERACY",
+              "MATH",
+              "SCIENCE",
+              "ART",
+              "MUSIC",
+              "PHYSICAL_EDUCATION",
+              "SOCIAL_EMOTIONAL",
+              "HISTORY",
+              "LITERATURE",
+              "GEOGRAPHY",
+              "STEM",
+            ]
+          : [
+              "ENGLISH",
+              "MATHEMATICS",
+              "SCIENCE",
+              "THE_ARTS",
+              "HEALTH_PE",
+              "SOCIAL_EMOTIONAL",
+              "HUMANITIES_SOCIAL_SCIENCES",
+              "TECHNOLOGIES",
+              "LANGUAGES",
+            ];
       } else if (highSchoolGrades.includes(gradeLevel)) {
-        return allSubjects;
+        return curriculum === "US" ? allSubjects.US : allSubjects.AUS;
       }
       return [];
     },
@@ -218,51 +307,89 @@ export default function LessonPlanForm() {
   );
 
   const getAvailableThemes = useCallback(
-    (gradeLevel: string) => {
+    (gradeLevel: string, curriculum: string) => {
       if (earlyGrades.includes(gradeLevel)) {
-        return [
-          "SEASONS",
-          "NATURE",
-          "HOLIDAYS",
-          "EMOTIONS",
-          "COMMUNITY",
-          "ANIMALS",
-          "TRANSPORTATION",
-          "COLORS",
-          "SHAPES",
-          "NUMBERS",
-        ];
+        return curriculum === "US"
+          ? [
+              "SEASONS",
+              "NATURE",
+              "HOLIDAYS",
+              "EMOTIONS",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORTATION",
+              "COLORS",
+              "SHAPES",
+              "NUMBERS",
+            ]
+          : [
+              "SEASONS",
+              "NATURE",
+              "INDIGENOUS_CULTURE",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORT",
+              "COLOURS",
+              "SHAPES",
+              "NUMBERS",
+            ];
       } else if (elementaryGrades.includes(gradeLevel)) {
-        return [
-          "SEASONS",
-          "NATURE",
-          "HOLIDAYS",
-          "EMOTIONS",
-          "COMMUNITY",
-          "ANIMALS",
-          "TRANSPORTATION",
-          "COLORS",
-          "SHAPES",
-          "NUMBERS",
-          "CULTURE",
-          "HISTORY",
-        ];
+        return curriculum === "US"
+          ? [
+              "SEASONS",
+              "NATURE",
+              "HOLIDAYS",
+              "EMOTIONS",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORTATION",
+              "COLORS",
+              "SHAPES",
+              "NUMBERS",
+              "CULTURE",
+              "HISTORY",
+            ]
+          : [
+              "SEASONS",
+              "NATURE",
+              "INDIGENOUS_CULTURE",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORT",
+              "COLOURS",
+              "SHAPES",
+              "NUMBERS",
+              "AUSTRALIAN_HISTORY",
+              "SUSTAINABILITY",
+            ];
       } else if (middleSchoolGrades.includes(gradeLevel)) {
-        return [
-          "SEASONS",
-          "NATURE",
-          "HOLIDAYS",
-          "EMOTIONS",
-          "COMMUNITY",
-          "ANIMALS",
-          "TRANSPORTATION",
-          "CULTURE",
-          "HISTORY",
-          "SCIENCE_FICTION",
-          "TECHNOLOGY",
-        ];
+        return curriculum === "US"
+          ? [
+              "SEASONS",
+              "NATURE",
+              "HOLIDAYS",
+              "EMOTIONS",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORTATION",
+              "CULTURE",
+              "HISTORY",
+              "SCIENCE_FICTION",
+              "TECHNOLOGY",
+            ]
+          : [
+              "SEASONS",
+              "NATURE",
+              "INDIGENOUS_CULTURE",
+              "COMMUNITY",
+              "ANIMALS",
+              "TRANSPORT",
+              "AUSTRALIAN_HISTORY",
+              "SUSTAINABILITY",
+              "TECHNOLOGY",
+            ];
       } else if (highSchoolGrades.includes(gradeLevel)) {
-        return allThemes;
+        return curriculum === "US" ? allThemes.US : allThemes.AUS;
       }
       return [];
     },
@@ -276,43 +403,80 @@ export default function LessonPlanForm() {
   );
 
   const getAvailableActivityTypes = useCallback(
-    (gradeLevel: string) => {
+    (gradeLevel: string, curriculum: string) => {
       if (earlyGrades.includes(gradeLevel)) {
-        return [
-          "STORYTELLING",
-          "CRAFT",
-          "MOVEMENT",
-          "MUSIC",
-          "FREE_PLAY",
-          "OUTDOOR",
-        ];
+        return curriculum === "US"
+          ? [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "FREE_PLAY",
+              "OUTDOOR",
+            ]
+          : [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "FREE_PLAY",
+              "OUTDOOR",
+              "INDIGENOUS_STORY",
+            ];
       } else if (elementaryGrades.includes(gradeLevel)) {
-        return [
-          "STORYTELLING",
-          "CRAFT",
-          "MOVEMENT",
-          "MUSIC",
-          "EXPERIMENT",
-          "FREE_PLAY",
-          "OUTDOOR",
-          "WRITING",
-          "PROJECT",
-        ];
+        return curriculum === "US"
+          ? [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "EXPERIMENT",
+              "FREE_PLAY",
+              "OUTDOOR",
+              "WRITING",
+              "PROJECT",
+            ]
+          : [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "EXPERIMENT",
+              "FREE_PLAY",
+              "OUTDOOR",
+              "WRITING",
+              "PROJECT",
+              "INDIGENOUS_STORY",
+            ];
       } else if (middleSchoolGrades.includes(gradeLevel)) {
-        return [
-          "STORYTELLING",
-          "CRAFT",
-          "MOVEMENT",
-          "MUSIC",
-          "EXPERIMENT",
-          "OUTDOOR",
-          "GROUP_DISCUSSION",
-          "PROJECT",
-          "PRESENTATION",
-          "WRITING",
-        ];
+        return curriculum === "US"
+          ? [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "EXPERIMENT",
+              "OUTDOOR",
+              "GROUP_DISCUSSION",
+              "PROJECT",
+              "PRESENTATION",
+              "WRITING",
+            ]
+          : [
+              "STORYTELLING",
+              "CRAFT",
+              "MOVEMENT",
+              "MUSIC",
+              "EXPERIMENT",
+              "OUTDOOR",
+              "GROUP_DISCUSSION",
+              "PROJECT",
+              "PRESENTATION",
+              "WRITING",
+              "INDIGENOUS_STORY",
+            ];
       } else if (highSchoolGrades.includes(gradeLevel)) {
-        return allActivityTypes;
+        return curriculum === "US" ? allActivityTypes.US : allActivityTypes.AUS;
       }
       return [];
     },
@@ -326,11 +490,20 @@ export default function LessonPlanForm() {
   );
 
   useEffect(() => {
-    const availableSubjects = getAvailableSubjects(formData.gradeLevel);
-    const availableThemes = getAvailableThemes(formData.gradeLevel);
-    const availableActivityTypes = getAvailableActivityTypes(
-      formData.gradeLevel
+    const availableSubjects = getAvailableSubjects(
+      formData.gradeLevel,
+      formData.curriculum
     );
+    const availableThemes = getAvailableThemes(
+      formData.gradeLevel,
+      formData.curriculum
+    );
+    const availableActivityTypes = getAvailableActivityTypes(
+      formData.gradeLevel,
+      formData.curriculum
+    );
+    const availableStandardsFrameworks =
+      standardsFrameworks[formData.curriculum];
 
     if (!availableSubjects.includes(formData.subject)) {
       setFormData((prev) => ({ ...prev, subject: availableSubjects[0] || "" }));
@@ -353,14 +526,25 @@ export default function LessonPlanForm() {
             : [availableActivityTypes[0]],
       }));
     }
+
+    if (!availableStandardsFrameworks.includes(formData.standardsFramework)) {
+      setFormData((prev) => ({
+        ...prev,
+        standardsFramework: "",
+        standards: [],
+      }));
+    }
   }, [
     formData.activityTypes,
     formData.gradeLevel,
     formData.subject,
     formData.theme,
+    formData.curriculum,
+    formData.standardsFramework,
     getAvailableSubjects,
     getAvailableThemes,
     getAvailableActivityTypes,
+    standardsFrameworks,
   ]);
 
   const handleAddSource = () => {
@@ -424,7 +608,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with `&apos;I can`&apos;.");
+      setError("All success criteria must start with &apos;I can&apos;.");
       setLoading(false);
       return;
     }
@@ -441,7 +625,6 @@ export default function LessonPlanForm() {
       return;
     }
 
-    // Validate source URLs
     const invalidSource = formData.preferredSources.find(
       (source) =>
         source.url &&
@@ -511,6 +694,25 @@ export default function LessonPlanForm() {
           <form onSubmit={handleSubmit} className="space-y-6 pb-12">
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
+                Curriculum
+              </label>
+              <select
+                value={formData.curriculum}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    curriculum: e.target.value as Curriculum,
+                  })
+                }
+                className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                required
+              >
+                <option value="US">United States</option>
+                <option value="AUS">Australia</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Title (Optional)
               </label>
               <input
@@ -555,7 +757,10 @@ export default function LessonPlanForm() {
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                   required
                 >
-                  {getAvailableSubjects(formData.gradeLevel).map((subject) => (
+                  {getAvailableSubjects(
+                    formData.gradeLevel,
+                    formData.curriculum
+                  ).map((subject) => (
                     <option key={subject} value={subject}>
                       {subject.replace("_", " ")}
                     </option>
@@ -576,7 +781,10 @@ export default function LessonPlanForm() {
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 >
                   <option value="">Select a theme</option>
-                  {getAvailableThemes(formData.gradeLevel).map((theme) => (
+                  {getAvailableThemes(
+                    formData.gradeLevel,
+                    formData.curriculum
+                  ).map((theme) => (
                     <option key={theme} value={theme}>
                       {theme.replace("_", " ")}
                     </option>
@@ -646,7 +854,10 @@ export default function LessonPlanForm() {
                 Activity Types
               </label>
               <div className="space-y-2">
-                {getAvailableActivityTypes(formData.gradeLevel).map((type) => (
+                {getAvailableActivityTypes(
+                  formData.gradeLevel,
+                  formData.curriculum
+                ).map((type) => (
                   <div key={type} className="flex items-center">
                     <input
                       type="checkbox"
@@ -695,8 +906,8 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Success Criteria (Optional, one per line, start with `&apos;I
-                can`&apos;)
+                Success Criteria (Optional, one per line, start with &apos;I
+                can&apos;)
               </label>
               <textarea
                 value={successCriteriaInput}
@@ -722,7 +933,7 @@ export default function LessonPlanForm() {
                 className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
               >
                 <option value="">Select a standards framework</option>
-                {standardsFrameworks.map((framework) => (
+                {standardsFrameworks[formData.curriculum].map((framework) => (
                   <option key={framework} value={framework}>
                     {framework.replace("_", " ")}
                   </option>
@@ -732,14 +943,21 @@ export default function LessonPlanForm() {
             {formData.standardsFramework && (
               <div>
                 <label className="block text-sm font-semibold text-teal-800 mb-2">
-                  Standards (Optional, one per line, e.g.,
-                  CCSS.MATH.CONTENT.2.OA.A.1)
+                  Standards (Optional, one per line, e.g.,{" "}
+                  {formData.curriculum === "US"
+                    ? "CCSS.MATH.CONTENT.2.OA.A.1"
+                    : "AC9M4N01"}
+                  )
                 </label>
                 <textarea
                   value={standardsInput}
                   onChange={(e) => setStandardsInput(e.target.value)}
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  placeholder="Enter standards, one per line (e.g., CCSS.MATH.CONTENT.2.OA.A.1)"
+                  placeholder={`Enter standards, one per line (e.g., ${
+                    formData.curriculum === "US"
+                      ? "CCSS.MATH.CONTENT.2.OA.A.1"
+                      : "AC9M4N01"
+                  })`}
                   rows={5}
                 />
               </div>
@@ -749,9 +967,11 @@ export default function LessonPlanForm() {
                 Preferred Sources (Optional)
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                Add trusted sources for activities and lesson content (e.g.,
-                Khan Academy, NSTA). If none provided, default sources will be
-                used.
+                Add trusted sources for activities and lesson content (e.g.,{" "}
+                {formData.curriculum === "US"
+                  ? "Khan Academy, NSTA"
+                  : "ACARA, Scootle"}
+                ). If none provided, default sources will be used.
               </p>
               {sourceInputs.map((source, index) => (
                 <div key={index} className="space-y-2 mb-4">
@@ -762,7 +982,9 @@ export default function LessonPlanForm() {
                       handleSourceChange(index, "name", e.target.value)
                     }
                     className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    placeholder="Source Name (e.g., Khan Academy)"
+                    placeholder={`Source Name (e.g., ${
+                      formData.curriculum === "US" ? "Khan Academy" : "ACARA"
+                    })`}
                   />
                   <input
                     type="url"
@@ -771,7 +993,11 @@ export default function LessonPlanForm() {
                       handleSourceChange(index, "url", e.target.value)
                     }
                     className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    placeholder="Source URL (e.g., https://www.khanacademy.org)"
+                    placeholder={`Source URL (e.g., ${
+                      formData.curriculum === "US"
+                        ? "https://www.khanacademy.org"
+                        : "https://www.australiancurriculum.edu.au"
+                    })`}
                   />
                   <input
                     type="text"
@@ -804,7 +1030,7 @@ export default function LessonPlanForm() {
             <p className="text-sm text-gray-600">
               Note: Development goals, strategies, standards alignment, and
               source metadata will be automatically generated based on your
-              input.
+              input and the {formData.curriculum} curriculum.
             </p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
@@ -820,3 +1046,6 @@ export default function LessonPlanForm() {
     </div>
   );
 }
+
+
+
