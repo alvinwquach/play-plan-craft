@@ -524,12 +524,12 @@ ${
               </Link>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
                     onClick={exportToICal}
                     className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
                   >
                     <FaRegCalendarAlt className="text-xl" />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center">
                   Export to iCal
