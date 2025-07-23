@@ -11,7 +11,7 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function DELETE(context: { params: Promise<{ id: string }> }) {
+export async function DELETE({ params }: { params: { id: string } }) {
   try {
     const supabase = await createClient();
     const {
@@ -25,7 +25,7 @@ export async function DELETE(context: { params: Promise<{ id: string }> }) {
       );
     }
 
-    const { id } = await context.params;
+    const { id } = params;
     const lessonPlanId = parseInt(id, 10);
     if (isNaN(lessonPlanId)) {
       return NextResponse.json(
