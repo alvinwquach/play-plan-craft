@@ -15,21 +15,23 @@ const openai = new OpenAI({
 export async function POST(request: Request) {
   try {
     const {
+      title = "Untitled Lesson",
       gradeLevel,
       subject,
-      theme,
+      theme = null,
       duration,
-      activityTypes,
+      activityTypes = [],
       classroomSize,
-      learningIntention,
-      successCriteria,
-      standardsFramework,
-      standards,
-      preferredSources,
+      learningIntention = "",
+      successCriteria = [],
+      standardsFramework = "",
+      standards = [],
+      preferredSources = [],
       curriculum,
     } = await request.json();
 
-    const validCurriculums = ["US", "AUS"];
+    // Validate curriculum
+    const validCurriculums: Curriculum[] = ["US", "AUS"];
     if (!validCurriculums.includes(curriculum)) {
       return NextResponse.json(
         { success: false, error: `Invalid curriculum: ${curriculum}` },
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Define valid grade levels and categories
     const validGradeLevels = [
       "INFANT",
       "TODDLER",
@@ -55,7 +58,6 @@ export async function POST(request: Request) {
       "GRADE_11",
       "GRADE_12",
     ];
-
     const earlyGrades = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
     const elementaryGrades = [
       "GRADE_1",
@@ -67,7 +69,11 @@ export async function POST(request: Request) {
     const middleSchoolGrades = ["GRADE_6", "GRADE_7", "GRADE_8"];
     const highSchoolGrades = ["GRADE_9", "GRADE_10", "GRADE_11", "GRADE_12"];
 
-    const validSubjects = {
+    // Define type for grade level categories
+    type GradeCategory = "early" | "elementary" | "middle" | "high";
+
+    // Define valid subjects, themes, and activity types with explicit typing
+    const validSubjects: Record<Curriculum, Record<GradeCategory, string[]>> = {
       US: {
         early: [
           "LITERACY",
@@ -164,7 +170,7 @@ export async function POST(request: Request) {
       },
     };
 
-    const validThemes = {
+    const validThemes: Record<Curriculum, Record<GradeCategory, string[]>> = {
       US: {
         early: [
           "SEASONS",
@@ -273,7 +279,7 @@ export async function POST(request: Request) {
       },
     };
 
-    const validActivityTypes = {
+    const validActivityTypes: Record<Curriculum, Record<GradeCategory, string[]>> = {
       US: {
         early: [
           "STORYTELLING",
@@ -376,28 +382,16 @@ export async function POST(request: Request) {
       },
     };
 
-    let allowedSubjects: string[];
-    let allowedThemes: string[];
-    let allowedActivityTypes: string[];
-
+    // Determine grade category
+    let gradeCategory: GradeCategory;
     if (earlyGrades.includes(gradeLevel)) {
-      allowedSubjects = validSubjects[curriculum as Curriculum].early;
-      allowedThemes = validThemes[curriculum as Curriculum].early;
-      allowedActivityTypes = validActivityTypes[curriculum as Curriculum].early;
+      gradeCategory = "early";
     } else if (elementaryGrades.includes(gradeLevel)) {
-      allowedSubjects = validSubjects[curriculum as Curriculum].elementary;
-      allowedThemes = validThemes[curriculum as Curriculum].elementary;
-      allowedActivityTypes =
-        validActivityTypes[curriculum as Curriculum].elementary;
+      gradeCategory = "elementary";
     } else if (middleSchoolGrades.includes(gradeLevel)) {
-      allowedSubjects = validSubjects[curriculum as Curriculum].middle;
-      allowedThemes = validThemes[curriculum as Curriculum].middle;
-      allowedActivityTypes =
-        validActivityTypes[curriculum as Curriculum].middle;
+      gradeCategory = "middle";
     } else if (highSchoolGrades.includes(gradeLevel)) {
-      allowedSubjects = validSubjects[curriculum as Curriculum].high;
-      allowedThemes = validThemes[curriculum as Curriculum].high;
-      allowedActivityTypes = validActivityTypes[curriculum as Curriculum].high;
+      gradeCategory = "high";
     } else {
       return NextResponse.json(
         { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
@@ -405,6 +399,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Assert curriculum as a valid key
+    const typedCurriculum = curriculum as Curriculum;
+
+    // Determine allowed subjects, themes, and activity types
+    const allowedSubjects = validSubjects[typedCurriculum][gradeCategory];
+    const allowedThemes = validThemes[typedCurriculum][gradeCategory];
+    const allowedActivityTypes = validActivityTypes[typedCurriculum][gradeCategory];
+
+    // Validate required fields
     if (!validGradeLevels.includes(gradeLevel)) {
       return NextResponse.json(
         { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
@@ -420,7 +423,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (theme && !allowedThemes.includes(theme)) {
+    if (theme && theme !== "OTHER" && !allowedThemes.includes(theme)) {
       return NextResponse.json(
         {
           success: false,
@@ -432,23 +435,6 @@ export async function POST(request: Request) {
     if (duration < 5 || duration > 120) {
       return NextResponse.json(
         { success: false, error: `Invalid duration: ${duration}` },
-        { status: 400 }
-      );
-    }
-    if (
-      !Array.isArray(activityTypes) ||
-      activityTypes.length === 0 ||
-      !activityTypes.every((type: string) =>
-        allowedActivityTypes.includes(type)
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid activity types for ${gradeLevel} in ${curriculum} curriculum: ${activityTypes.join(
-            ", "
-          )}`,
-        },
         { status: 400 }
       );
     }
@@ -465,7 +451,37 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (!Array.isArray(activityTypes)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid activityTypes: must be an array`,
+        },
+        { status: 400 }
+      );
+    }
+    if (
+      activityTypes.length > 0 &&
+      !activityTypes.every((type: string) => {
+        const isValidType = allowedActivityTypes.includes(type);
+        const isCustomType = !Object.values(validActivityTypes[typedCurriculum]).some(category =>
+          category.includes(type)
+        );
+        return isValidType || isCustomType;
+      })
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid activity types for ${gradeLevel} in ${curriculum} curriculum: ${activityTypes.join(
+            ", "
+          )}`,
+        },
+        { status: 400 }
+      );
+    }
 
+    // Validate standards framework and standards
     const validStandardsFrameworks =
       curriculum === "US"
         ? ["COMMON_CORE", "NGSS", "STATE_SPECIFIC"]
@@ -496,6 +512,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Handle sources
     const defaultSources: Source[] =
       curriculum === "US"
         ? [
@@ -524,106 +541,115 @@ export async function POST(request: Request) {
             },
           ];
 
-    const sources =
+    const sources: Source[] =
       Array.isArray(preferredSources) && preferredSources.length > 0
-        ? preferredSources
+        ? preferredSources.map((source) => ({
+            name: source.name || "Unnamed Source",
+            url: source.url || "https://www.example.com",
+            description:
+              source.description || "Source used for activity inspiration",
+          }))
         : defaultSources;
 
+    // Construct OpenAI prompt
     const prompt = `
- You are an AI lesson planner for the ${curriculum} curriculum. Generate a structured JSON response.
- 
- 
- Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students focusing on ${subject.toLowerCase()}${
+You are an AI lesson planner for the ${curriculum} curriculum, designed to support educators from nurturing infants to managing high school projects. Generate a structured JSON response for a lesson plan tailored to the provided inputs.
+
+Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students focusing on ${subject.toLowerCase()}${
       theme ? ` with a ${theme.toLowerCase()} theme` : ""
     } for a classroom of ${classroomSize} students, aligned with the ${curriculum} curriculum.
- 
- 
- **Curriculum Details**:
- - Curriculum: ${curriculum}
- - For US curriculum, align with frameworks like Common Core or NGSS if specified.
- - For Australian curriculum, align with ACARA standards (e.g., AC9M4N01 for Mathematics Year 4).
- - Ensure activities, subjects, and themes are appropriate for the ${curriculum} curriculum.
- 
- 
- **Activity Requirements**:
- - Use the provided activity types: ${activityTypes.join(", ")}.
- - For each activity type, generate **2-3 activity ideas** and select the **best one** to include in the "activities" array, based on:
- - Engagement: Score (0-100) based on how engaging the activity is for ${gradeLevel.toLowerCase()} students.
- - Alignment: Score (0-100) based on alignment with the subject (${subject.toLowerCase()})${
+
+**Curriculum Details**:
+- Curriculum: ${curriculum}
+- For US curriculum, align with frameworks like Common Core or NGSS if specified.
+- For Australian curriculum, align with ACARA standards (e.g., AC9M4N01 for Mathematics Year 4).
+- Ensure activities, subjects, and themes are appropriate for the ${curriculum} curriculum.
+
+**Activity Requirements**:
+- ${
+  activityTypes.length > 0
+    ? `Use the provided activity types: ${activityTypes.join(
+        ", "
+      )}. If custom activity types are provided (not in standard list), treat them as valid and design activities accordingly.`
+    : "No specific activity types provided. Select 2-3 appropriate activity types from the following based on grade level and subject: " +
+      allowedActivityTypes.join(", ") +
+      "."
+}
+- For each activity type, generate **2-3 activity ideas** and select the **best one** to include in the "activities" array, based on:
+  - Engagement: Score (0-100) based on how engaging the activity is for ${gradeLevel.toLowerCase()} students.
+  - Alignment: Score (0-100) based on alignment with the subject (${subject.toLowerCase()})${
       theme ? ` and theme (${theme.toLowerCase()})` : ""
     } and the ${curriculum} curriculum.
- - Feasibility: Score (0-100) based on practicality for a classroom of ${classroomSize} students and the given duration.
- - Include the selected activity's "engagementScore", "alignmentScore", and "feasibilityScore" in the response.
- - Include the non-selected activity ideas in an "alternateActivities" object, keyed by activity type, with their respective scores.
- - Ensure **at least one activity per provided activity type** is included in the "activities" array.
- - Distribute the total duration (${duration} minutes) across the activities in the "activities" array, ensuring the sum of activity durations approximately equals the total lesson duration.
- - Each activity (in both "activities" and "alternateActivities") must include a detailed description with clear steps or instructions tailored to the grade level, subject, and ${curriculum} curriculum.
- - For each activity, assign a trusted source from the following list of preferred sources: ${JSON.stringify(
-   sources
- )}. Cycle through the provided sources to assign one to each activity. Each activity must have a "source" object with:
- - "name": string (e.g., "${curriculum === "US" ? "Khan Academy" : "ACARA"}")
- - "url": string (e.g., "${
-   curriculum === "US"
-     ? "https://www.khanacademy.org"
-     : "https://www.australiancurriculum.edu.au"
- }")
- - "description": string (brief explanation of how the source was used, e.g., "Provided activity inspiration")
- 
- 
- **Supplies**:
- - Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example:
- - For individual activities (e.g., crafts), provide one item per student.
- - For shared items (e.g., books, tools), provide a reasonable number for group use (e.g., 1 per 4-6 students).
- - Include a "note" field for supplies when additional context is needed (e.g., specific book titles, sizes, or types).
- 
- 
- **Learning Intention and Success Criteria**:
- - ${
-   learningIntention
-     ? `Use this learning intention: "${learningIntention}".`
-     : `Include a "Learning Intention" (a clear statement of what students will learn, aligned with the subject, grade level, and ${curriculum} curriculum).`
- }
- - ${
-   successCriteria && successCriteria.length > 0
-     ? `Use these success criteria: ${successCriteria
-         .map((c: string) => `"${c}"`)
-         .join(", ")}.`
-     : `Include "Success Criteria" (a list of 3-5 measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes" for US or "I can describe number patterns" for AUS).`
- }
- 
- 
- **Development Goals**:
- - Always include "developmentGoals" with at least two goals, each with a "name" and a detailed "description" tailored to the subject, theme, grade level, and ${curriculum} curriculum to support student growth (e.g., cognitive, social-emotional, or physical development).
- 
- 
- **DRDP Domains (Preschool Only, US Curriculum)**:
- - If gradeLevel is "PRESCHOOL" and curriculum is "US", automatically generate "drdpDomains" based on the activities and development goals. Use these DRDP domains:
- - ATL-REG (Approaches to Learning–Self-Regulation)
- - SED (Social and Emotional Development)
- - LLD (Language and Literacy Development)
- - COG (Cognition, including Math and Science)
- - PD-HLTH (Physical Development–Health)
- - Map activities to DRDP domains as follows:
- - STORYTELLING: LLD, SED
- - CRAFT: COG, PD-HLTH
- - MOVEMENT: PD-HLTH, ATL-REG
- - MUSIC: LLD, SED
- - FREE_PLAY: SED, ATL-REG
- - OUTDOOR (e.g., Chalk Art): COG, PD-HLTH, LLD, SED
- - Ensure each domain includes a "code", "name", "description" (tailored to the activities), and a "strategies" array with at least two specific strategies to support development in that domain.
- 
- 
- **Standards (if provided)**:
- - If a standards framework is provided (e.g., ${
-   standardsFramework || "none"
- }), align the lesson plan with the specified standards: ${
-      standards?.join(", ") || "none"
+  - Feasibility: Score (0-100) based on practicality for a classroom of ${classroomSize} students and the given duration.
+- Include the selected activity's "engagementScore", "alignmentScore", and "feasibilityScore" in the response.
+- Include the non-selected activity ideas in an "alternateActivities" object, keyed by activity type, with their respective scores.
+- ${
+  activityTypes.length > 0
+    ? `Ensure **at least one activity per provided activity type** is included in the "activities" array.`
+    : "Ensure 2-3 activities are included in the 'activities' array, appropriate for the grade level and subject."
+}
+- Distribute the total duration (${duration} minutes) across the activities in the "activities" array, ensuring the sum of activity durations approximately equals the total lesson duration.
+- Each activity (in both "activities" and "alternateActivities") must include a detailed description with clear steps or instructions tailored to the grade level, subject, and ${curriculum} curriculum.
+- For each activity, assign a trusted source from the following list of preferred sources: ${JSON.stringify(
+      sources
+    )}. Cycle through the provided sources to assign one to each activity. Each activity must have a "source" object with:
+  - "name": string (e.g., "${curriculum === "US" ? "Khan Academy" : "ACARA"}")
+  - "url": string (e.g., "${
+      curriculum === "US"
+        ? "https://www.khanacademy.org"
+        : "https://www.australiancurriculum.edu.au"
+    }")
+  - "description": string (brief explanation of how the source was used, e.g., "Provided activity inspiration")
+
+**Supplies**:
+- Adjust the quantities of supplies to be appropriate for ${classroomSize} students. For example:
+  - For individual activities (e.g., crafts), provide one item per student.
+  - For shared items (e.g., books, tools), provide a reasonable number for group use (e.g., 1 per 4-6 students).
+- Include a "note" field for supplies when additional context is needed (e.g., specific book titles, sizes, or types).
+
+**Learning Intention and Success Criteria**:
+- ${
+  learningIntention
+    ? `Use this learning intention: "${learningIntention}".`
+    : `Include a "Learning Intention" (a clear statement of what students will learn, aligned with the subject, grade level, and ${curriculum} curriculum).`
+}
+- ${
+  successCriteria.length > 0
+    ? `Use these success criteria: ${successCriteria
+        .map((c: string) => `"${c}"`)
+        .join(", ")}.`
+    : `Include "Success Criteria" (a list of 3-5 measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes" for US or "I can describe number patterns" for AUS).`
+}
+
+**Development Goals**:
+- Always include "developmentGoals" with at least two goals, each with a "name" and a detailed "description" tailored to the subject, theme, grade level, and ${curriculum} curriculum to support student growth (e.g., cognitive, social-emotional, or physical development).
+
+**DRDP Domains (Preschool Only, US Curriculum)**:
+- If gradeLevel is "PRESCHOOL" and curriculum is "US", automatically generate "drdpDomains" based on the activities and development goals. Use these DRDP domains:
+  - ATL-REG (Approaches to Learning–Self-Regulation)
+  - SED (Social and Emotional Development)
+  - LLD (Language and Literacy Development)
+  - COG (Cognition, including Math and Science)
+  - PD-HLTH (Physical Development–Health)
+- Map activities to DRDP domains as follows:
+  - STORYTELLING: LLD, SED
+  - CRAFT: COG, PD-HLTH
+  - MOVEMENT: PD-HLTH, ATL-REG
+  - MUSIC: LLD, SED
+  - FREE_PLAY: SED, ATL-REG
+  - OUTDOOR: COG, PD-HLTH, LLD, SED
+  - For custom activity types, map to relevant domains based on activity description or default to COG and SED.
+- Ensure each domain includes a "code", "name", "description" (tailored to the activities), and a "strategies" array with at least two specific strategies to support development in that domain.
+
+**Standards (if provided)**:
+- If a standards framework is provided (e.g., ${standardsFramework || "none"}), align the lesson plan with the specified standards: ${
+      standards.length > 0 ? standards.join(", ") : "none"
     }.
- - For US curriculum, use standards like "CCSS.MATH.CONTENT.2.OA.A.1" or NGSS codes.
- - For Australian curriculum, use ACARA codes like "AC9M4N01".
- - Include a "standards" array with each standard having a "code" (e.g., ${
-   curriculum === "US" ? '"CCSS.MATH.CONTENT.2.OA.A.1"' : '"AC9M4N01"'
- }), a "description" (e.g., ${
+- For US curriculum, use standards like "CCSS.MATH.CONTENT.2.OA.A.1" or NGSS codes.
+- For Australian curriculum, use ACARA codes like "AC9M4N01".
+- Include a "standards" array with each standard having a "code" (e.g., ${
+      curriculum === "US" ? '"CCSS.MATH.CONTENT.2.OA.A.1"' : '"AC9M4N01"'
+    }), a "description" (e.g., ${
       curriculum === "US"
         ? '"Use addition and subtraction within 100 to solve one- and two-step word problems"'
         : '"Recognise, represent and order numbers to at least tens of thousands"'
@@ -634,123 +660,128 @@ export async function POST(request: Request) {
         ? '"http://www.corestandards.org/Math/Content/2/OA/"'
         : '"https://www.australiancurriculum.edu.au"'
     }).
- - Ensure activities and success criteria align with these standards.
- 
- 
- **Source Metadata and Citation Score**:
- - Include a "sourceMetadata" array containing all provided sources (or default sources if none provided). Each source should have:
- - "name": string
- - "url": string
- - "description": string
- - Include a "citationScore" (0-100) indicating the reliability of the sources used, based on their authority (e.g., 90 for Common Core, 90 for NGSS, 90 for ACARA, 85 for Khan Academy, 80 for NSTA , 85 for Scootle). Calculate the citation score as an average of the scores of all sources used (assume provided sources have a score of 85 unless they match known sources).
- 
- 
- **Tags**:
- - Include a "tags" array with 3-5 relevant tags (e.g., "ENGAGING", "HANDS_ON", "COLLABORATIVE") based on the activities and subject.
- 
- 
- Ensure the JSON is strictly in this format:
- 
- 
- {
- "lessonPlan": {
- "title": string,
- "gradeLevel": "${gradeLevel}",
- "subject": "${subject}",
- "theme": "${theme || null}",
- "status": "DRAFT",
- "duration": ${duration},
- "classroomSize": ${classroomSize},
- "curriculum": "${curriculum}",
- "learningIntention": string,
- "successCriteria": [string],
- "activities": [
- {
- "title": string,
- "activityType": string,
- "description": string,
- "durationMins": number,
- "source": {
- "name": string,
- "url": string,
- "description": string
- },
- "engagementScore": number,
- "alignmentScore": number,
- "feasibilityScore": number
- }
- ],
- "alternateActivities": {
- "${activityTypes.join('", "')}": [
- {
- "title": string,
- "activityType": string,
- "description": string,
- "durationMins": number,
- "source": {
- "name": string,
- "url": string,
- "description": string
- },
- "engagementScore": number,
- "alignmentScore": number,
- "feasibilityScore": number
- }
- ]
- },
- "supplies": [
- {
- "name": string,
- "quantity": number,
- "unit": string,
- "note": string | null
- }
- ],
- "developmentGoals": [
- {
- "name": string,
- "description": string
- }
- ],
- "tags": [string],
- "drdpDomains": [
- {
- "code": string,
- "name": string,
- "description": string,
- "strategies": [string]
- }
- ],
- "standards": [
- {
- "code": string,
- "description": string,
- "source": {
- "name": string,
- "url": string,
- "description": string
- }
- }
- ],
- "sourceMetadata": [
- {
- "name": string,
- "url": string,
- "description": string
- }
- ],
- "citationScore": number
- }
- }
- 
- 
- Only output a valid JSON object. No markdown or extra text.
- `;
+- Ensure activities and success criteria align with these standards.
+
+**Source Metadata and Citation Score**:
+- Include a "sourceMetadata" array containing all provided sources (or default sources if none provided). Each source should have:
+  - "name": string
+  - "url": string
+  - "description": string
+- Include a "citationScore" (0-100) indicating the reliability of the sources used, based on their authority (e.g., 90 for Common Core, 90 for NGSS, 90 for ACARA, 85 for Khan Academy, 80 for NSTA, 85 for Scootle). Calculate the citation score as an average of the scores of all sources used (assume provided sources have a score of 85 unless they match known sources).
+
+**Tags**:
+- Include a "tags" array with 3-5 relevant tags (e.g., "ENGAGING", "HANDS_ON", "COLLABORATIVE") based on the activities and subject.
+
+Ensure the JSON is strictly in this format:
+
+{
+  "lessonPlan": {
+    "title": string,
+    "gradeLevel": "${gradeLevel}",
+    "subject": "${subject}",
+    "theme": ${theme ? `"${theme}"` : "null"},
+    "status": "DRAFT",
+    "duration": ${duration},
+    "classroomSize": ${classroomSize},
+    "curriculum": "${curriculum}",
+    "learningIntention": string,
+    "successCriteria": [string],
+    "activities": [
+      {
+        "title": string,
+        "activityType": string,
+        "description": string,
+        "durationMins": number,
+        "source": {
+          "name": string,
+          "url": string,
+          "description": string
+        },
+        "engagementScore": number,
+        "alignmentScore": number,
+        "feasibilityScore": number
+      }
+    ],
+    "alternateActivities": {
+      ${
+        activityTypes.length > 0
+          ? `"${activityTypes.join('", "')}"`
+          : '"GENERIC"'
+      }: [
+        {
+          "title": string,
+          "activityType": string,
+          "description": string,
+          "durationMins": number,
+          "source": {
+            "name": string,
+            "url": string,
+            "description": string
+          },
+          "engagementScore": number,
+          "alignmentScore": number,
+          "feasibilityScore": number
+        }
+      ]
+    },
+    "supplies": [
+      {
+        "name": string,
+        "quantity": number,
+        "unit": string,
+        "note": string | null
+      }
+    ],
+    "developmentGoals": [
+      {
+        "name": string,
+        "description": string
+      }
+    ],
+    "tags": [string],
+    "drdpDomains": [
+      {
+        "code": string,
+        "name": string,
+        "description": string,
+        "strategies": [string]
+      }
+    ],
+    "standards": [
+      {
+        "code": string,
+        "description": string,
+        "source": {
+          "name": string,
+          "url": string,
+          "description": string
+        }
+      }
+    ],
+    "sourceMetadata": [
+      {
+        "name": string,
+        "url": string,
+        "description": string
+      }
+    ],
+    "citationScore": number
+  }
+}
+
+Only output a valid JSON object. No markdown or extra text.
+`;
 
     let parsed: OpenAIResponse | null = null;
     let missingActivityTypes: string[] = [];
     const maxRetries = 3;
     let retryCount = 0;
+
+    // Default activity types if none provided
+    const defaultActivityTypes =
+      activityTypes.length === 0
+        ? allowedActivityTypes.slice(0, 2) // Select 2 default activity types
+        : activityTypes;
 
     do {
       const completion = await openai.chat.completions.create({
@@ -762,7 +793,7 @@ export async function POST(request: Request) {
               retryCount > 0
                 ? `${prompt}\n\nPrevious attempt missing activity types: ${missingActivityTypes.join(
                     ", "
-                  )}. Ensure all requested activity types (${activityTypes.join(
+                  )}. Ensure all requested activity types (${defaultActivityTypes.join(
                     ", "
                   )}) are included in the "activities" array, with 2-3 alternate ideas per type in "alternateActivities".`
                 : prompt,
@@ -797,21 +828,25 @@ export async function POST(request: Request) {
         throw new Error("Incomplete lesson plan response");
       }
 
-      const generatedActivityTypes = new Set(
-        (lesson.activities ?? []).map((a) => a.activityType)
-      );
-      missingActivityTypes = activityTypes.filter(
-        (type) => !generatedActivityTypes.has(type)
-      );
-
-      if (missingActivityTypes.length > 0) {
-        console.warn(
-          `Attempt ${retryCount + 1}: Missing activities for types:`,
-          missingActivityTypes.join(", ")
+      // Check for missing activity types only if activityTypes were provided
+      if (activityTypes.length > 0) {
+        const generatedActivityTypes = new Set(
+          (lesson.activities ?? []).map((a) => a.activityType)
         );
-        retryCount++;
+        missingActivityTypes = activityTypes.filter(
+          (type) => !generatedActivityTypes.has(type)
+        );
+        if (missingActivityTypes.length > 0) {
+          console.warn(
+            `Attempt ${retryCount + 1}: Missing activities for types:`,
+            missingActivityTypes.join(", ")
+          );
+          retryCount++;
+        } else {
+          break;
+        }
       } else {
-        break;
+        break; // No activity types provided, so no need to retry
       }
     } while (retryCount < maxRetries);
 
@@ -821,17 +856,22 @@ export async function POST(request: Request) {
 
     const lesson = parsed.lessonPlan;
 
+    // Process activities
     const activitiesWithSources = (lesson.activities ?? []).map(
       (activity, index) => {
         const sourceIndex = index % sources.length;
         const source = activity.source ?? sources[sourceIndex];
         return {
-          title: activity.title ?? "Untitled Activity",
-          activityType: activity.activityType ?? activityTypes[0] ?? "UNKNOWN",
+          title: activity.title ?? `Activity ${index + 1}`,
+          activityType:
+            activity.activityType ??
+            (activityTypes.length > 0
+              ? activityTypes[index % activityTypes.length]
+              : "GENERIC"),
           description: activity.description ?? "",
           durationMins: parseInt(
             activity.durationMins?.toString().replace("minutes", "").trim() ??
-              `${Math.floor(duration / activityTypes.length)}`,
+              `${Math.floor(duration / (activityTypes.length || 2))}`,
             10
           ),
           source: {
@@ -847,9 +887,27 @@ export async function POST(request: Request) {
       }
     );
 
+    // Ensure at least one activity if none provided
+    if (activitiesWithSources.length === 0) {
+      const sourceIndex = 0;
+      activitiesWithSources.push({
+        title: `Default Activity`,
+        activityType: defaultActivityTypes[0] ?? "GENERIC",
+        description: `A default activity aligned with ${subject.toLowerCase()}${
+          theme ? ` and ${theme.toLowerCase()} theme` : ""
+        } in the ${curriculum} curriculum.`,
+        durationMins: duration,
+        source: sources[sourceIndex],
+        engagementScore: 70,
+        alignmentScore: 70,
+        feasibilityScore: 70,
+      });
+    }
+
+    // Process alternate activities
     const alternateActivities = lesson.alternateActivities ?? {};
     const formattedAlternateActivities: { [key: string]: Activity[] } = {};
-    activityTypes.forEach((type) => {
+    defaultActivityTypes.forEach((type: string) => {
       formattedAlternateActivities[type] = (
         alternateActivities[type] ?? []
       ).map((activity, index) => {
@@ -862,7 +920,7 @@ export async function POST(request: Request) {
           description: activity.description ?? "",
           durationMins: parseInt(
             activity.durationMins?.toString().replace("minutes", "").trim() ??
-              `${Math.floor(duration / activityTypes.length)}`,
+              `${Math.floor(duration / (defaultActivityTypes.length || 2))}`,
             10
           ),
           source: {
@@ -878,7 +936,8 @@ export async function POST(request: Request) {
       });
     });
 
-    if (missingActivityTypes.length > 0) {
+    // Handle missing activity types
+    if (activityTypes.length > 0 && missingActivityTypes.length > 0) {
       console.warn(
         "Fallback: Adding placeholder activities for missing types:",
         missingActivityTypes.join(", ")
@@ -891,7 +950,9 @@ export async function POST(request: Request) {
           description: `A ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
             theme ? ` and ${theme.toLowerCase()} theme` : ""
           } in the ${curriculum} curriculum.`,
-          durationMins: Math.floor(duration / activityTypes.length),
+          durationMins: Math.floor(
+            duration / (activityTypes.length || 1)
+          ),
           source: sources[sourceIndex],
           engagementScore: 70,
           alignmentScore: 70,
@@ -905,7 +966,9 @@ export async function POST(request: Request) {
             description: `An alternate ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
               theme ? ` and ${theme.toLowerCase()} theme` : ""
             } in the ${curriculum} curriculum.`,
-            durationMins: Math.floor(duration / activityTypes.length),
+            durationMins: Math.floor(
+              duration / (activityTypes.length || 1)
+            ),
             source: sources[(sourceIndex + 1) % sources.length],
             engagementScore: 65,
             alignmentScore: 65,
@@ -917,7 +980,9 @@ export async function POST(request: Request) {
             description: `Another alternate ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
               theme ? ` and ${theme.toLowerCase()} theme` : ""
             } in the ${curriculum} curriculum.`,
-            durationMins: Math.floor(duration / activityTypes.length),
+            durationMins: Math.floor(
+              duration / (activityTypes.length || 1)
+            ),
             source: sources[(sourceIndex + 2) % sources.length],
             engagementScore: 60,
             alignmentScore: 60,
@@ -927,6 +992,7 @@ export async function POST(request: Request) {
       });
     }
 
+    // Adjust activity durations to match total duration
     const totalActivityDuration = activitiesWithSources.reduce(
       (sum, activity) => sum + activity.durationMins,
       0
@@ -948,6 +1014,7 @@ export async function POST(request: Request) {
       }
     }
 
+    // Calculate citation score
     const sourceScores: { [key: string]: number } = {
       "Common Core": 90,
       NGSS: 90,
@@ -979,11 +1046,12 @@ export async function POST(request: Request) {
           )
         : 80;
 
+    // Construct final lesson plan
     const lessonPlan: LessonPlan = {
-      title: lesson.title ?? "Untitled Lesson",
+      title: lesson.title ?? title,
       gradeLevel: lesson.gradeLevel ?? gradeLevel,
       subject: lesson.subject ?? subject,
-      theme: lesson.theme ?? theme ?? null,
+      theme: lesson.theme ?? theme,
       status: lesson.status ?? "DRAFT",
       duration: parseInt(
         lesson.duration?.toString().replace("minutes", "").trim() ??
@@ -992,29 +1060,33 @@ export async function POST(request: Request) {
       ),
       classroomSize: lesson.classroomSize ?? classroomSize,
       curriculum: curriculum,
-      learningIntention:
-        lesson.learningIntention ??
-        learningIntention ??
+      learningIntention: (lesson.learningIntention ?? learningIntention) ||
         `To learn key concepts of ${subject.toLowerCase()} in the ${curriculum} curriculum`,
-      successCriteria: lesson.successCriteria ??
-        successCriteria ?? ["I can demonstrate understanding of the lesson"],
+      successCriteria:
+        lesson.successCriteria ??
+        (successCriteria.length > 0
+          ? successCriteria
+          : [
+              `I can demonstrate understanding of ${subject.toLowerCase()}`,
+              `I can apply ${subject.toLowerCase()} concepts in activities`,
+              `I can collaborate effectively in class`,
+            ]),
       activities: activitiesWithSources,
       alternateActivities: formattedAlternateActivities,
-      supplies: (lesson.supplies ?? lesson.requiredSupplies ?? []).map(
-        (supply) =>
-          typeof supply === "string"
-            ? {
-                name: supply,
-                quantity: classroomSize,
-                unit: "unit",
-                note: null,
-              }
-            : {
-                name: supply.name ?? "Unnamed Supply",
-                quantity: supply.quantity ?? classroomSize,
-                unit: supply.unit ?? "unit",
-                note: supply.note ?? null,
-              }
+      supplies: (lesson.supplies ?? []).map((supply) =>
+        typeof supply === "string"
+          ? {
+              name: supply,
+              quantity: classroomSize,
+              unit: "unit",
+              note: null,
+            }
+          : {
+              name: supply.name ?? "Unnamed Supply",
+              quantity: supply.quantity ?? classroomSize,
+              unit: supply.unit ?? "unit",
+              note: supply.note ?? null,
+            }
       ),
       tags: lesson.tags ?? ["ENGAGING", "HANDS_ON", "COLLABORATIVE"],
       developmentGoals: lesson.developmentGoals ?? [
@@ -1029,17 +1101,21 @@ export async function POST(request: Request) {
       ],
       drdpDomains:
         lesson.drdpDomains && gradeLevel === "PRESCHOOL" && curriculum === "US"
-          ? lesson.drdpDomains
+          ? lesson.drdpDomains.map((domain) => ({
+              code: domain.code ?? "UNKNOWN",
+              name: domain.name ?? "Unknown Domain",
+              description: domain.description ?? "",
+              strategies: domain.strategies ?? [],
+            }))
           : [],
-      standards: (lesson.standards ?? []).map((standard) => ({
-        code: standard.code ?? "UNKNOWN",
+      standards: (lesson.standards ?? standards).map((standard: { code?: string; description?: string; source?: Source }) => ({
+        code: standard.code ?? (typeof standard === "string" ? standard : "UNKNOWN"),
         description: standard.description ?? "",
         source: standard.source
           ? {
               name:
-                standard.source.name ?? curriculum === "US"
-                  ? "Common Core"
-                  : "ACARA",
+                standard.source.name ??
+                (curriculum === "US" ? "Common Core" : "ACARA"),
               url:
                 standard.source.url ??
                 (curriculum === "US"
@@ -1049,7 +1125,14 @@ export async function POST(request: Request) {
                 standard.source.description ??
                 `Source used for standards alignment in ${curriculum} curriculum`,
             }
-          : undefined,
+          : {
+              name: curriculum === "US" ? "Common Core" : "ACARA",
+              url:
+                curriculum === "US"
+                  ? "http://www.corestandards.org"
+                  : "https://www.australiancurriculum.edu.au",
+              description: `Source used for standards alignment in ${curriculum} curriculum`,
+            },
       })),
       sourceMetadata: lesson.sourceMetadata ?? sources,
       citationScore: lesson.citationScore ?? citationScore,
