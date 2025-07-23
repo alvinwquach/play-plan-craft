@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -30,13 +30,6 @@ export default function Calendar() {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<LessonPlan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    const storedPlans = localStorage.getItem("lessonPlans");
-    if (storedPlans) {
-      setLessonPlans(JSON.parse(storedPlans));
-    }
-  }, []);
 
   const events: EventInput[] = lessonPlans.map((lesson) => ({
     id: lesson.id || lesson.title,
@@ -244,7 +237,7 @@ ${
       lp.id === updatedLesson.id ? updatedLesson : lp
     );
     setLessonPlans(updatedPlans);
-    localStorage.setItem("lessonPlans", JSON.stringify(updatedPlans));
+
     if (selectedLesson && selectedLesson.id === updatedLesson.id) {
       setSelectedLesson(updatedLesson);
     }
@@ -543,10 +536,7 @@ ${
                           lp.id === updatedLesson.id ? updatedLesson : lp
                         );
                         setLessonPlans(updatedPlans);
-                        localStorage.setItem(
-                          "lessonPlans",
-                          JSON.stringify(updatedPlans)
-                        );
+
                         toast.success("Lesson schedule updated!", {
                           position: "top-right",
                           autoClose: 3000,
