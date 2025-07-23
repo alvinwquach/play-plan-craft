@@ -691,8 +691,8 @@ export default function LessonPlanForm() {
             </h1>
             <p className="text-sm text-gray-600 text-center mt-2">
               Whether you&apos;re nurturing infants or managing high school
-              you're nurturing infants or managing high school projects, our
-              AI-driven platform has you covered.
+              you&apos;re nurturing infants or managing high school projects,
+              our AI-driven platform has you covered.
             </p>
           </div>
           <Link
