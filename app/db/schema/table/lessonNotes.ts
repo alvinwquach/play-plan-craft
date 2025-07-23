@@ -1,7 +1,7 @@
 import {
   pgTable,
   text,
-  uuid, // Import uuid type
+  uuid,
   timestamp,
   index,
   serial,
