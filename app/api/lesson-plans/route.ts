@@ -15,7 +15,7 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const supabase = await createClient();
     const {
@@ -62,11 +62,11 @@ export async function GET(request: Request) {
           curriculum: lp.curriculum,
           learningIntention: lp.learning_intention ?? "",
           successCriteria: lp.success_criteria ?? [],
-          activities: [], 
-          alternateActivities: lp.alternate_activities ?? {}, 
+          activities: [],
+          alternateActivities: lp.alternate_activities ?? {},
           supplies: lp.supplies ?? [],
           tags: lp.tags ?? [],
-          developmentGoals: [], 
+          developmentGoals: [],
           drdpDomains: lp.drdp_domains ?? [],
           standards: lp.standards ?? [],
           sourceMetadata: lp.source_metadata ?? [],

@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
-import { LessonPlan, Source, Curriculum } from "../types/lessonPlan";
+import { Source, Curriculum } from "../types/lessonPlan";
 
 interface FormData {
   title: string;
