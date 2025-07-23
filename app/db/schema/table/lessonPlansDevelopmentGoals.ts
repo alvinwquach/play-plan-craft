@@ -4,7 +4,7 @@ import { lessonPlans } from "./lessonPlans";
 
 // LessonPlanDevelopmentGoal table: Join table for many-to-many relationship between LessonPlan and DevelopmentGoal.
 export const lessonPlansDevelopmentGoals = pgTable(
-  "LessonPlanDevelopmentGoal",
+  "lesson_plans_development_goals",
   {
     lessonPlanId: integer("lessonPlanId")
       .notNull()

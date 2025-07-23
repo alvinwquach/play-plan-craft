@@ -4,7 +4,7 @@ import { tags } from "./tags";
 
 // LessonPlanTag table: Join table for many-to-many relationship between LessonPlan and Tag.
 export const lessonPlanTags = pgTable(
-  "LessonPlanTag",
+  "lesson_plan_tags",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
     lessonPlanId: integer("lessonPlanId")

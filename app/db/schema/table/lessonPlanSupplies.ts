@@ -4,7 +4,7 @@ import { supplies } from "./supplies";
 
 // LessonPlanSupply table: Join table for many-to-many relationship between LessonPlan and Supply.
 export const lessonPlanSupplies = pgTable(
-  "LessonPlanSupply",
+  "lesson_plan_supplies",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
     lessonPlanId: integer("lessonPlanId")

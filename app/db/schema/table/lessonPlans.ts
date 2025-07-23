@@ -7,6 +7,7 @@ import {
   integer,
   timestamp,
   index,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { ageGroup } from "../enum/ageGroup";
 import { subject } from "../enum/subject";
@@ -32,7 +33,7 @@ export const lessonPlans = pgTable(
     theme: theme("theme"), // Optional theme enum value
     status: lessonStatus("status").default("DRAFT").notNull(), // Lesson status with default "DRAFT"
     created_at: timestamp("created_at").defaultNow().notNull(), // Timestamp of lesson creation
-    created_by_id: integer("created_by_id")
+    created_by_id: uuid("created_by_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Foreign key to users table
     curriculum: curriculumEnum("curriculum").notNull(), // Required curriculum enum value
