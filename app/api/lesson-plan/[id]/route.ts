@@ -11,7 +11,10 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function DELETE(context: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const supabase = await createClient();
     const {
