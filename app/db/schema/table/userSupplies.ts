@@ -1,13 +1,13 @@
-import { pgTable, integer, index, serial } from "drizzle-orm/pg-core";
+import { pgTable, integer, index, serial, uuid } from "drizzle-orm/pg-core";
 import { supplies } from "./supplies";
 import { users } from "./users";
 
 // UserSupply table: Join table for many-to-many relationship between User and Supply, tracking quantities.
 export const userSupplies = pgTable(
-  "UserSupply",
+  "user_supplies",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
-    userId: integer("userId")
+    userId: uuid("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Foreign key to User, deletes if user is deleted
     supplyId: integer("supplyId")

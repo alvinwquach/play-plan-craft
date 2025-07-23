@@ -4,16 +4,17 @@ import {
   timestamp,
   index,
   serial,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { lessonPlans } from "./lessonPlans";
 import { users } from "./users";
 
 // Schedule table: Represents scheduled lessons for users.
 export const schedules = pgTable(
-  "Schedule",
+  "schedules",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
-    userId: integer("userId")
+    userId: uuid("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Foreign key to User, deletes if user is deleted
     lessonPlanId: integer("lessonPlanId")

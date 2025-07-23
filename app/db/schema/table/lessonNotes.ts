@@ -1,20 +1,21 @@
 import {
   pgTable,
   text,
-  integer,
+  uuid, // Import uuid type
   timestamp,
   index,
   serial,
+  integer,
 } from "drizzle-orm/pg-core";
 import { lessonPlans } from "./lessonPlans";
 import { users } from "./users";
 
 // LessonNote table: Represents post-lesson reflections or notes by educators.
 export const lessonNotes = pgTable(
-  "LessonNote",
+  "lesson_notes",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
-    userId: integer("userId")
+    userId: uuid("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Foreign key to User, deletes if user is deleted
     lessonPlanId: integer("lessonPlanId")

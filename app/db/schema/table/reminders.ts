@@ -7,6 +7,7 @@ import {
   index,
   serial,
   varchar,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { lessonPlans } from "./lessonPlans";
 import { supplies } from "./supplies";
@@ -14,10 +15,10 @@ import { users } from "./users";
 
 // Reminder table: Represents user-created task reminders with optional context.
 export const reminders = pgTable(
-  "Reminder",
+  "reminders",
   {
     id: serial("id").primaryKey(), // Auto-incrementing integer ID
-    userId: integer("userId")
+    userId: uuid("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Foreign key to User, deletes if user is deleted
     title: varchar("title", { length: 200 }).notNull(), // Required title, limited to 200 characters for concise reminder titles
