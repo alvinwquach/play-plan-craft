@@ -669,12 +669,6 @@ export default function LessonPlanForm() {
         scheduledDate: formData.scheduledDate || new Date().toISOString(),
       };
 
-      const existingPlans = JSON.parse(
-        localStorage.getItem("lessonPlans") || "[]"
-      );
-      const updatedPlans = [...existingPlans, lessonPlanWithId];
-      localStorage.setItem("lessonPlans", JSON.stringify(updatedPlans));
-
       router.push(
         `/lesson-plans?lessonPlan=${encodeURIComponent(
           JSON.stringify(lessonPlanWithId)
@@ -697,7 +691,8 @@ export default function LessonPlanForm() {
             </h1>
             <p className="text-sm text-gray-600 text-center mt-2">
               Whether you&apos;re nurturing infants or managing high school
-              projects, our AI-driven platform has you covered.
+              you're nurturing infants or managing high school projects, our
+              AI-driven platform has you covered.
             </p>
           </div>
           <Link
@@ -992,8 +987,8 @@ export default function LessonPlanForm() {
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Success Criteria (Optional, one per line, start with &apos;I
-                can&apos;){" "}
-              </label>{" "}
+                can&apos;)
+              </label>
               <textarea
                 value={successCriteriaInput}
                 onChange={(e) => setSuccessCriteriaInput(e.target.value)}
