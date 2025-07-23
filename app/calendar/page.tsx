@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -26,10 +26,106 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+interface HeaderToolbar {
+  left: string;
+  center: string;
+  right: string;
+}
+
 export default function Calendar() {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<LessonPlan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(true);
+  const [headerToolbar, setHeaderToolbar] = useState<HeaderToolbar>({
+    left: "prev,next today",
+    center: "title",
+    right: "dayGridMonth,timeGridWeek,timeGridDay",
+  });
+  const calendarRef = useRef<FullCalendar | null>(null);
+  const today = new Date();
+
+  useEffect(() => {
+    const fetchLessonPlans = async () => {
+      try {
+        const res = await fetch("/api/lesson-plans");
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setLessonPlans(data.lessonPlans);
+        } else {
+          toast.error("Failed to load lesson plans");
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+        toast.error("An error occurred while loading the calendar.");
+      }
+    };
+
+    fetchLessonPlans();
+  }, []);
+
+  const updateHeaderToolbar = (date: Date) => {
+    const currentMonth = today.getMonth();
+    const selectedMonth = date.getMonth();
+    setCurrentMonth(currentMonth === selectedMonth);
+  };
+
+  useEffect(() => {
+    const updateViewBasedOnScreenSize = () => {
+      const calendarApi = calendarRef.current?.getApi();
+      if (!calendarApi) return;
+      const screenConfigs = [
+        {
+          minWidth: 1280,
+          view: "dayGridMonth",
+          toolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          },
+        },
+        {
+          minWidth: 1024,
+          view: "dayGridMonth",
+          toolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          },
+        },
+        {
+          minWidth: 640,
+          view: "timeGridWeek",
+          toolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "timeGridWeek,timeGridDay",
+          },
+        },
+        {
+          minWidth: 0,
+          view: "timeGridDay",
+          toolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "timeGridDay",
+          },
+        },
+      ];
+      const matchedConfig = screenConfigs.find(
+        (config) => window.innerWidth >= config.minWidth
+      );
+      if (matchedConfig) {
+        calendarApi.changeView(matchedConfig.view);
+        setHeaderToolbar(matchedConfig.toolbar);
+      }
+    };
+    window.addEventListener("resize", updateViewBasedOnScreenSize);
+    updateViewBasedOnScreenSize();
+    return () =>
+      window.removeEventListener("resize", updateViewBasedOnScreenSize);
+  }, [currentMonth]);
 
   const events: EventInput[] = lessonPlans.map((lesson) => ({
     id: lesson.id || lesson.title,
@@ -253,16 +349,16 @@ ${
 
   return (
     <TooltipProvider>
-      <div className="bg-teal-50 text-gray-800 min-h-screen p-8 sm:p-16">
-        <main className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 text-center">
-              Weekly Lesson Planner
+      <div className="bg-teal-50 text-gray-800 min-h-screen p-4 sm:p-8">
+        <main className="max-w-5xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-teal-800 text-center sm:text-left">
+              Lesson Planner
             </h1>
-            <div className="flex space-x-4 items-center">
+            <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-center sm:justify-end">
               <Link
                 href="/lesson-plans"
-                className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition"
+                className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition text-sm sm:text-base"
               >
                 Create New Lesson
               </Link>
@@ -295,23 +391,24 @@ ${
             </div>
           </div>
           <FullCalendar
+            ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            editable={true}
-            selectable={false}
+            initialView="dayGridMonth"
+            headerToolbar={headerToolbar}
             events={events}
             eventClick={handleEventClick}
             eventDrop={handleEventDrop}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
+            editable={true}
+            selectable={false}
+            datesSet={(dateInfo) =>
+              updateHeaderToolbar(dateInfo.view.currentStart)
+            }
             slotMinTime="07:00:00"
             slotMaxTime="18:00:00"
             allDaySlot={false}
             eventColor="#2c7a7b"
             height="auto"
+            themeSystem="bootstrap5"
           />
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogContent className="max-h-[80vh] overflow-y-auto">

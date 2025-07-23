@@ -1,3 +1,6 @@
+import { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import { lessonPlans } from "../db/schema/table/lessonPlans";
+
 export type Curriculum = "US" | "AUS";
 
 export interface Source {
@@ -64,7 +67,7 @@ export interface LessonPlan {
   scheduledDate?: string;
   curriculum: Curriculum;
   activities: Activity[];
-  alternateActivities?: Record<string, Activity[]>;
+  alternateActivities: AlternateActivityGroup[];
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];
@@ -99,3 +102,6 @@ export interface AlternateActivityGroup {
   activityType: string;
   activities: Activity[];
 }
+
+export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
+export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;

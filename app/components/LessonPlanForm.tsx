@@ -589,7 +589,7 @@ export default function LessonPlanForm() {
   const handleAddCustomActivityType = () => {
     if (customActivityType.trim()) {
       setFormData((prev) => ({
-        ...prev,
+        ...formData,
         activityTypes: [...prev.activityTypes, customActivityType.trim()],
       }));
       setCustomActivityType("");
@@ -600,6 +600,27 @@ export default function LessonPlanForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validate required fields
+    if (!formData.scheduledDate) {
+      setError("Scheduled date and time are required.");
+      setLoading(false);
+      return;
+    }
+
+    const scheduledDate = new Date(formData.scheduledDate);
+    if (isNaN(scheduledDate.getTime())) {
+      setError("Invalid scheduled date and time.");
+      setLoading(false);
+      return;
+    }
+
+    const now = new Date();
+    if (scheduledDate < now) {
+      setError("Scheduled date and time cannot be in the past.");
+      setLoading(false);
+      return;
+    }
 
     if (formData.duration < 5 || formData.duration > 120) {
       setError("Duration must be between 5 and 120 minutes.");
@@ -647,7 +668,7 @@ export default function LessonPlanForm() {
     }
 
     try {
-      const response = await fetch("/api/openai-test", {
+      const response = await fetch("/api/open-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -659,21 +680,12 @@ export default function LessonPlanForm() {
       });
 
       const data = await response.json();
+      console.log(data);
       if (!response.ok || !data.lessonPlan) {
         throw new Error(data.error || "Failed to generate lesson plan");
       }
 
-      const lessonPlanWithId: LessonPlan = {
-        ...data.lessonPlan,
-        id: uuidv4(),
-        scheduledDate: formData.scheduledDate || new Date().toISOString(),
-      };
-
-      router.push(
-        `/lesson-plans?lessonPlan=${encodeURIComponent(
-          JSON.stringify(lessonPlanWithId)
-        )}`
-      );
+      router.push("/calendar");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -862,7 +874,7 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Scheduled Date & Time (Optional)
+                Scheduled Date & Time
               </label>
               <input
                 type="datetime-local"
@@ -874,6 +886,7 @@ export default function LessonPlanForm() {
                   })
                 }
                 className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                required
                 placeholder="Select date and time"
               />
             </div>
@@ -1118,7 +1131,7 @@ export default function LessonPlanForm() {
               disabled={loading}
               className="w-full bg-teal-400 text-white py-3 px-4 rounded-full text-lg font-semibold hover:bg-teal-500 transition disabled:opacity-50"
             >
-              {loading ? "Generating..." : "Generate Lesson Plan"}
+              {loading ? "Generating..." : "Generate and Schedule Lesson Plan"}
             </button>
           </form>
         </div>
