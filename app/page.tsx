@@ -9,8 +9,6 @@ import {
   FaClipboardList,
   FaCalendarAlt,
 } from "react-icons/fa";
-import Navbar from "./components/landing/Navbar";
-
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
