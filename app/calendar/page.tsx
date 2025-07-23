@@ -324,27 +324,133 @@ ${
     setIsModalOpen(true);
   };
 
-  const handleEventDrop = (info: EventDropArg) => {
+  const handleEventDrop = async (info: EventDropArg) => {
     const updatedLesson: LessonPlan = {
       ...info.event.extendedProps.lesson,
-      scheduledDate: info?.event?.start?.toISOString(),
+      scheduledDate: info.event.start?.toISOString(),
     };
-    const updatedPlans = lessonPlans.map((lp) =>
-      lp.id === updatedLesson.id ? updatedLesson : lp
-    );
-    setLessonPlans(updatedPlans);
 
-    if (selectedLesson && selectedLesson.id === updatedLesson.id) {
-      setSelectedLesson(updatedLesson);
+    try {
+      const response = await fetch(
+        `/api/lesson-plan/${updatedLesson.id}/schedule`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            scheduledDate: updatedLesson.scheduledDate,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const updatedPlans = lessonPlans.map((lp) =>
+          lp.id === updatedLesson.id ? updatedLesson : lp
+        );
+        setLessonPlans(updatedPlans);
+
+        if (selectedLesson && selectedLesson.id === updatedLesson.id) {
+          setSelectedLesson(updatedLesson);
+        }
+
+        toast.success("Lesson rescheduled successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else {
+        toast.error(data.error || "Failed to reschedule lesson", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        info.revert();
+      }
+    } catch (error) {
+      console.error("Error rescheduling lesson:", error);
+      toast.error("An error occurred while rescheduling the lesson.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      info.revert();
     }
-    toast.success("Lesson rescheduled successfully!", {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+  };
+
+  const handleDateTimeChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!selectedLesson) return;
+
+    const updatedLesson: LessonPlan = {
+      ...selectedLesson,
+      scheduledDate: e.target.value,
+    };
+
+    try {
+      const response = await fetch(
+        `/api/lesson-plans/${updatedLesson.id}/schedule`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            scheduledDate: updatedLesson.scheduledDate,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const updatedPlans = lessonPlans.map((lp) =>
+          lp.id === updatedLesson.id ? updatedLesson : lp
+        );
+        setLessonPlans(updatedPlans);
+        setSelectedLesson(updatedLesson);
+
+        toast.success("Lesson schedule updated!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else {
+        toast.error(data.error || "Failed to update lesson schedule", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating lesson schedule:", error);
+      toast.error("An error occurred while updating the lesson schedule.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   return (
@@ -622,27 +728,7 @@ ${
                     <input
                       type="datetime-local"
                       value={selectedLesson.scheduledDate || ""}
-                      onChange={(e) => {
-                        if (!selectedLesson) return;
-                        const updatedLesson: LessonPlan = {
-                          ...selectedLesson,
-                          scheduledDate: e.target.value,
-                        };
-                        setSelectedLesson(updatedLesson);
-                        const updatedPlans = lessonPlans.map((lp) =>
-                          lp.id === updatedLesson.id ? updatedLesson : lp
-                        );
-                        setLessonPlans(updatedPlans);
-
-                        toast.success("Lesson schedule updated!", {
-                          position: "top-right",
-                          autoClose: 3000,
-                          hideProgressBar: false,
-                          closeOnClick: true,
-                          pauseOnHover: true,
-                          draggable: true,
-                        });
-                      }}
+                      onChange={handleDateTimeChange}
                       className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
                   </div>
