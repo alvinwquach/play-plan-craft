@@ -50,6 +50,16 @@ export async function GET() {
     const lessonPlansWithSchedules: LessonPlan[] = userLessonPlans.map(
       (lp: LessonPlanDB) => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
+        const alternateActivities: Record<string, any[]> =
+          lp.alternate_activities && Array.isArray(lp.alternate_activities)
+            ? lp.alternate_activities.reduce((acc, group: any) => {
+                if (group.groupName && Array.isArray(group.activities)) {
+                  acc[group.groupName] = group.activities;
+                }
+                return acc;
+              }, {} as Record<string, any[]>)
+            : {};
+
         return {
           id: lp.id.toString(),
           title: lp.title,
@@ -63,7 +73,7 @@ export async function GET() {
           learningIntention: lp.learning_intention ?? "",
           successCriteria: lp.success_criteria ?? [],
           activities: [],
-          alternateActivities: lp.alternate_activities ?? {},
+          alternateActivities,
           supplies: lp.supplies ?? [],
           tags: lp.tags ?? [],
           developmentGoals: [],

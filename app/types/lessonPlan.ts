@@ -1,6 +1,10 @@
-// app/types/lessonPlan.ts
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { lessonPlans } from "../db/schema/table/lessonPlans";
+
+export interface AlternateActivityGroup {
+  activityType: string;
+  activities: Activity[];
+}
 
 export type Curriculum = "US" | "AUS";
 
