@@ -8,8 +8,6 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
-  const sectionRef = useRef(null);
-
   useEffect(() => {
     const elements = gsap.utils.toArray<HTMLElement>(".animate-on-scroll");
     elements.forEach((el, i) => {
