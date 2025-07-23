@@ -93,8 +93,8 @@ export default function Home() {
             Tools Tailored for Teachers at Every Level
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Whether you're nurturing infants or managing high school projects,
-            our AI-driven platform has you covered.
+            Whether you&aposre nurturing infants or managing high school
+            projects, our AI-driven platform has you covered.
           </p>
         </section>
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 w-full">

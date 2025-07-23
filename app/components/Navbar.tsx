@@ -1,13 +1,9 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import {
-  FaChalkboardTeacher,
-  FaClipboardList,
-  FaCalendarAlt,
-} from "react-icons/fa";
 
 gsap.registerPlugin(ScrollTrigger);
 
