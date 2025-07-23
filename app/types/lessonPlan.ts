@@ -73,7 +73,7 @@ export interface LessonPlan {
   scheduledDate?: string;
   curriculum: Curriculum;
   activities: Activity[];
-  alternateActivities?: Record<string, Activity[]>;
+  alternateActivities?: Record<string, Activity[]> | AlternateActivityGroup[]; // Allow both types
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];

@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import { LessonPlan, Supply, Retailer } from "../types/lessonPlan";
+import { LessonPlan, Supply, Retailer, Activity } from "../types/lessonPlan";
 import ical from "ical-generator";
 import {
   FaRegCalendarAlt,
@@ -188,6 +188,7 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
         )}
       </View>
       {lessonPlan.alternateActivities &&
+        !Array.isArray(lessonPlan.alternateActivities) &&
         Object.keys(lessonPlan.alternateActivities).length > 0 && (
           <View style={styles.section}>
             <Text style={styles.heading}>Alternate Activities</Text>
@@ -901,7 +902,7 @@ ${
                                 text: activityType.replace("_", " "),
                                 bullet: { level: 0 },
                               }),
-                              ...activities.flatMap((activity) => [
+                              ...activities.flatMap((activity: Activity) => [
                                 new Paragraph({
                                   text: `${
                                     activity.title
