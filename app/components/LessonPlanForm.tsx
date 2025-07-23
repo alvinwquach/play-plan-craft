@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
@@ -32,7 +31,7 @@ export default function LessonPlanForm() {
     subject: "SCIENCE",
     theme: "",
     duration: 30,
-    activityTypes: ["STORYTELLING"],
+    activityTypes: [],
     classroomSize: 10,
     learningIntention: "",
     successCriteria: [],
@@ -42,7 +41,7 @@ export default function LessonPlanForm() {
     preferredSources: [
       {
         name: "Khan Academy",
-        url: " yli://www.khanacademy.org",
+        url: "https://www.khanacademy.org",
         description: "Used for activity ideas and educational content.",
       },
     ],
@@ -59,6 +58,8 @@ export default function LessonPlanForm() {
       description: "Used for activity ideas and educational content.",
     },
   ]);
+  const [customTheme, setCustomTheme] = useState<string>("");
+  const [customActivityType, setCustomActivityType] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -509,21 +510,25 @@ export default function LessonPlanForm() {
       setFormData((prev) => ({ ...prev, subject: availableSubjects[0] || "" }));
     }
 
-    if (formData.theme && !availableThemes.includes(formData.theme)) {
+    if (
+      formData.theme &&
+      formData.theme !== "OTHER" &&
+      !availableThemes.includes(formData.theme)
+    ) {
       setFormData((prev) => ({ ...prev, theme: "" }));
+      setCustomTheme("");
     }
 
-    const validActivityTypes = formData.activityTypes.filter((type) =>
-      availableActivityTypes.includes(type)
+    const validActivityTypes = formData.activityTypes.filter(
+      (type) =>
+        availableActivityTypes.includes(type) ||
+        !allActivityTypes[formData.curriculum].includes(type)
     );
 
     if (validActivityTypes.length !== formData.activityTypes.length) {
       setFormData((prev) => ({
         ...prev,
-        activityTypes:
-          validActivityTypes.length > 0
-            ? validActivityTypes
-            : [availableActivityTypes[0]],
+        activityTypes: validActivityTypes,
       }));
     }
 
@@ -545,6 +550,7 @@ export default function LessonPlanForm() {
     getAvailableThemes,
     getAvailableActivityTypes,
     standardsFrameworks,
+    allActivityTypes,
   ]);
 
   const handleAddSource = () => {
@@ -580,6 +586,16 @@ export default function LessonPlanForm() {
     }));
   };
 
+  const handleAddCustomActivityType = () => {
+    if (customActivityType.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        activityTypes: [...prev.activityTypes, customActivityType.trim()],
+      }));
+      setCustomActivityType("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -587,12 +603,6 @@ export default function LessonPlanForm() {
 
     if (formData.duration < 5 || formData.duration > 120) {
       setError("Duration must be between 5 and 120 minutes.");
-      setLoading(false);
-      return;
-    }
-
-    if (formData.activityTypes.length === 0) {
-      setError("At least one activity type is required.");
       setLoading(false);
       return;
     }
@@ -644,6 +654,7 @@ export default function LessonPlanForm() {
           ...formData,
           successCriteria: criteria,
           standards,
+          theme: formData.theme === "OTHER" ? customTheme : formData.theme,
         }),
       });
 
@@ -680,9 +691,15 @@ export default function LessonPlanForm() {
     <div className="bg-teal-50 text-gray-800 h-screen p-0 overflow-hidden">
       <main className="max-w-2xl mx-auto h-full flex flex-col">
         <div className="flex justify-between items-center py-6 px-8 bg-white z-10">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 text-center">
-            Create Your Lesson Plan
-          </h1>
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-teal-800 text-center">
+              Create Your Lesson Plan
+            </h1>
+            <p className="text-sm text-gray-600 text-center mt-2">
+              Whether you&apos;re nurturing infants or managing high school
+              projects, our AI-driven platform has you covered.
+            </p>
+          </div>
           <Link
             href="/calendar"
             className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition"
@@ -771,13 +788,16 @@ export default function LessonPlanForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-teal-800 mb-2">
-                  Theme
+                  Theme (Optional)
                 </label>
                 <select
                   value={formData.theme}
-                  onChange={(e) =>
-                    setFormData({ ...formData, theme: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, theme: e.target.value });
+                    if (e.target.value !== "OTHER") {
+                      setCustomTheme("");
+                    }
+                  }}
                   className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                 >
                   <option value="">Select a theme</option>
@@ -789,7 +809,20 @@ export default function LessonPlanForm() {
                       {theme.replace("_", " ")}
                     </option>
                   ))}
+                  <option value="OTHER">Other</option>
                 </select>
+                {formData.theme === "OTHER" && (
+                  <input
+                    type="text"
+                    value={customTheme}
+                    onChange={(e) => {
+                      setCustomTheme(e.target.value);
+                      setFormData({ ...formData, theme: "OTHER" });
+                    }}
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400 mt-2"
+                    placeholder="Enter custom theme"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-teal-800 mb-2">
@@ -851,7 +884,7 @@ export default function LessonPlanForm() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
-                Activity Types
+                Activity Types (Optional)
               </label>
               <div className="space-y-2">
                 {getAvailableActivityTypes(
@@ -882,9 +915,61 @@ export default function LessonPlanForm() {
                     </label>
                   </div>
                 ))}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={customActivityType}
+                    onChange={(e) => setCustomActivityType(e.target.value)}
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    placeholder="Enter custom activity type"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomActivityType}
+                    className="text-teal-500 hover:text-teal-700 text-sm"
+                  >
+                    Add
+                  </button>
+                </div>
+                {formData.activityTypes
+                  .filter(
+                    (type) =>
+                      !getAvailableActivityTypes(
+                        formData.gradeLevel,
+                        formData.curriculum
+                      ).includes(type)
+                  )
+                  .map((type, index) => (
+                    <div key={index} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`custom-${type}`}
+                        value={type}
+                        checked={formData.activityTypes.includes(type)}
+                        onChange={(e) => {
+                          const selectedTypes = e.target.checked
+                            ? [...formData.activityTypes, type]
+                            : formData.activityTypes.filter(
+                                (item) => item !== type
+                              );
+                          setFormData({
+                            ...formData,
+                            activityTypes: selectedTypes,
+                          });
+                        }}
+                        className="h-4 w-4 text-teal-400 focus:ring-teal-400"
+                      />
+                      <label
+                        htmlFor={`custom-${type}`}
+                        className="ml-2 text-gray-600"
+                      >
+                        {type}
+                      </label>
+                    </div>
+                  ))}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Select multiple activity types by checking the boxes.
+                Select multiple activity types or add custom ones.
               </p>
             </div>
             <div>
@@ -907,8 +992,8 @@ export default function LessonPlanForm() {
             <div>
               <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Success Criteria (Optional, one per line, start with &apos;I
-                can&apos;)
-              </label>
+                can&apos;){" "}
+              </label>{" "}
               <textarea
                 value={successCriteriaInput}
                 onChange={(e) => setSuccessCriteriaInput(e.target.value)}
@@ -1046,6 +1131,3 @@ export default function LessonPlanForm() {
     </div>
   );
 }
-
-
-

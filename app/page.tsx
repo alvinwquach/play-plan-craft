@@ -42,7 +42,6 @@ export default function Home() {
   return (
     <div className="relative bg-teal-50 text-gray-800 min-h-screen overflow-hidden pb-24">
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-6"></div>
-      <Navbar />
       <section className="pt-24 pb-32 px-6 sm:px-12 max-w-4xl mx-auto animate-on-scroll">
         <div className="text-left space-y-4">
           <h1 className="text-5xl sm:text-7xl font-extrabold text-teal-800 leading-tight uppercase max-w-md">
