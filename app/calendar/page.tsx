@@ -19,12 +19,14 @@ import { LessonPlan } from "../types/lessonPlan";
 import ical from "ical-generator";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { SiGooglecalendar } from "react-icons/si";
+import { FaTrash } from "react-icons/fa";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 interface HeaderToolbar {
   left: string;
@@ -401,7 +403,7 @@ ${
 
     try {
       const response = await fetch(
-        `/api/lesson-plans/${updatedLesson.id}/schedule`,
+        `/api/lesson-plan/${updatedLesson.id}/schedule`,
         {
           method: "PATCH",
           headers: {
@@ -453,6 +455,58 @@ ${
     }
   };
 
+  const handleDeleteLesson = async () => {
+    if (!selectedLesson) return;
+
+    try {
+      const response = await fetch(`/api/lesson-plan/${selectedLesson.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        const updatedPlans = lessonPlans.filter(
+          (lp) => lp.id !== selectedLesson.id
+        );
+        setLessonPlans(updatedPlans);
+        setIsModalOpen(false);
+        setSelectedLesson(null);
+
+        toast.success("Lesson plan deleted successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      } else {
+        toast.error(data.error || "Failed to delete lesson plan", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting lesson plan:", error);
+      toast.error("An error occurred while deleting the lesson plan.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="bg-teal-50 text-gray-800 min-h-screen p-4 sm:p-8">
@@ -470,12 +524,12 @@ ${
               </Link>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
                     onClick={exportToICal}
                     className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
                   >
                     <FaRegCalendarAlt className="text-xl" />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center">
                   Export to iCal
@@ -732,21 +786,34 @@ ${
                       className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
                     />
                   </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
-                      Add to Google Calendar
-                    </h2>
-                    <Tooltip>
+                  <div className="flex justify-end gap-4 mt-6">
+                    {/* <Tooltip>
                       <TooltipTrigger asChild>
                         <button
                           onClick={() => exportToGoogleCalendar(selectedLesson)}
-                          className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
+                          className="bg-teal-500 text-white p-3 rounded-full hover:bg-teal-600 transition flex items-center justify-center w-12 h-12"
+                          aria-label="Add to Google Calendar"
                         >
                           <SiGooglecalendar className="text-xl" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" align="center">
                         Add to Google Calendar
+                      </TooltipContent>
+                    </Tooltip> */}
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={handleDeleteLesson}
+                          className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 transition flex items-center justify-center w-12 h-12"
+                          aria-label="Delete Lesson Plan"
+                        >
+                          <FaTrash className="text-xl" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="center">
+                        Delete Lesson Plan
                       </TooltipContent>
                     </Tooltip>
                   </div>
