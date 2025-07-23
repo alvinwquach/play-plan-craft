@@ -4,6 +4,7 @@ import { lessonPlans } from "../db/schema/table/lessonPlans";
 export interface AlternateActivityGroup {
   activityType: string;
   activities: Activity[];
+  groupName?: string;
 }
 
 export type Curriculum = "US" | "AUS";
