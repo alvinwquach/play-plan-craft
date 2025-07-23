@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -20,7 +19,6 @@ export default function Navbar() {
       setUser(user);
       setLoading(false);
     };
-
     fetchUser();
 
     const {
@@ -44,49 +42,15 @@ export default function Navbar() {
   };
 
   return (
-    <div className="relative max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-6">
-      {!loading && (
-        <div className="relative flex items-center h-16">
-          <div className="lg:hidden fixed top-2 right-4 z-50 flex items-center gap-3 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full shadow-md">
-            {user ? (
-              <>
-                {user.user_metadata?.avatar_url && (
-                  <Image
-                    src={user.user_metadata.avatar_url}
-                    alt="User profile"
-                    width={28}
-                    height={28}
-                    className="rounded-full object-cover"
-                  />
-                )}
-                <span className="text-teal-800 font-semibold whitespace-nowrap text-sm">
-                  {user.user_metadata?.full_name || "User"}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="bg-teal-400 text-white hover:bg-teal-500 px-4 py-1.5 rounded-full text-xs font-semibold transition shadow-md hover:shadow-lg"
-                >
-                  Log Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="bg-white border border-teal-400 text-teal-600 hover:bg-teal-100 px-4 py-1.5 rounded-full text-xs font-semibold transition shadow-sm hover:shadow-md"
-                >
-                  Log In
-                </Link>
-                <Link
-                  href="/login"
-                  className="bg-teal-400 text-white hover:bg-teal-500 px-4 py-1.5 rounded-full text-xs font-semibold transition shadow-md hover:shadow-lg"
-                >
-                  Sign Up
-                </Link>
-              </>
-            )}
-          </div>
-          <div className="hidden lg:flex absolute right-1/4 transform translate-x-1/4 items-center gap-4">
+    <nav className="fixed top-0 left-0 w-full bg-white/90 backdrop-blur-sm shadow-md z-50">
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-4 flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <span className="text-2xl font-bold text-teal-800">
+            Play Plan Craft
+          </span>
+        </div>
+        {!loading && (
+          <div className="flex items-center space-x-4">
             {user ? (
               <>
                 {user.user_metadata?.avatar_url && (
@@ -98,12 +62,12 @@ export default function Navbar() {
                     className="rounded-full object-cover"
                   />
                 )}
-                <span className="text-teal-800 font-semibold whitespace-nowrap text-base">
+                <span className="text-teal-800 font-semibold">
                   {user.user_metadata?.full_name || "User"}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="bg-teal-400 text-white hover:bg-teal-500 px-5 py-2 rounded-full text-sm font-semibold transition shadow-md hover:shadow-lg"
+                  className="bg-teal-400 text-white hover:bg-teal-500 px-4 py-2 rounded-full text-sm font-semibold transition shadow-md hover:shadow-lg"
                 >
                   Log Out
                 </button>
@@ -112,21 +76,21 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="bg-white border border-teal-400 text-teal-600 hover:bg-teal-100 px-5 py-2 rounded-full text-sm font-semibold transition shadow-sm hover:shadow-md"
+                  className="bg-white border border-teal-400 text-teal-600 hover:bg-teal-100 px-4 py-2 rounded-full text-sm font-semibold transition shadow-sm hover:shadow-md"
                 >
                   Log In
                 </Link>
                 <Link
                   href="/login"
-                  className="bg-teal-400 text-white hover:bg-teal-500 px-5 py-2 rounded-full text-sm font-semibold transition shadow-md hover:shadow-lg"
+                  className="bg-teal-400 text-white hover:bg-teal-500 px-4 py-2 rounded-full text-sm font-semibold transition shadow-md hover:shadow-lg"
                 >
                   Sign Up
                 </Link>
               </>
             )}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </nav>
   );
 }
