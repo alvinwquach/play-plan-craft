@@ -1,6 +1,12 @@
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { lessonPlans } from "../db/schema/table/lessonPlans";
 
+export interface AlternateActivityGroup {
+  activityType: string;
+  activities: Activity[];
+  groupName?: string;
+}
+
 export type Curriculum = "US" | "AUS";
 
 export interface Source {
@@ -28,7 +34,7 @@ export interface Activity {
   activityType: string;
   description: string;
   durationMins: number;
-  source: Source;
+  source?: Source;
   engagementScore?: number;
   alignmentScore?: number;
   feasibilityScore?: number;
@@ -67,7 +73,7 @@ export interface LessonPlan {
   scheduledDate?: string;
   curriculum: Curriculum;
   activities: Activity[];
-  alternateActivities: AlternateActivityGroup[];
+  alternateActivities?: Record<string, Activity[]> | AlternateActivityGroup[]; // Allow both types
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];
@@ -97,11 +103,6 @@ export interface OpenAIResponse {
 }
 
 export type Retailer = "google" | "amazon" | "walmart";
-
-export interface AlternateActivityGroup {
-  activityType: string;
-  activities: Activity[];
-}
 
 export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;

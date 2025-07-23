@@ -1,4 +1,8 @@
-import { LessonPlan } from "@/app/types/lessonPlan";
+import {
+  Activity,
+  AlternateActivityGroup,
+  LessonPlan,
+} from "@/app/types/lessonPlan";
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -22,6 +26,7 @@ export async function GET() {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -35,6 +40,7 @@ export async function GET() {
       .where(eq(lessonPlans.created_by_id, user.id));
 
     const lessonPlanIds = userLessonPlans.map((lp) => lp.id);
+
     const userSchedules = lessonPlanIds.length
       ? await db
           .select()
@@ -50,6 +56,20 @@ export async function GET() {
     const lessonPlansWithSchedules: LessonPlan[] = userLessonPlans.map(
       (lp: LessonPlanDB) => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
+
+        const alternateActivities: Record<string, Activity[]> =
+          lp.alternate_activities && Array.isArray(lp.alternate_activities)
+            ? (lp.alternate_activities as AlternateActivityGroup[]).reduce(
+                (acc, group) => {
+                  if (group.groupName && Array.isArray(group.activities)) {
+                    acc[group.groupName] = group.activities;
+                  }
+                  return acc;
+                },
+                {} as Record<string, Activity[]>
+              )
+            : {};
+
         return {
           id: lp.id.toString(),
           title: lp.title,
@@ -63,7 +83,7 @@ export async function GET() {
           learningIntention: lp.learning_intention ?? "",
           successCriteria: lp.success_criteria ?? [],
           activities: [],
-          alternateActivities: lp.alternate_activities ?? {},
+          alternateActivities,
           supplies: lp.supplies ?? [],
           tags: lp.tags ?? [],
           developmentGoals: [],

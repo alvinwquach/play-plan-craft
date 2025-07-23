@@ -1067,7 +1067,7 @@ export async function POST(request: Request) {
           ...activitiesWithSources.map((a) => a.source.name),
           ...formattedAlternateActivities
             .flatMap((group) => group.activities)
-            .map((a) => a.source.name),
+            .map((a) => a?.source?.name),
           ...(lesson.sourceMetadata?.map((s) => s.name) ?? []),
           ...(lesson.standards
             ?.map((s) => s.source?.name)
