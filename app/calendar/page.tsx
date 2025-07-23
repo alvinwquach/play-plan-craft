@@ -1723,7 +1723,7 @@ ${
                     <div className="flex gap-4 flex-wrap">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={() => printPDF(selectedLesson)}
                             disabled={pdfLoading || printLoading}
                             className={`p-3 rounded-full transition ${
@@ -1733,7 +1733,7 @@ ${
                             }`}
                           >
                             <FaPrint className="text-xl" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           {printLoading ? "Preparing to print..." : "Print PDF"}
@@ -1741,7 +1741,7 @@ ${
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={() => exportToPDF(selectedLesson)}
                             disabled={pdfLoading || printLoading}
                             className={`p-3 rounded-full transition ${
@@ -1751,7 +1751,7 @@ ${
                             }`}
                           >
                             <FaFilePdf className="text-xl" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           {pdfLoading ? "Generating PDF..." : "Export to PDF"}
@@ -1759,7 +1759,7 @@ ${
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={() => exportToWord(selectedLesson)}
                             disabled={pdfLoading || printLoading}
                             className={`p-3 rounded-full transition ${
@@ -1769,7 +1769,7 @@ ${
                             }`}
                           >
                             <FaRegFileWord className="text-xl" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           Export to Word
@@ -1777,7 +1777,7 @@ ${
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={() => shareLessonPlan(selectedLesson)}
                             disabled={pdfLoading || printLoading}
                             className={`p-3 rounded-full transition ${
@@ -1787,7 +1787,7 @@ ${
                             }`}
                           >
                             <CiShare2 className="text-xl" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           Share Lesson Plan
@@ -1797,12 +1797,12 @@ ${
                     <div className="mt-4 sm:mt-0">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={handleDeleteLesson}
                             className="bg-white text-red-500 p-2"
                           >
                             <FaTrash className="text-xl" />
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           Delete Lesson Plan
