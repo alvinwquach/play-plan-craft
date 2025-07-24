@@ -133,7 +133,7 @@ export default function PendingApproval() {
             </h1>
             <p className="text-gray-600 mb-6">
               Your request to join the organization is pending approval from
-              your educator. You'll be notified once approved.
+              your educator. You&apos;ll be notified once approved.
             </p>
             <button
               onClick={handleLogout}
