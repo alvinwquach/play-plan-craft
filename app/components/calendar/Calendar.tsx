@@ -43,6 +43,7 @@ import {
 } from "@react-pdf/renderer";
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { Activity, LessonPlan, Retailer, Supply } from "@/app/types/lessonPlan";
+import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -1117,22 +1118,12 @@ ${
     };
 
     try {
-      const response = await fetch(
-        `/api/lesson-plan/${updatedLesson.id}/schedule`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            scheduledDate: updatedLesson.scheduledDate,
-          }),
-        }
+      const response = await rescheduleLessonPlan(
+        updatedLesson.id || updatedLesson.title,
+        updatedLesson.scheduledDate!
       );
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.success && response.lessonPlan) {
         const updatedPlans = lessonPlans.map((lp) =>
           lp.id === updatedLesson.id
             ? { ...updatedLesson, supplies: lp.supplies }
@@ -1142,10 +1133,10 @@ ${
 
         if (selectedLesson && selectedLesson.id === updatedLesson.id) {
           setSelectedLesson({
-            ...updatedLesson,
-            supplies: selectedLesson.supplies,
+          ...updatedLesson,
+          supplies: selectedLesson.supplies,
           });
-        }
+          }         
 
         toast.success("Lesson rescheduled successfully!", {
           position: "top-right",
@@ -1156,7 +1147,7 @@ ${
           draggable: true,
         });
       } else {
-        toast.error(data.error || "Failed to reschedule lesson", {
+        toast.error(response.error || "Failed to reschedule lesson", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,

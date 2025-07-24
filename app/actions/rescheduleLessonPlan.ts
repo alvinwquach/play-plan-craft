@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+"use server";
+
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -11,10 +12,14 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function rescheduleLessonPlan(
+  lessonPlanId: string,
+  scheduledDate: string
+): Promise<{
+  success: boolean;
+  lessonPlan?: { id: string; scheduledDate: string };
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
     const {
@@ -22,27 +27,16 @@ export async function PATCH(
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return { success: false, error: "Unauthorized" };
     }
 
-    const { id } = await context.params;
-    const lessonPlanId = parseInt(id, 10);
-    if (isNaN(lessonPlanId)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid lesson plan ID" },
-        { status: 400 }
-      );
+    const parsedLessonPlanId = parseInt(lessonPlanId, 10);
+    if (isNaN(parsedLessonPlanId)) {
+      return { success: false, error: "Invalid lesson plan ID" };
     }
 
-    const { scheduledDate } = await request.json();
     if (!scheduledDate) {
-      return NextResponse.json(
-        { success: false, error: "Scheduled date is required" },
-        { status: 400 }
-      );
+      return { success: false, error: "Scheduled date is required" };
     }
 
     const lessonPlan = await db
@@ -50,28 +44,22 @@ export async function PATCH(
       .from(lessonPlans)
       .where(
         and(
-          eq(lessonPlans.id, lessonPlanId),
+          eq(lessonPlans.id, parsedLessonPlanId),
           eq(lessonPlans.created_by_id, user.id)
         )
       )
       .limit(1);
 
     if (!lessonPlan.length) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Lesson plan not found or not authorized",
-        },
-        { status: 404 }
-      );
+      return {
+        success: false,
+        error: "Lesson plan not found or not authorized",
+      };
     }
 
     const start = new Date(scheduledDate);
     if (isNaN(start.getTime())) {
-      return NextResponse.json(
-        { success: false, error: "Invalid date format" },
-        { status: 400 }
-      );
+      return { success: false, error: "Invalid date format" };
     }
 
     const duration = lessonPlan[0].duration || 60;
@@ -82,7 +70,7 @@ export async function PATCH(
       .from(schedules)
       .where(
         and(
-          eq(schedules.lessonPlanId, lessonPlanId),
+          eq(schedules.lessonPlanId, parsedLessonPlanId),
           eq(schedules.userId, user.id)
         )
       )
@@ -98,29 +86,27 @@ export async function PATCH(
         })
         .where(
           and(
-            eq(schedules.lessonPlanId, lessonPlanId),
+            eq(schedules.lessonPlanId, parsedLessonPlanId),
             eq(schedules.userId, user.id)
           )
         );
     }
-    return NextResponse.json({
+
+    return {
       success: true,
       lessonPlan: {
-        id: lessonPlanId.toString(),
+        id: lessonPlanId,
         scheduledDate: start.toISOString(),
       },
-    });
+    };
   } catch (error: unknown) {
     console.error("Error updating lesson plan schedule:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update lesson plan schedule",
-      },
-      { status: 500 }
-    );
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update lesson plan schedule",
+    };
   }
 }
