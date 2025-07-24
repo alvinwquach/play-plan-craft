@@ -682,7 +682,7 @@ export async function createLessonPlan(formData: FormData) {
     if (!validGradeLevels.includes(gradeLevel)) {
       throw new Error(`Invalid gradeLevel: ${gradeLevel}`);
     }
-    if (!allowedSubjects.includes(subject as any)) {
+    if (!allowedSubjects.includes(subject)) {
       throw new Error(
         `Invalid subject for ${gradeLevel} in ${curriculum} curriculum: ${subject}`
       );
