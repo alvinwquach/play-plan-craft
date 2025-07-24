@@ -670,7 +670,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with 'I can'.");
+      setError("All success criteria must start with &apos;I can&apos;.");
       setLoading(false);
       return;
     }
@@ -706,7 +706,7 @@ export default function LessonPlanForm() {
       const formDataToSend = new FormData();
       if (formData.title) formDataToSend.append("title", formData.title);
       formDataToSend.append("gradeLevel", formData.gradeLevel);
-      formDataToSend.append("subject", formData.subject); // Use raw subject, as it's already normalized
+      formDataToSend.append("subject", formData.subject);
       if (formData.theme === "OTHER") {
         if (customTheme) formDataToSend.append("theme", customTheme);
       } else if (formData.theme) {

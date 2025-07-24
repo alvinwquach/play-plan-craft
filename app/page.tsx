@@ -94,7 +94,7 @@ export default function Home() {
             Tools Tailored for Teachers at Every Level
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Whether you&aposre nurturing infants or managing high school
+            Whether you&apos;re nurturing infants or managing high school
             projects, our AI-driven platform has you covered.
           </p>
         </section>

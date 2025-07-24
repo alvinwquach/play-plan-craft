@@ -1,0 +1,1543 @@
+{
+  "id": "29dcce41-69e9-41fb-9c03-89fd8270ecc2",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.activities": {
+      "name": "activities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activity_type": {
+          "name": "activity_type",
+          "type": "ActivityType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_mins": {
+          "name": "duration_mins",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lesson_plan_id": {
+          "name": "lesson_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "engagement_score": {
+          "name": "engagement_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alignment_score": {
+          "name": "alignment_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "feasibility_score": {
+          "name": "feasibility_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "activity_lesson_plan_idx": {
+          "name": "activity_lesson_plan_idx",
+          "columns": [
+            {
+              "expression": "lesson_plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "activities_lesson_plan_id_lesson_plans_id_fk": {
+          "name": "activities_lesson_plan_id_lesson_plans_id_fk",
+          "tableFrom": "activities",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lesson_plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.development_goals": {
+      "name": "development_goals",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ageGroup": {
+          "name": "ageGroup",
+          "type": "AgeGroup",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_notes": {
+      "name": "lesson_notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "lesson_note_idx": {
+          "name": "lesson_note_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lessonPlanId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_notes_userId_users_id_fk": {
+          "name": "lesson_notes_userId_users_id_fk",
+          "tableFrom": "lesson_notes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_notes_lessonPlanId_lesson_plans_id_fk": {
+          "name": "lesson_notes_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "lesson_notes",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_plans": {
+      "name": "lesson_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_group": {
+          "name": "age_group",
+          "type": "AgeGroup",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "Subject",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "theme": {
+          "name": "theme",
+          "type": "Theme",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "LessonStatus",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "curriculum": {
+          "name": "curriculum",
+          "type": "Curriculum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "classroom_size": {
+          "name": "classroom_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "learning_intention": {
+          "name": "learning_intention",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "success_criteria": {
+          "name": "success_criteria",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "standards": {
+          "name": "standards",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "drdp_domains": {
+          "name": "drdp_domains",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "source_metadata": {
+          "name": "source_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "citation_score": {
+          "name": "citation_score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alternate_activities": {
+          "name": "alternate_activities",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "supplies": {
+          "name": "supplies",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        }
+      },
+      "indexes": {
+        "lesson_plan_created_by_idx": {
+          "name": "lesson_plan_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_plans_created_by_id_users_id_fk": {
+          "name": "lesson_plans_created_by_id_users_id_fk",
+          "tableFrom": "lesson_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_plans_development_goals": {
+      "name": "lesson_plans_development_goals",
+      "schema": "",
+      "columns": {
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "developmentGoalId": {
+          "name": "developmentGoalId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "lesson_plan_development_goal_idx": {
+          "name": "lesson_plan_development_goal_idx",
+          "columns": [
+            {
+              "expression": "lessonPlanId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "developmentGoalId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_plans_development_goals_lessonPlanId_lesson_plans_id_fk": {
+          "name": "lesson_plans_development_goals_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "lesson_plans_development_goals",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_plans_development_goals_developmentGoalId_development_goals_id_fk": {
+          "name": "lesson_plans_development_goals_developmentGoalId_development_goals_id_fk",
+          "tableFrom": "lesson_plans_development_goals",
+          "tableTo": "development_goals",
+          "columnsFrom": [
+            "developmentGoalId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "lesson_plans_development_goals_lessonPlanId_developmentGoalId_pk": {
+          "name": "lesson_plans_development_goals_lessonPlanId_developmentGoalId_pk",
+          "columns": [
+            "lessonPlanId",
+            "developmentGoalId"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_plan_supplies": {
+      "name": "lesson_plan_supplies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplyId": {
+          "name": "supplyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "lesson_plan_supply_idx": {
+          "name": "lesson_plan_supply_idx",
+          "columns": [
+            {
+              "expression": "lessonPlanId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "supplyId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_plan_supplies_lessonPlanId_lesson_plans_id_fk": {
+          "name": "lesson_plan_supplies_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "lesson_plan_supplies",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_plan_supplies_supplyId_supplies_id_fk": {
+          "name": "lesson_plan_supplies_supplyId_supplies_id_fk",
+          "tableFrom": "lesson_plan_supplies",
+          "tableTo": "supplies",
+          "columnsFrom": [
+            "supplyId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lesson_plan_tags": {
+      "name": "lesson_plan_tags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tagId": {
+          "name": "tagId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "lesson_plan_tag_idx": {
+          "name": "lesson_plan_tag_idx",
+          "columns": [
+            {
+              "expression": "lessonPlanId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "tagId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lesson_plan_tags_lessonPlanId_lesson_plans_id_fk": {
+          "name": "lesson_plan_tags_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "lesson_plan_tags",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_plan_tags_tagId_tags_id_fk": {
+          "name": "lesson_plan_tags_tagId_tags_id_fk",
+          "tableFrom": "lesson_plan_tags",
+          "tableTo": "tags",
+          "columnsFrom": [
+            "tagId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notifications": {
+      "name": "notifications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "senderId": {
+          "name": "senderId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "organizationId": {
+          "name": "organizationId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "notification_user_idx": {
+          "name": "notification_user_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "notifications_userId_users_id_fk": {
+          "name": "notifications_userId_users_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "notifications_senderId_users_id_fk": {
+          "name": "notifications_senderId_users_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "senderId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "notifications_organizationId_organizations_id_fk": {
+          "name": "notifications_organizationId_organizations_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organizationId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organizations": {
+      "name": "organizations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reminders": {
+      "name": "reminders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dueDate": {
+          "name": "dueDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed": {
+          "name": "completed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplyId": {
+          "name": "supplyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reminder_idx": {
+          "name": "reminder_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reminders_userId_users_id_fk": {
+          "name": "reminders_userId_users_id_fk",
+          "tableFrom": "reminders",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "reminders_lessonPlanId_lesson_plans_id_fk": {
+          "name": "reminders_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "reminders",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "reminders_supplyId_supplies_id_fk": {
+          "name": "reminders_supplyId_supplies_id_fk",
+          "tableFrom": "reminders",
+          "tableTo": "supplies",
+          "columnsFrom": [
+            "supplyId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.schedules": {
+      "name": "schedules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lessonPlanId": {
+          "name": "lessonPlanId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date": {
+          "name": "date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startTime": {
+          "name": "startTime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endTime": {
+          "name": "endTime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "schedule_idx": {
+          "name": "schedule_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lessonPlanId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "schedules_userId_users_id_fk": {
+          "name": "schedules_userId_users_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "schedules_lessonPlanId_lesson_plans_id_fk": {
+          "name": "schedules_lessonPlanId_lesson_plans_id_fk",
+          "tableFrom": "schedules",
+          "tableTo": "lesson_plans",
+          "columnsFrom": [
+            "lessonPlanId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.supplies": {
+      "name": "supplies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit": {
+          "name": "unit",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "SupplyStatus",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AVAILABLE'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tags": {
+      "name": "tags",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tags_name_unique": {
+          "name": "tags_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "UserRole",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'EDUCATOR'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "organizationId": {
+          "name": "organizationId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pendingApproval": {
+          "name": "pendingApproval",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "user_organization_idx": {
+          "name": "user_organization_idx",
+          "columns": [
+            {
+              "expression": "organizationId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_supplies": {
+      "name": "user_supplies",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplyId": {
+          "name": "supplyId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "user_supply_idx": {
+          "name": "user_supply_idx",
+          "columns": [
+            {
+              "expression": "userId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "supplyId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_supplies_userId_users_id_fk": {
+          "name": "user_supplies_userId_users_id_fk",
+          "tableFrom": "user_supplies",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_supplies_supplyId_supplies_id_fk": {
+          "name": "user_supplies_supplyId_supplies_id_fk",
+          "tableFrom": "user_supplies",
+          "tableTo": "supplies",
+          "columnsFrom": [
+            "supplyId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.ActivityType": {
+      "name": "ActivityType",
+      "schema": "public",
+      "values": [
+        "STORYTELLING",
+        "CRAFT",
+        "MOVEMENT",
+        "MUSIC",
+        "EXPERIMENT",
+        "FREE_PLAY",
+        "OUTDOOR",
+        "GROUP_DISCUSSION",
+        "PROJECT",
+        "PRESENTATION",
+        "WRITING",
+        "RESEARCH",
+        "DEBATE",
+        "CODING",
+        "INDIGENOUS_STORY",
+        "QUIZ",
+        "PROJECT_BASED",
+        "HANDS_ON",
+        "DEMONSTRATION",
+        "ROLE_PLAY",
+        "CASE_STUDY",
+        "TEST",
+        "REVIEW_GAME",
+        "FLASHCARDS",
+        "SELF_ASSESSMENT",
+        "PEER_REVIEW",
+        "CLASS_DISCUSSION",
+        "ONLINE_RESEARCH",
+        "DIGITAL_PROJECT",
+        "INTERACTIVE_SIMULATION",
+        "VIRTUAL_FIELD_TRIP",
+        "PROGRAMMING_EXERCISE",
+        "MULTIMEDIA_PRESENTATION",
+        "SCIENCE_FAIR",
+        "ART_PORTFOLIO",
+        "MUSIC_PERFORMANCE",
+        "THEATER_PRODUCTION",
+        "SPORTS_COMPETITION",
+        "SCIENCE_COMPETITION",
+        "RESEARCH_PROJECT",
+        "SERVICE_LEARNING",
+        "ENTREPRENEURSHIP",
+        "ART_EXHIBITION",
+        "MUSIC_RECRITAL",
+        "STUDY_GROUP",
+        "PRACTICE_EXERCISES",
+        "REVIEW_SESSION",
+        "QUIZ_GAME",
+        "SCAVENGER_HUNT",
+        "ESCAPE_ROOM"
+      ]
+    },
+    "public.AgeGroup": {
+      "name": "AgeGroup",
+      "schema": "public",
+      "values": [
+        "INFANT",
+        "TODDLER",
+        "PRESCHOOL",
+        "KINDERGARTEN",
+        "GRADE_1",
+        "GRADE_2",
+        "GRADE_3",
+        "GRADE_4",
+        "GRADE_5",
+        "GRADE_6",
+        "GRADE_7",
+        "GRADE_8",
+        "GRADE_9",
+        "GRADE_10",
+        "GRADE_11",
+        "GRADE_12"
+      ]
+    },
+    "public.Curriculum": {
+      "name": "Curriculum",
+      "schema": "public",
+      "values": [
+        "US",
+        "AUS"
+      ]
+    },
+    "public.DrdpDomainCode": {
+      "name": "DrdpDomainCode",
+      "schema": "public",
+      "values": [
+        "ATL-REG",
+        "SED",
+        "LLD",
+        "COG",
+        "PD-HLTH"
+      ]
+    },
+    "public.LessonStatus": {
+      "name": "LessonStatus",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "PUBLISHED",
+        "ARCHIVED"
+      ]
+    },
+    "public.Subject": {
+      "name": "Subject",
+      "schema": "public",
+      "values": [
+        "LITERACY",
+        "MATH",
+        "SCIENCE",
+        "ART",
+        "MUSIC",
+        "PHYSICAL_EDUCATION",
+        "SOCIAL_EMOTIONAL",
+        "HISTORY",
+        "GEOGRAPHY",
+        "STEM",
+        "FOREIGN_LANGUAGE",
+        "COMPUTER_SCIENCE",
+        "CIVICS",
+        "ENGLISH",
+        "MATHEMATICS",
+        "THE_ARTS",
+        "HEALTH_PE",
+        "HUMANITIES_SOCIAL_SCIENCES",
+        "TECHNOLOGIES",
+        "LANGUAGES",
+        "CIVICS_CITIZENSHIP",
+        "SENSORY_DEVELOPMENT",
+        "FINE_MOTOR_SKILLS",
+        "LANGUAGE_DEVELOPMENT",
+        "SOCIAL_STUDIES",
+        "DRAMA",
+        "DANCE",
+        "HEALTH_AND_WELLNESS",
+        "CHARACTER_EDUCATION",
+        "COMMUNITY_SERVICE",
+        "ENGINEERING",
+        "BUSINESS",
+        "ECONOMICS",
+        "PHILOSOPHY"
+      ]
+    },
+    "public.SupplyStatus": {
+      "name": "SupplyStatus",
+      "schema": "public",
+      "values": [
+        "AVAILABLE",
+        "LOW",
+        "OUT_OF_STOCK"
+      ]
+    },
+    "public.Theme": {
+      "name": "Theme",
+      "schema": "public",
+      "values": [
+        "SEASONS",
+        "NATURE",
+        "HOLIDAYS",
+        "EMOTIONS",
+        "COMMUNITY",
+        "ANIMALS",
+        "TRANSPORTATION",
+        "COLORS",
+        "SHAPES",
+        "NUMBERS",
+        "CULTURE",
+        "HISTORY",
+        "SCIENCE_FICTION",
+        "GLOBAL_ISSUES",
+        "LITERATURE",
+        "INDIGENOUS_CULTURE",
+        "AUSTRALIAN_HISTORY",
+        "SUSTAINABILITY",
+        "COLOURS",
+        "TRANSPORT",
+        "SPACE",
+        "OCEANS",
+        "WEATHER",
+        "FAMILY",
+        "CULTURES",
+        "HEROES",
+        "IMAGINATION",
+        "FRIENDSHIP",
+        "HEALTH",
+        "SAFETY",
+        "SCIENCE",
+        "GEOGRAPHY",
+        "ENVIRONMENT",
+        "TECHNOLOGY",
+        "INNOVATION",
+        "CITIZENSHIP",
+        "DIVERSITY",
+        "HERITAGE",
+        "EXPLORATION",
+        "PHYSICS",
+        "BIOLOGY",
+        "CHEMISTRY",
+        "ECONOMICS",
+        "GOVERNMENT",
+        "SOCIALJUSTICE",
+        "GLOBALISSUES",
+        "PHILOSOPHY",
+        "ETHICS",
+        "RESEARCH",
+        "ENTREPRENEURSHIP",
+        "GLOBALCITIZENSHIP",
+        "CAREERDEVELOPMENT",
+        "LEADERSHIP",
+        "CRITICALTHINKING"
+      ]
+    },
+    "public.UserRole": {
+      "name": "UserRole",
+      "schema": "public",
+      "values": [
+        "EDUCATOR",
+        "ADMIN",
+        "ASSISTANT"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
