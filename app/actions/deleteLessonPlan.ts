@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+"use server";
+
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
@@ -11,33 +12,23 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function deleteLessonPlan(lessonPlanId: number) {
   try {
     const supabase = await createClient();
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
+
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return { success: false, error: "Unauthorized" };
     }
 
-    const { id } = await context.params;
-    const lessonPlanId = parseInt(id, 10);
     if (isNaN(lessonPlanId)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid lesson plan ID" },
-        { status: 400 }
-      );
+      return { success: false, error: "Invalid lesson plan ID" };
     }
 
-    const lessonPlan = await db
+    const existing = await db
       .select()
       .from(lessonPlans)
       .where(
@@ -48,14 +39,11 @@ export async function DELETE(
       )
       .limit(1);
 
-    if (!lessonPlan.length) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Lesson plan not found or not authorized",
-        },
-        { status: 404 }
-      );
+    if (!existing.length) {
+      return {
+        success: false,
+        error: "Lesson plan not found or not authorized",
+      };
     }
 
     await db
@@ -76,21 +64,13 @@ export async function DELETE(
         )
       );
 
-    return NextResponse.json({
-      success: true,
-      message: "Lesson plan deleted successfully",
-    });
+    return { success: true };
   } catch (error: unknown) {
     console.error("Error deleting lesson plan:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete lesson plan",
-      },
-      { status: 500 }
-    );
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to delete lesson plan",
+    };
   }
 }
