@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ApolloWrapper } from "./ApolloWrapper";
+import BottomNav from "./components/landing/BottomNav";
 import Navbar from "./components/landing/Navbar";
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({
         <ApolloWrapper>
           <Navbar />
           {children}
+          <BottomNav />
         </ApolloWrapper>
       </body>
     </html>

@@ -44,7 +44,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-10 sm:py-12 lg:py-16 flex flex-col-reverse md:flex-col lg:flex-row items-center justify-between gap-6 lg:gap-12 min-h-[75vh]">
         <div className="flex flex-col md:flex-row items-center lg:items-start gap-10 lg:gap-16 w-full">
           <div className="md:w-1/2 w-full text-center md:text-left space-y-6 animate-on-scroll">
-            <h1 className="text-5xl sm:text-6xl font-extrabold text-teal-800 leading-tight uppercase">
+            <h1 className="text-5xl sm:text-6xl font-extrabold text-teal-800 leading-tight uppercase pt-24">
               Revolutionize <br />
               your classroom <br />
               <span className="text-yellow-500">experience</span>
