@@ -33,13 +33,48 @@ export async function getLessonPlans(): Promise<{
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, error: "Unauthorized" };
+      return { success: false, error: "Unauthorized: No user found" };
+    }
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(user.id)) {
+      return { success: false, error: "Invalid user ID format" };
     }
 
     const userLessonPlans = await db
-      .select()
+      .select({
+        id: lessonPlans.id,
+        title: lessonPlans.title,
+        age_group: lessonPlans.age_group,
+        subject: lessonPlans.subject,
+        theme: lessonPlans.theme,
+        status: lessonPlans.status,
+        created_at: lessonPlans.created_at,
+        created_by_id: lessonPlans.created_by_id,
+        curriculum: lessonPlans.curriculum,
+        duration: lessonPlans.duration,
+        classroom_size: lessonPlans.classroom_size,
+        learning_intention: lessonPlans.learning_intention,
+        success_criteria: lessonPlans.success_criteria,
+        standards: lessonPlans.standards,
+        drdp_domains: lessonPlans.drdp_domains,
+        source_metadata: lessonPlans.source_metadata,
+        citation_score: lessonPlans.citation_score,
+        alternate_activities: lessonPlans.alternate_activities,
+        supplies: lessonPlans.supplies,
+        tags: lessonPlans.tags,
+      })
       .from(lessonPlans)
       .where(eq(lessonPlans.created_by_id, user.id));
+
+    if (!userLessonPlans.length) {
+      return {
+        success: true,
+        lessonPlans: [],
+        error: "No lesson plans found for user",
+      };
+    }
 
     const lessonPlanIds = userLessonPlans.map((lp) => lp.id);
 
@@ -59,18 +94,27 @@ export async function getLessonPlans(): Promise<{
       (lp: LessonPlanDB) => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
 
-        const alternateActivities: Record<string, Activity[]> =
-          lp.alternate_activities && Array.isArray(lp.alternate_activities)
-            ? (lp.alternate_activities as AlternateActivityGroup[]).reduce(
-                (acc, group) => {
-                  if (group.groupName && Array.isArray(group.activities)) {
-                    acc[group.groupName] = group.activities;
-                  }
-                  return acc;
-                },
-                {} as Record<string, Activity[]>
-              )
-            : {};
+        let alternateActivities: Record<string, Activity[]> = {};
+        try {
+          alternateActivities =
+            lp.alternate_activities &&
+            typeof lp.alternate_activities === "object"
+              ? (lp.alternate_activities as AlternateActivityGroup[]).reduce(
+                  (acc, group) => {
+                    if (group.groupName && Array.isArray(group.activities)) {
+                      acc[group.groupName] = group.activities;
+                    }
+                    return acc;
+                  },
+                  {} as Record<string, Activity[]>
+                )
+              : {};
+        } catch (e) {
+          console.warn(
+            `Invalid alternate_activities format for lesson plan ${lp.id}:`,
+            e
+          );
+        }
 
         return {
           id: lp.id.toString(),
@@ -106,7 +150,11 @@ export async function getLessonPlans(): Promise<{
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "Failed to fetch lesson plans",
+        error instanceof Error
+          ? `${error.message} | Stack: ${error.stack}`
+          : "Failed to fetch lesson plans",
     };
+  } finally {
+    await pool.end();
   }
 }
