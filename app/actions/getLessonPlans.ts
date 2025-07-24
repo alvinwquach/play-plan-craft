@@ -13,12 +13,34 @@ import {
 } from "@/app/types/lessonPlan";
 import { InferSelectModel } from "drizzle-orm";
 
-type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
+interface PostgresError extends Error {
+  code?: string;
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set");
+  throw new Error("Database configuration error: DATABASE_URL is missing");
+}
+
+let parsedUrl: URL;
+try {
+  parsedUrl = new URL(process.env.DATABASE_URL);
+  console.log("Database hostname:", parsedUrl.hostname);
+} catch (e) {
+  console.error("Invalid DATABASE_URL format:", process.env.DATABASE_URL);
+  throw new Error("Database configuration error: Invalid DATABASE_URL format");
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
+
 const db = drizzle(pool);
+
+type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 
 export async function getLessonPlans(): Promise<{
   success: boolean;
@@ -26,6 +48,8 @@ export async function getLessonPlans(): Promise<{
   error?: string;
 }> {
   try {
+    await pool.connect().then((client) => client.release());
+
     const supabase = await createClient();
     const {
       data: { user },
@@ -77,7 +101,6 @@ export async function getLessonPlans(): Promise<{
     }
 
     const lessonPlanIds = userLessonPlans.map((lp) => lp.id);
-
     const userSchedules = lessonPlanIds.length
       ? await db
           .select()
@@ -95,25 +118,22 @@ export async function getLessonPlans(): Promise<{
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
 
         let alternateActivities: Record<string, Activity[]> = {};
-        try {
-          alternateActivities =
-            lp.alternate_activities &&
-            typeof lp.alternate_activities === "object"
-              ? (lp.alternate_activities as AlternateActivityGroup[]).reduce(
-                  (acc, group) => {
-                    if (group.groupName && Array.isArray(group.activities)) {
-                      acc[group.groupName] = group.activities;
-                    }
-                    return acc;
-                  },
-                  {} as Record<string, Activity[]>
-                )
-              : {};
-        } catch (e) {
-          console.warn(
-            `Invalid alternate_activities format for lesson plan ${lp.id}:`,
-            e
-          );
+        if (lp.alternate_activities && Array.isArray(lp.alternate_activities)) {
+          try {
+            alternateActivities = (
+              lp.alternate_activities as AlternateActivityGroup[]
+            ).reduce((acc, group) => {
+              if (group.groupName && Array.isArray(group.activities)) {
+                acc[group.groupName] = group.activities;
+              }
+              return acc;
+            }, {} as Record<string, Activity[]>);
+          } catch (e) {
+            console.warn(
+              `Invalid alternate_activities format for lesson plan ${lp.id}:`,
+              e
+            );
+          }
         }
 
         return {
@@ -147,14 +167,21 @@ export async function getLessonPlans(): Promise<{
     return { success: true, lessonPlans: lessonPlansWithSchedules };
   } catch (error: unknown) {
     console.error("Error fetching lesson plans:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? `${error.message} | Stack: ${error.stack}`
-          : "Failed to fetch lesson plans",
-    };
-  } finally {
-    await pool.end();
+    let errorMessage = "Failed to fetch lesson plans";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      const pgError = error as PostgresError;
+      if (pgError.code === "ENOTFOUND") {
+        errorMessage = `Database connection failed: Unable to resolve hostname ${parsedUrl.hostname}`;
+      } else if (pgError.code === "ETIMEDOUT") {
+        errorMessage = "Database connection timed out";
+      }
+    }
+    return { success: false, error: errorMessage };
   }
 }
+
+process.on("SIGTERM", async () => {
+  console.log("Shutting down: Closing database pool");
+  await pool.end();
+});
