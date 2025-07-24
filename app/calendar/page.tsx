@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getLessonPlans } from "../actions/getLessonPlans";
 import Calendar from "../components/calendar/Calendar";
 
