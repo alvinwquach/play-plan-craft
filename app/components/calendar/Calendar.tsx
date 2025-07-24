@@ -44,6 +44,7 @@ import {
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { Activity, LessonPlan, Retailer, Supply } from "@/app/types/lessonPlan";
 import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
+import { deleteLessonPlan } from "@/app/actions/deleteLessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -1133,10 +1134,10 @@ ${
 
         if (selectedLesson && selectedLesson.id === updatedLesson.id) {
           setSelectedLesson({
-          ...updatedLesson,
-          supplies: selectedLesson.supplies,
+            ...updatedLesson,
+            supplies: selectedLesson.supplies,
           });
-          }         
+        }
 
         toast.success("Lesson rescheduled successfully!", {
           position: "top-right",
@@ -1244,16 +1245,9 @@ ${
     if (!selectedLesson) return;
 
     try {
-      const response = await fetch(`/api/lesson-plan/${selectedLesson.id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await deleteLessonPlan(Number(selectedLesson.id));
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.success) {
         const updatedPlans = lessonPlans.filter(
           (lp) => lp.id !== selectedLesson.id
         );
@@ -1270,7 +1264,7 @@ ${
           draggable: true,
         });
       } else {
-        toast.error(data.error || "Failed to delete lesson plan", {
+        toast.error(response.error || "Failed to delete lesson plan", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -1761,12 +1755,12 @@ ${
                     <div className="mt-4 sm:mt-0">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
+                          <button
                             onClick={handleDeleteLesson}
-                            className="bg-white text-red-500 p-2"
+                            className="bg-white text-red-500 p-2 hover:bg-gray-100 rounded-full"
                           >
                             <FaTrash className="text-xl" />
-                          </Button>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           Delete Lesson Plan
