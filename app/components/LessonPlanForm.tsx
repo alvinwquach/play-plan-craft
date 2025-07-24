@@ -879,10 +879,7 @@ export default function LessonPlanForm() {
         formDataToSend.append("scheduledDate", formData.scheduledDate);
       }
 
-      console.log("Form data to send:", Object.fromEntries(formDataToSend));
-
       const result = await createLessonPlan(formDataToSend);
-      console.log("Create lesson plan result:", result);
 
       if (result.success) {
         toast.success("Lesson plan created successfully!", {

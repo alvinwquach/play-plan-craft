@@ -22,8 +22,6 @@ export async function GET(request: Request) {
         console.error("Error fetching user in callback:", authError);
       }
       if (user) {
-        console.log("User ID in callback:", user.id);
-
         const { count, error: countError } = await supabase
           .from("users")
           .select("id", { count: "exact" });
@@ -44,7 +42,6 @@ export async function GET(request: Request) {
             createdAt: new Date().toISOString(),
             organizationId: null,
           };
-          console.log("Inserting first user:", userData);
           const { error: insertError } = await supabase
             .from("users")
             .insert(userData);
@@ -52,13 +49,6 @@ export async function GET(request: Request) {
           if (insertError) {
             console.error("Error inserting first user as admin:", insertError);
           }
-
-          console.log("✅ First user created and assigned ADMIN role:", {
-            id: user.id,
-            email: user.email,
-            name: user.user_metadata?.full_name,
-            image: user.user_metadata?.avatar_url || null,
-          });
 
           redirectPath = "/lesson-plan";
         } else {
@@ -81,7 +71,6 @@ export async function GET(request: Request) {
               createdAt: new Date().toISOString(),
               organizationId: null,
             };
-            console.log("Inserting new user:", newUserData);
             const { error: insertError } = await supabase
               .from("users")
               .insert(newUserData);
@@ -89,18 +78,11 @@ export async function GET(request: Request) {
             if (insertError) {
               console.error("Error inserting new user:", insertError);
             }
-
-            console.log("✅ New user created (non-admin):", {
-              id: user.id,
-              email: user.email,
-            });
           } else if (userData.role) {
-            console.log("✅ Existing user with role:", userData.role);
             redirectPath = "/lesson-plan";
           }
         }
 
-        console.log("Redirecting to:", redirectPath);
         const isLocalEnv = process.env.NODE_ENV === "development";
         const forwardedHost = request.headers.get("x-forwarded-host");
 

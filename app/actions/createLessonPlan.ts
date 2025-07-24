@@ -274,11 +274,9 @@ export async function createLessonPlan(formData: FormData) {
     ];
 
     const inputSubject = inputData.subject?.toString().trim().toUpperCase();
-    console.log("Input subject:", inputSubject);
     const normalizedSubject = inputSubject
       ? subjectMap[inputSubject] ?? inputSubject
       : undefined;
-    console.log("Normalized subject:", normalizedSubject);
     if (!normalizedSubject || !validSubjectsList.includes(normalizedSubject)) {
       throw new Error(`Invalid subject: ${inputSubject || "undefined"}`);
     }

@@ -21,7 +21,6 @@ export default function Onboarding() {
       if (!session) {
         router.push("/login");
       } else {
-        console.log("User ID in onboarding:", session.user.id);
         const { data: userData, error } = await supabase
           .from("users")
           .select("role")
@@ -30,7 +29,6 @@ export default function Onboarding() {
         if (error) {
           console.error("Error checking user role in onboarding:", error);
         } else if (userData?.role) {
-          console.log("User role in onboarding:", userData.role);
           router.push("/");
         }
       }
@@ -50,7 +48,6 @@ export default function Onboarding() {
       return;
     }
     if (user) {
-      console.log("Updating role for user ID:", user.id);
       const { error } = await supabase
         .from("users")
         .update({ role })
