@@ -59,16 +59,11 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    console.log(
-      "No user found in middleware, redirecting to login:",
-      authError?.message || "No user"
-    );
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  console.log("User ID:", user.id);
   const { data: userData, error } = await supabase
     .from("users")
     .select("role")
@@ -80,8 +75,6 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     return NextResponse.redirect(url);
   }
-
-  console.log("User role:", userData?.role);
 
   if (!userData?.role) {
     const url = request.nextUrl.clone();
