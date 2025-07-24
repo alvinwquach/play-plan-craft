@@ -765,6 +765,7 @@ export default function LessonPlanForm() {
     setLoading(true);
     setError(null);
 
+    // Validate other fields
     if (!formData.scheduledDate) {
       setError("Scheduled date and time are required.");
       setLoading(false);
@@ -838,17 +839,7 @@ export default function LessonPlanForm() {
       const formDataToSend = new FormData();
       if (formData.title) formDataToSend.append("title", formData.title);
       formDataToSend.append("gradeLevel", formData.gradeLevel);
-      const normalizedGradeLevel =
-        gradeLevelMap[formData.gradeLevel] || formData.gradeLevel;
-      if (!subjectMap[normalizedGradeLevel]) {
-        throw new Error(`Invalid subject: ${formData.gradeLevel}`);
-      }
-      const normalizedSubject =
-        subjectMap[formData.subject] || formData.subject;
-      if (!subjectMap[normalizedSubject]) {
-        throw new Error(`Invalid subject: ${formData.subject}`);
-      }
-      formDataToSend.append("subject", normalizedSubject);
+      formDataToSend.append("subject", formData.subject); // Use raw subject, as it's already normalized
       if (formData.theme === "OTHER") {
         if (customTheme) formDataToSend.append("theme", customTheme);
       } else if (formData.theme) {
@@ -888,12 +879,26 @@ export default function LessonPlanForm() {
         formDataToSend.append("scheduledDate", formData.scheduledDate);
       }
 
-      const result = await createLessonPlan(formDataToSend);
-      console.log(result);
+      console.log("Form data to send:", Object.fromEntries(formDataToSend));
 
-      router.push("/calendar");
+      const result = await createLessonPlan(formDataToSend);
+      console.log("Create lesson plan result:", result);
+
+      if (result.success) {
+        toast.success("Lesson plan created successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+        router.push("/calendar");
+      } else {
+        throw new Error(result.error || "Failed to create lesson plan");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+      toast.error(err instanceof Error ? err.message : "An error occurred", {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setLoading(false);
     }

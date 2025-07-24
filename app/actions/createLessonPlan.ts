@@ -12,10 +12,20 @@ import OpenAI from "openai";
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { revalidatePath } from "next/cache";
+import {
+  InferSelectModel,
+  InferInsertModel,
+  eq,
+  and,
+  or,
+  lt,
+  lte,
+  gt,
+  gte,
+} from "drizzle-orm";
 
 interface FormDataInput {
   title?: string;
@@ -263,16 +273,15 @@ export async function createLessonPlan(formData: FormData) {
       "PHILOSOPHY",
     ];
 
-    const inputSubject = inputData.subject?.toString().trim();
+    const inputSubject = inputData.subject?.toString().trim().toUpperCase();
     console.log("Input subject:", inputSubject);
     const normalizedSubject = inputSubject
-      ? subjectMap[inputSubject]
+      ? subjectMap[inputSubject] ?? inputSubject
       : undefined;
     console.log("Normalized subject:", normalizedSubject);
     if (!normalizedSubject || !validSubjectsList.includes(normalizedSubject)) {
       throw new Error(`Invalid subject: ${inputSubject || "undefined"}`);
     }
-
     const normalizedData = {
       title: inputData.title || "Untitled Lesson",
       gradeLevel: normalizedGradeLevel,
@@ -305,8 +314,7 @@ export async function createLessonPlan(formData: FormData) {
         ? JSON.parse(inputData.preferredSources)
         : [],
       curriculum: inputData.curriculum,
-      scheduledDate:
-        inputData.scheduledDate === null ? inputData.scheduledDate : undefined,
+      scheduledDate: inputData.scheduledDate,
     };
 
     const {
@@ -1284,7 +1292,7 @@ export async function createLessonPlan(formData: FormData) {
 
     const lessonPlan: LessonPlan = {
       title: lesson.title ?? title,
-      gradeLevel: lesson.gradeLevel ?? gradeLevel,
+      gradeLevel: normalizedGradeLevel,
       subject: normalizedSubject,
       theme: lesson.theme === "" ? null : lesson.theme ?? theme,
       duration: parseInt(
@@ -1409,6 +1417,31 @@ export async function createLessonPlan(formData: FormData) {
     if (scheduledDate) {
       const start = new Date(scheduledDate);
       const end = new Date(start.getTime() + lessonPlan.duration * 60 * 1000);
+
+      const conflictingSchedules = await db
+        .select()
+        .from(schedules)
+        .where(
+          and(
+            eq(schedules.userId, user.id),
+            eq(schedules.date, start),
+            or(
+              and(
+                lte(schedules.startTime, start),
+                gt(schedules.endTime, start)
+              ),
+              and(lt(schedules.startTime, end), gte(schedules.endTime, end)),
+              and(gte(schedules.startTime, start), lte(schedules.endTime, end))
+            )
+          )
+        );
+
+      if (conflictingSchedules.length > 0) {
+        throw new Error(
+          `Schedule conflict detected: A lesson is already scheduled between ${start.toLocaleTimeString()} and ${end.toLocaleTimeString()} on ${start.toLocaleDateString()}.`
+        );
+      }
+
       await db.insert(schedules).values({
         userId: user.id,
         lessonPlanId: newLessonPlan.id,
