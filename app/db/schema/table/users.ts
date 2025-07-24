@@ -6,6 +6,7 @@ import {
   index,
   varchar,
   uuid,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { userRoleEnum } from "../enum/userRole";
 
@@ -18,9 +19,10 @@ export const users = pgTable(
     password: text("password"), // Nullable for Google OAuth users (no password)
     name: varchar("name", { length: 100 }).notNull(), // Required name, limited to 100 characters for typical user names
     image: text("image"), // User image from Google
-    ole: userRoleEnum("role").default("EDUCATOR").notNull(), // User role with default value
+    role: userRoleEnum("role"), // Nullable user role
     createdAt: timestamp("createdAt").defaultNow().notNull(), // Creation timestamp, defaults to current time
     organizationId: integer("organizationId"), // Optional foreign key to Organization, nullable
+    pendingApproval: boolean("pendingApproval").default(false), // Pending approval status with default value
   },
   (table) => [
     // Index on organizationId to optimize queries involving this relationship

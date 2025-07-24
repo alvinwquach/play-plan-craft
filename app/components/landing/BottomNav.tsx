@@ -2,21 +2,61 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FaHome, FaClipboardList, FaCalendarAlt } from "react-icons/fa";
+import { useEffect, useState, useCallback } from "react";
+import { FaHome, FaClipboardList, FaCalendarAlt, FaBell } from "react-icons/fa";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { createClient } from "@/utils/supabase/client";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [notificationCount, setNotificationCount] = useState(0);
+  const supabase = createClient();
+
+  const fetchNotifications = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { count, error } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("userId", user.id)
+      .eq("status", "PENDING");
+
+    if (!error && typeof count === "number") {
+      setNotificationCount(count);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const channel = supabase
+      .channel("notification-count")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        () => fetchNotifications()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchNotifications, supabase]);
 
   const navItems = [
     { href: "/", label: "Home", icon: FaHome },
     { href: "/lesson-plan", label: "Plan", icon: FaClipboardList },
     { href: "/calendar", label: "Calendar", icon: FaCalendarAlt },
+    { href: "/notifications", label: "Notifications", icon: FaBell },
   ];
 
   return (
@@ -24,22 +64,31 @@ export default function BottomNav() {
       <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 shadow-md flex justify-around items-center h-16 z-50">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
+          const isNotifications = href === "/notifications";
 
           return (
             <Tooltip key={href}>
               <TooltipTrigger asChild>
                 <Link
                   href={href}
-                  className={`flex flex-col items-center text-xs font-medium ${
-                    isActive ? "text-teal-600" : "text-gray-500"
+                  className={`relative flex flex-col items-center text-xs font-medium transition-colors ${
+                    isActive
+                      ? "text-teal-600"
+                      : "text-gray-500 hover:text-teal-500"
                   }`}
                 >
-                  <Icon
-                    className={`text-xl mb-1 ${
-                      isActive ? "text-teal-600" : ""
-                    }`}
-                  />
-                  {label}
+                  <div className="relative">
+                    <Icon className="text-2xl mb-1" />
+                    {isNotifications && notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
+                        {notificationCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px]">{label}</span>
+                  {isActive && (
+                    <div className="absolute bottom-0 w-1.5 h-1.5 rounded-full bg-teal-500 mt-1" />
+                  )}
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="top">{label}</TooltipContent>

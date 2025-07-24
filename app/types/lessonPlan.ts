@@ -106,3 +106,15 @@ export type Retailer = "google" | "amazon" | "walmart";
 
 export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
+
+export interface Notification {
+  id: number;
+  senderId: string;
+  message: string;
+  status: string;
+  user: {
+    email: string | null;
+    name: string | null;
+    image: string | null;
+  } | null;
+}
