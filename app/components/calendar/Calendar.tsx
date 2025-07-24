@@ -356,7 +356,8 @@ interface CalendarProps {
 }
 
 export default function Calendar({ initialLessonPlans }: CalendarProps) {
-  const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
+  const [lessonPlans, setLessonPlans] =
+    useState<LessonPlan[]>(initialLessonPlans);
   const [selectedLesson, setSelectedLesson] = useState<LessonPlan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(true);
@@ -397,36 +398,6 @@ export default function Calendar({ initialLessonPlans }: CalendarProps) {
         return `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
     }
   };
-
-  useEffect(() => {
-    const fetchLessonPlans = async () => {
-      try {
-        const res = await fetch("/api/lesson-plans");
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          const updatedLessonPlans = data.lessonPlans.map(
-            (lesson: LessonPlan) => ({
-              ...lesson,
-              supplies: lesson.supplies.map((supply: Supply) => ({
-                ...supply,
-                shoppingLink: generateShoppingLink(supply, selectedRetailer),
-              })),
-            })
-          );
-          setLessonPlans(updatedLessonPlans);
-        } else {
-          toast.error("Failed to load lesson plans");
-        }
-      } catch (err) {
-        console.error("Fetch error:", err);
-        toast.error("An error occurred while loading the calendar.");
-      }
-    };
-
-    fetchLessonPlans();
-  }, [selectedRetailer]);
-
   const updateHeaderToolbar = (date: Date) => {
     const currentMonth = today.getMonth();
     const selectedMonth = date.getMonth();
