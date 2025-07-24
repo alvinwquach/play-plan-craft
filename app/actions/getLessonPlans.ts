@@ -1,16 +1,17 @@
-import {
-  Activity,
-  AlternateActivityGroup,
-  LessonPlan,
-} from "@/app/types/lessonPlan";
-import { NextResponse } from "next/server";
+"use server";
+
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { InferSelectModel } from "drizzle-orm";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { eq, inArray, and } from "drizzle-orm";
+import {
+  LessonPlan,
+  Activity,
+  AlternateActivityGroup,
+} from "@/app/types/lessonPlan";
+import { InferSelectModel } from "drizzle-orm";
 
 type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 
@@ -19,7 +20,11 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function GET() {
+export async function getLessonPlans(): Promise<{
+  success: boolean;
+  lessonPlans?: LessonPlan[];
+  error?: string;
+}> {
   try {
     const supabase = await createClient();
     const {
@@ -28,10 +33,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      return { success: false, error: "Unauthorized" };
     }
 
     const userLessonPlans = await db
@@ -98,21 +100,13 @@ export async function GET() {
       }
     );
 
-    return NextResponse.json({
-      success: true,
-      lessonPlans: lessonPlansWithSchedules,
-    });
+    return { success: true, lessonPlans: lessonPlansWithSchedules };
   } catch (error: unknown) {
     console.error("Error fetching lesson plans:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch lesson plans",
-      },
-      { status: 500 }
-    );
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to fetch lesson plans",
+    };
   }
 }
