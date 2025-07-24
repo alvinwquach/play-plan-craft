@@ -14,8 +14,8 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-interface ActionResponse {
-  data?: any;
+interface ActionResponse<T = unknown> {
+  data?: T;
   error?: { message: string; code: string };
 }
 
@@ -23,7 +23,11 @@ export async function createEducatorOrganization(
   userId: string,
   userEmail: string,
   educatorEmail?: string
-): Promise<ActionResponse> {
+): Promise<
+  ActionResponse<
+    { success?: boolean; joined?: boolean } | typeof organizations.$inferSelect
+  >
+> {
   try {
     const supabase = await createClient();
 
@@ -127,18 +131,28 @@ export async function createEducatorOrganization(
     });
   } catch (error: unknown) {
     console.error("Error processing educator organization:", error);
+
     let errorMessage = "Failed to process organization";
     let errorCode = "500";
 
     if (error instanceof Error && "code" in error) {
-      errorCode = (error as any).code;
-      if (errorCode === "42703") {
-        errorMessage = "Column 'user_id' does not exist in organizations table";
-      } else if (errorCode === "23503") {
-        errorMessage =
-          "Foreign key constraint violation: User ID does not exist in users table";
-      } else if (errorCode === "23505") {
-        errorMessage = "Organization name already exists";
+      const pgError = error as { code: string; message: string };
+      errorCode = pgError.code;
+
+      switch (pgError.code) {
+        case "42703":
+          errorMessage =
+            "Column 'user_id' does not exist in organizations table";
+          break;
+        case "23503":
+          errorMessage =
+            "Foreign key constraint violation: User ID does not exist in users table";
+          break;
+        case "23505":
+          errorMessage = "Organization name already exists";
+          break;
+        default:
+          errorMessage = pgError.message;
       }
     } else if (error instanceof Error) {
       errorMessage = error.message;
@@ -153,10 +167,11 @@ export async function createEducatorOrganization(
   }
 }
 
+// Request assistant role
 export async function requestAssistantRole(
   userId: string,
   educatorEmail: string
-): Promise<ActionResponse> {
+): Promise<ActionResponse<{ success: boolean }>> {
   try {
     const supabase = await createClient();
 
@@ -169,7 +184,6 @@ export async function requestAssistantRole(
 
     const userEmail = authUser.user.email;
     const userName = authUser.user.user_metadata?.full_name ?? "New User";
-    const userAvatar = authUser.user.user_metadata?.avatar_url ?? null;
 
     const [educatorData] = await db
       .select({ id: users.id, organizationId: users.organizationId })

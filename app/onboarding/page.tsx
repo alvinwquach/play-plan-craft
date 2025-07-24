@@ -90,7 +90,7 @@ export default function Onboarding() {
 
     console.log(
       educatorEmail
-        ? " Requested to join educator's organization. Redirecting to /pending-approval"
+        ? " Requested to join educator&apos;s organization. Redirecting to /pending-approval"
         : " Organization successfully created. Redirecting to /lesson-plan"
     );
     toast.success(
@@ -173,7 +173,7 @@ export default function Onboarding() {
               htmlFor="educatorEmail"
               className="block text-gray-700 font-medium"
             >
-              Enter another educator's email to join their organization
+              Enter another educator&apos;s email to join their organization
               (optional)
             </label>
             <input
@@ -208,7 +208,7 @@ export default function Onboarding() {
               htmlFor="educatorEmail"
               className="block text-gray-700 font-medium"
             >
-              Enter your educator's email
+              Enter your educator&apos;s email
             </label>
             <input
               id="educatorEmail"

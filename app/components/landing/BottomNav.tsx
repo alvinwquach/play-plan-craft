@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { FaHome, FaClipboardList, FaCalendarAlt, FaBell } from "react-icons/fa";
 import {
   Tooltip,
@@ -17,7 +17,7 @@ export default function BottomNav() {
   const [notificationCount, setNotificationCount] = useState(0);
   const supabase = createClient();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -33,7 +33,7 @@ export default function BottomNav() {
     if (!error && typeof count === "number") {
       setNotificationCount(count);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchNotifications();
@@ -50,7 +50,7 @@ export default function BottomNav() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchNotifications, supabase]);
 
   const navItems = [
     { href: "/", label: "Home", icon: FaHome },
