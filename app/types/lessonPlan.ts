@@ -62,18 +62,18 @@ export interface Standard {
 export interface LessonPlan {
   id?: string;
   title: string;
+  subject: string;
   learningIntention: string;
   successCriteria: string[];
   gradeLevel: string;
-  subject: string;
   theme?: string | null;
-  status: string;
+  status?: string;
   duration: number;
   classroomSize: number;
   scheduledDate?: string;
   curriculum: Curriculum;
   activities: Activity[];
-  alternateActivities?: Record<string, Activity[]> | AlternateActivityGroup[]; // Allow both types
+  alternateActivities?: Record<string, Activity[]> | AlternateActivityGroup[];
   supplies: Supply[];
   tags: string[];
   developmentGoals: DevelopmentGoal[];

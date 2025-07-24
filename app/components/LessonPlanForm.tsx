@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Source, Curriculum } from "../types/lessonPlan";
+import { createLessonPlan } from "../actions/createLessonPlan";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 interface FormData {
   title: string;
@@ -21,6 +23,147 @@ interface FormData {
   preferredSources: Source[];
   curriculum: Curriculum;
 }
+
+const formatLabel = (value: string): string => {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const gradeLevelMap: { [key: string]: string } = {
+  "1": "GRADE_1",
+  "2": "GRADE_2",
+  "3": "GRADE_3",
+  "4": "GRADE_4",
+  "5": "GRADE_5",
+  "6": "GRADE_6",
+  "7": "GRADE_7",
+  "8": "GRADE_8",
+  "9": "GRADE_9",
+  "10": "GRADE_10",
+  "11": "GRADE_11",
+  "12": "GRADE_12",
+  infant: "INFANT",
+  toddler: "TODDLER",
+  preschool: "PRESCHOOL",
+  kindergarten: "KINDERGARTEN",
+  grade_1: "GRADE_1",
+  grade_2: "GRADE_2",
+  grade_3: "GRADE_3",
+  grade_4: "GRADE_4",
+  grade_5: "GRADE_5",
+  grade_6: "GRADE_6",
+  grade_7: "GRADE_7",
+  grade_8: "GRADE_8",
+  grade_9: "GRADE_9",
+  grade_10: "GRADE_10",
+  grade_11: "GRADE_11",
+  grade_12: "GRADE_12",
+  "Grade 1": "GRADE_1",
+  "Grade 2": "GRADE_2",
+  "Grade 3": "GRADE_3",
+  "Grade 4": "GRADE_4",
+  "Grade 5": "GRADE_5",
+  "Grade 6": "GRADE_6",
+  "Grade 7": "GRADE_7",
+  "Grade 8": "GRADE_8",
+  "Grade 9": "GRADE_9",
+  "Grade 10": "GRADE_10",
+  "Grade 11": "GRADE_11",
+  "Grade 12": "GRADE_12",
+  INFANT: "INFANT",
+  TODDLER: "TODDLER",
+  PRESCHOOL: "PRESCHOOL",
+  KINDERGARTEN: "KINDERGARTEN",
+  GRADE_1: "GRADE_1",
+  GRADE_2: "GRADE_2",
+  GRADE_3: "GRADE_3",
+  GRADE_4: "GRADE_4",
+  GRADE_5: "GRADE_5",
+  GRADE_6: "GRADE_6",
+  GRADE_7: "GRADE_7",
+  GRADE_8: "GRADE_8",
+  GRADE_9: "GRADE_9",
+  GRADE_10: "GRADE_10",
+  GRADE_11: "GRADE_11",
+  GRADE_12: "GRADE_12",
+};
+
+const subjectMap: { [key: string]: string } = {
+  literacy: "LITERACY",
+  math: "MATH",
+  science: "SCIENCE",
+  Science: "SCIENCE",
+  art: "ART",
+  music: "MUSIC",
+  physical_education: "PHYSICAL_EDUCATION",
+  social_emotional: "SOCIAL_EMOTIONAL",
+  history: "HISTORY",
+  geography: "GEOGRAPHY",
+  stem: "STEM",
+  foreign_language: "FOREIGN_LANGUAGE",
+  computer_science: "COMPUTER_SCIENCE",
+  "computer science": "COMPUTER_SCIENCE",
+  "Computer Science": "COMPUTER_SCIENCE",
+  civics: "CIVICS",
+  english: "ENGLISH",
+  mathematics: "MATHEMATICS",
+  the_arts: "THE_ARTS",
+  health_pe: "HEALTH_PE",
+  humanities_social_sciences: "HUMANITIES_SOCIAL_SCIENCES",
+  technologies: "TECHNOLOGIES",
+  languages: "LANGUAGES",
+  civics_citizenship: "CIVICS_CITIZENSHIP",
+  sensory_development: "SENSORY_DEVELOPMENT",
+  fine_motor_skills: "FINE_MOTOR_SKILLS",
+  language_development: "LANGUAGE_DEVELOPMENT",
+  social_studies: "SOCIAL_STUDIES",
+  drama: "DRAMA",
+  dance: "DANCE",
+  health_and_wellness: "HEALTH_AND_WELLNESS",
+  character_education: "CHARACTER_EDUCATION",
+  community_service: "COMMUNITY_SERVICE",
+  engineering: "ENGINEERING",
+  business: "BUSINESS",
+  economics: "ECONOMICS",
+  philosophy: "PHILOSOPHY",
+  LITERACY: "LITERACY",
+  MATH: "MATH",
+  SCIENCE: "SCIENCE",
+  ART: "ART",
+  MUSIC: "MUSIC",
+  PHYSICAL_EDUCATION: "PHYSICAL_EDUCATION",
+  SOCIAL_EMOTIONAL: "SOCIAL_EMOTIONAL",
+  HISTORY: "HISTORY",
+  GEOGRAPHY: "GEOGRAPHY",
+  STEM: "STEM",
+  FOREIGN_LANGUAGE: "FOREIGN_LANGUAGE",
+  COMPUTER_SCIENCE: "COMPUTER_SCIENCE",
+  CIVICS: "CIVICS",
+  ENGLISH: "ENGLISH",
+  MATHEMATICS: "MATHEMATICS",
+  THE_ARTS: "THE_ARTS",
+  HEALTH_PE: "HEALTH_PE",
+  HUMANITIES_SOCIAL_SCIENCES: "HUMANITIES_SOCIAL_SCIENCES",
+  TECHNOLOGIES: "TECHNOLOGIES",
+  LANGUAGES: "LANGUAGES",
+  CIVICS_CITIZENSHIP: "CIVICS_CITIZENSHIP",
+  SENSORY_DEVELOPMENT: "SENSORY_DEVELOPMENT",
+  FINE_MOTOR_SKILLS: "FINE_MOTOR_SKILLS",
+  LANGUAGE_DEVELOPMENT: "LANGUAGE_DEVELOPMENT",
+  SOCIAL_STUDIES: "SOCIAL_STUDIES",
+  DRAMA: "DRAMA",
+  DANCE: "DANCE",
+  HEALTH_AND_WELLNESS: "HEALTH_AND_WELLNESS",
+  CHARACTER_EDUCATION: "CHARACTER_EDUCATION",
+  COMMUNITY_SERVICE: "COMMUNITY_SERVICE",
+  ENGINEERING: "ENGINEERING",
+  BUSINESS: "BUSINESS",
+  ECONOMICS: "ECONOMICS",
+  PHILOSOPHY: "PHILOSOPHY",
+};
 
 export default function LessonPlanForm() {
   const router = useRouter();
@@ -61,6 +204,28 @@ export default function LessonPlanForm() {
   const [customActivityType, setCustomActivityType] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loading) return;
+
+    const messages = [
+      "Contacting AI service...",
+      "Generating lesson plan activities...",
+      "Aligning with curriculum standards...",
+      "Saving lesson plan to database...",
+    ];
+
+    const toastIds = messages.map((message) =>
+      toast.loading(message, {
+        position: "top-right",
+        autoClose: false,
+      })
+    );
+
+    return () => {
+      toastIds.forEach((id) => toast.dismiss(id));
+    };
+  }, [loading]);
 
   const gradeLevels = useMemo(
     () => [
@@ -595,12 +760,11 @@ export default function LessonPlanForm() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Validate required fields
     if (!formData.scheduledDate) {
       setError("Scheduled date and time are required.");
       setLoading(false);
@@ -638,7 +802,7 @@ export default function LessonPlanForm() {
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
-      setError("All success criteria must start with &apos;I can&apos;.");
+      setError("All success criteria must start with 'I can'.");
       setLoading(false);
       return;
     }
@@ -646,7 +810,11 @@ export default function LessonPlanForm() {
     const standards = standardsInput
       .split("\n")
       .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+      .filter((line) => line.length > 0)
+      .map((line) => ({
+        code: line,
+        description: line,
+      }));
     if (formData.standardsFramework && standards.length === 0) {
       setError(
         "At least one standard is required when a standards framework is selected."
@@ -667,22 +835,61 @@ export default function LessonPlanForm() {
     }
 
     try {
-      const response = await fetch("/api/open-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          successCriteria: criteria,
-          standards,
-          theme: formData.theme === "OTHER" ? customTheme : formData.theme,
-        }),
-      });
-
-      const data = await response.json();
-      console.log(data);
-      if (!response.ok || !data.lessonPlan) {
-        throw new Error(data.error || "Failed to generate lesson plan");
+      const formDataToSend = new FormData();
+      if (formData.title) formDataToSend.append("title", formData.title);
+      formDataToSend.append("gradeLevel", formData.gradeLevel);
+      const normalizedGradeLevel =
+        gradeLevelMap[formData.gradeLevel] || formData.gradeLevel;
+      if (!subjectMap[normalizedGradeLevel]) {
+        throw new Error(`Invalid subject: ${formData.gradeLevel}`);
       }
+      const normalizedSubject =
+        subjectMap[formData.subject] || formData.subject;
+      if (!subjectMap[normalizedSubject]) {
+        throw new Error(`Invalid subject: ${formData.subject}`);
+      }
+      formDataToSend.append("subject", normalizedSubject);
+      if (formData.theme === "OTHER") {
+        if (customTheme) formDataToSend.append("theme", customTheme);
+      } else if (formData.theme) {
+        formDataToSend.append("theme", formData.theme);
+      }
+      formDataToSend.append("duration", formData.duration.toString());
+      if (formData.activityTypes.length > 0) {
+        formDataToSend.append(
+          "activityTypes",
+          formData.activityTypes.join(",")
+        );
+      }
+      formDataToSend.append("classroomSize", formData.classroomSize.toString());
+      if (formData.learningIntention) {
+        formDataToSend.append("learningIntention", formData.learningIntention);
+      }
+      if (criteria.length > 0) {
+        formDataToSend.append("successCriteria", criteria.join(","));
+      }
+      if (formData.standardsFramework) {
+        formDataToSend.append(
+          "standardsFramework",
+          formData.standardsFramework
+        );
+      }
+      if (standards.length > 0) {
+        formDataToSend.append("standards", JSON.stringify(standards));
+      }
+      if (formData.preferredSources.length > 0) {
+        formDataToSend.append(
+          "preferredSources",
+          JSON.stringify(formData.preferredSources)
+        );
+      }
+      formDataToSend.append("curriculum", formData.curriculum);
+      if (formData.scheduledDate) {
+        formDataToSend.append("scheduledDate", formData.scheduledDate);
+      }
+
+      const result = await createLessonPlan(formDataToSend);
+      console.log(result);
 
       router.push("/calendar");
     } catch (err) {
@@ -706,12 +913,6 @@ export default function LessonPlanForm() {
               our AI-driven platform has you covered.
             </p>
           </div>
-          <Link
-            href="/calendar"
-            className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition"
-          >
-            View Calendar
-          </Link>
         </div>
         <div className="bg-white flex-1 overflow-y-auto p-6 sm:p-8 shadow-inner border-t border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-6 pb-12">
@@ -763,7 +964,7 @@ export default function LessonPlanForm() {
                 >
                   {gradeLevels.map((grade) => (
                     <option key={grade} value={grade}>
-                      {grade.replace("_", " ")}
+                      {grade}
                     </option>
                   ))}
                 </select>
@@ -785,7 +986,7 @@ export default function LessonPlanForm() {
                     formData.curriculum
                   ).map((subject) => (
                     <option key={subject} value={subject}>
-                      {subject.replace("_", " ")}
+                      {subject}
                     </option>
                   ))}
                 </select>
@@ -812,7 +1013,7 @@ export default function LessonPlanForm() {
                     formData.curriculum
                   ).map((theme) => (
                     <option key={theme} value={theme}>
-                      {theme.replace("_", " ")}
+                      {formatLabel(theme)}
                     </option>
                   ))}
                   <option value="OTHER">Other</option>
@@ -893,7 +1094,7 @@ export default function LessonPlanForm() {
               <label className="block text-sm font-semibold text-teal-800 mb-2">
                 Activity Types (Optional)
               </label>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
                 {getAvailableActivityTypes(
                   formData.gradeLevel,
                   formData.curriculum
@@ -918,25 +1119,27 @@ export default function LessonPlanForm() {
                       className="h-4 w-4 text-teal-400 focus:ring-teal-400"
                     />
                     <label htmlFor={type} className="ml-2 text-gray-600">
-                      {type.replace("_", " ")}
+                      {formatLabel(type)}
                     </label>
                   </div>
                 ))}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={customActivityType}
-                    onChange={(e) => setCustomActivityType(e.target.value)}
-                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    placeholder="Enter custom activity type"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomActivityType}
-                    className="text-teal-500 hover:text-teal-700 text-sm"
-                  >
-                    Add
-                  </button>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={customActivityType}
+                      onChange={(e) => setCustomActivityType(e.target.value)}
+                      className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      placeholder="Enter custom activity type"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomActivityType}
+                      className="text-teal-500 hover:text-teal-700 text-sm"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
                 {formData.activityTypes
                   .filter(
@@ -970,7 +1173,7 @@ export default function LessonPlanForm() {
                         htmlFor={`custom-${type}`}
                         className="ml-2 text-gray-600"
                       >
-                        {type}
+                        {formatLabel(type)}
                       </label>
                     </div>
                   ))}

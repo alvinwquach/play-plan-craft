@@ -1,3 +1,5 @@
+"use server";
+
 import {
   Activity,
   AlternateActivityGroup,
@@ -6,7 +8,6 @@ import {
   OpenAIResponse,
   Source,
 } from "@/app/types/lessonPlan";
-import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -14,9 +15,26 @@ import { Pool } from "pg";
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
+import { revalidatePath } from "next/cache";
 
-type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
-type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
+interface FormDataInput {
+  title?: string;
+  gradeLevel: string;
+  subject: string;
+  theme?: string | null;
+  duration: string;
+  activityTypes?: string[] | string;
+  classroomSize: string;
+  learningIntention?: string;
+  successCriteria?: string[] | string;
+  standardsFramework?: string;
+  standards?:
+    | { code: string; description: string; source?: Source }[]
+    | string[];
+  preferredSources?: Source[] | string;
+  curriculum: Curriculum;
+  scheduledDate?: string | null;
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -26,7 +44,10 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function POST(request: Request) {
+type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
+type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
+
+export async function createLessonPlan(formData: FormData) {
   try {
     const supabase = await createClient();
     const {
@@ -34,38 +55,70 @@ export async function POST(request: Request) {
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+      throw new Error("Unauthorized");
     }
 
-    const {
-      title = "Untitled Lesson",
-      gradeLevel,
-      subject,
-      theme = null,
-      duration,
-      activityTypes = [],
-      classroomSize,
-      learningIntention = "",
-      successCriteria = [],
-      standardsFramework = "",
-      standards = [],
-      preferredSources = [],
-      curriculum,
-      scheduledDate,
-    } = await request.json();
+    const rawData = Object.fromEntries(formData) as unknown;
+    const inputData: FormDataInput = rawData as FormDataInput;
 
-    const normalizedTheme = theme === "" ? null : theme;
-
-    const validCurriculums: Curriculum[] = ["US", "AUS"];
-    if (!validCurriculums.includes(curriculum)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid curriculum: ${curriculum}` },
-        { status: 400 }
-      );
-    }
+    const gradeLevelMap: { [key: string]: string } = {
+      "1": "GRADE_1",
+      "2": "GRADE_2",
+      "3": "GRADE_3",
+      "4": "GRADE_4",
+      "5": "GRADE_5",
+      "6": "GRADE_6",
+      "7": "GRADE_7",
+      "8": "GRADE_8",
+      "9": "GRADE_9",
+      "10": "GRADE_10",
+      "11": "GRADE_11",
+      "12": "GRADE_12",
+      infant: "INFANT",
+      toddler: "TODDLER",
+      preschool: "PRESCHOOL",
+      kindergarten: "KINDERGARTEN",
+      grade_1: "GRADE_1",
+      grade_2: "GRADE_2",
+      grade_3: "GRADE_3",
+      grade_4: "GRADE_4",
+      grade_5: "GRADE_5",
+      grade_6: "GRADE_6",
+      grade_7: "GRADE_7",
+      grade_8: "GRADE_8",
+      grade_9: "GRADE_9",
+      grade_10: "GRADE_10",
+      grade_11: "GRADE_11",
+      grade_12: "GRADE_12",
+      "Grade 1": "GRADE_1",
+      "Grade 2": "GRADE_2",
+      "Grade 3": "GRADE_3",
+      "Grade 4": "GRADE_4",
+      "Grade 5": "GRADE_5",
+      "Grade 6": "GRADE_6",
+      "Grade 7": "GRADE_7",
+      "Grade 8": "GRADE_8",
+      "Grade 9": "GRADE_9",
+      "Grade 10": "GRADE_10",
+      "Grade 11": "GRADE_11",
+      "Grade 12": "GRADE_12",
+      INFANT: "INFANT",
+      TODDLER: "TODDLER",
+      PRESCHOOL: "PRESCHOOL",
+      KINDERGARTEN: "KINDERGARTEN",
+      GRADE_1: "GRADE_1",
+      GRADE_2: "GRADE_2",
+      GRADE_3: "GRADE_3",
+      GRADE_4: "GRADE_4",
+      GRADE_5: "GRADE_5",
+      GRADE_6: "GRADE_6",
+      GRADE_7: "GRADE_7",
+      GRADE_8: "GRADE_8",
+      GRADE_9: "GRADE_9",
+      GRADE_10: "GRADE_10",
+      GRADE_11: "GRADE_11",
+      GRADE_12: "GRADE_12",
+    };
 
     const validGradeLevels = [
       "INFANT",
@@ -85,6 +138,203 @@ export async function POST(request: Request) {
       "GRADE_11",
       "GRADE_12",
     ];
+
+    const inputGradeLevel = inputData.gradeLevel
+      ?.toString()
+      .toLowerCase()
+      .trim();
+    const normalizedGradeLevel =
+      gradeLevelMap[inputGradeLevel?.toLowerCase().trim()];
+    if (
+      !normalizedGradeLevel ||
+      !validGradeLevels.includes(normalizedGradeLevel)
+    ) {
+      throw new Error(`Invalid gradeLevel: ${inputGradeLevel}`);
+    }
+
+    const subjectMap: { [key: string]: string } = {
+      literacy: "LITERACY",
+      math: "MATH",
+      science: "SCIENCE",
+      Science: "SCIENCE",
+      art: "ART",
+      music: "MUSIC",
+      physical_education: "PHYSICAL_EDUCATION",
+      social_emotional: "SOCIAL_EMOTIONAL",
+      history: "HISTORY",
+      geography: "GEOGRAPHY",
+      stem: "STEM",
+      foreign_language: "FOREIGN_LANGUAGE",
+      computer_science: "COMPUTER_SCIENCE",
+      "computer science": "COMPUTER_SCIENCE",
+      "Computer Science": "COMPUTER_SCIENCE",
+      civics: "CIVICS",
+      english: "ENGLISH",
+      mathematics: "MATHEMATICS",
+      the_arts: "THE_ARTS",
+      health_pe: "HEALTH_PE",
+      humanities_social_sciences: "HUMANITIES_SOCIAL_SCIENCES",
+      technologies: "TECHNOLOGIES",
+      languages: "LANGUAGES",
+      civics_citizenship: "CIVICS_CITIZENSHIP",
+      sensory_development: "SENSORY_DEVELOPMENT",
+      fine_motor_skills: "FINE_MOTOR_SKILLS",
+      language_development: "LANGUAGE_DEVELOPMENT",
+      social_studies: "SOCIAL_STUDIES",
+      drama: "DRAMA",
+      dance: "DANCE",
+      health_and_wellness: "HEALTH_AND_WELLNESS",
+      character_education: "CHARACTER_EDUCATION",
+      community_service: "COMMUNITY_SERVICE",
+      engineering: "ENGINEERING",
+      business: "BUSINESS",
+      economics: "ECONOMICS",
+      philosophy: "PHILOSOPHY",
+      LITERACY: "LITERACY",
+      MATH: "MATH",
+      SCIENCE: "SCIENCE",
+      ART: "ART",
+      MUSIC: "MUSIC",
+      PHYSICAL_EDUCATION: "PHYSICAL_EDUCATION",
+      SOCIAL_EMOTIONAL: "SOCIAL_EMOTIONAL",
+      HISTORY: "HISTORY",
+      GEOGRAPHY: "GEOGRAPHY",
+      STEM: "STEM",
+      FOREIGN_LANGUAGE: "FOREIGN_LANGUAGE",
+      COMPUTER_SCIENCE: "COMPUTER_SCIENCE",
+      CIVICS: "CIVICS",
+      ENGLISH: "ENGLISH",
+      MATHEMATICS: "MATHEMATICS",
+      THE_ARTS: "THE_ARTS",
+      HEALTH_PE: "HEALTH_PE",
+      HUMANITIES_SOCIAL_SCIENCES: "HUMANITIES_SOCIAL_SCIENCES",
+      TECHNOLOGIES: "TECHNOLOGIES",
+      LANGUAGES: "LANGUAGES",
+      CIVICS_CITIZENSHIP: "CIVICS_CITIZENSHIP",
+      SENSORY_DEVELOPMENT: "SENSORY_DEVELOPMENT",
+      FINE_MOTOR_SKILLS: "FINE_MOTOR_SKILLS",
+      LANGUAGE_DEVELOPMENT: "LANGUAGE_DEVELOPMENT",
+      SOCIAL_STUDIES: "SOCIAL_STUDIES",
+      DRAMA: "DRAMA",
+      DANCE: "DANCE",
+      HEALTH_AND_WELLNESS: "HEALTH_AND_WELLNESS",
+      CHARACTER_EDUCATION: "CHARACTER_EDUCATION",
+      COMMUNITY_SERVICE: "COMMUNITY_SERVICE",
+      ENGINEERING: "ENGINEERING",
+      BUSINESS: "BUSINESS",
+      ECONOMICS: "ECONOMICS",
+      PHILOSOPHY: "PHILOSOPHY",
+    };
+
+    const validSubjectsList = [
+      "LITERACY",
+      "MATH",
+      "SCIENCE",
+      "ART",
+      "MUSIC",
+      "PHYSICAL_EDUCATION",
+      "SOCIAL_EMOTIONAL",
+      "HISTORY",
+      "GEOGRAPHY",
+      "STEM",
+      "FOREIGN_LANGUAGE",
+      "COMPUTER_SCIENCE",
+      "CIVICS",
+      "ENGLISH",
+      "MATHEMATICS",
+      "THE_ARTS",
+      "HEALTH_PE",
+      "HUMANITIES_SOCIAL_SCIENCES",
+      "TECHNOLOGIES",
+      "LANGUAGES",
+      "CIVICS_CITIZENSHIP",
+      "SENSORY_DEVELOPMENT",
+      "FINE_MOTOR_SKILLS",
+      "LANGUAGE_DEVELOPMENT",
+      "SOCIAL_STUDIES",
+      "DRAMA",
+      "DANCE",
+      "HEALTH_AND_WELLNESS",
+      "CHARACTER_EDUCATION",
+      "COMMUNITY_SERVICE",
+      "ENGINEERING",
+      "BUSINESS",
+      "ECONOMICS",
+      "PHILOSOPHY",
+    ];
+
+    const inputSubject = inputData.subject?.toString().trim();
+    console.log("Input subject:", inputSubject);
+    const normalizedSubject = inputSubject
+      ? subjectMap[inputSubject]
+      : undefined;
+    console.log("Normalized subject:", normalizedSubject);
+    if (!normalizedSubject || !validSubjectsList.includes(normalizedSubject)) {
+      throw new Error(`Invalid subject: ${inputSubject || "undefined"}`);
+    }
+
+    const normalizedData = {
+      title: inputData.title || "Untitled Lesson",
+      gradeLevel: normalizedGradeLevel,
+      subject: normalizedSubject,
+      theme: inputData.theme === "" ? null : inputData.theme ?? null,
+      duration: inputData.duration,
+      activityTypes: Array.isArray(inputData.activityTypes)
+        ? inputData.activityTypes
+        : typeof inputData.activityTypes === "string"
+        ? inputData.activityTypes.split(",").map((s) => s.trim())
+        : [],
+      classroomSize: inputData.classroomSize,
+      learningIntention: inputData.learningIntention || "",
+      successCriteria: Array.isArray(inputData.successCriteria)
+        ? inputData.successCriteria
+        : typeof inputData.successCriteria === "string"
+        ? inputData.successCriteria.split(",").map((s) => s.trim())
+        : [],
+      standardsFramework: inputData.standardsFramework || "",
+      standards: Array.isArray(inputData.standards)
+        ? inputData.standards.map((s) =>
+            typeof s === "string"
+              ? { code: s, description: "", source: undefined }
+              : s
+          )
+        : [],
+      preferredSources: Array.isArray(inputData.preferredSources)
+        ? inputData.preferredSources
+        : typeof inputData.preferredSources === "string"
+        ? JSON.parse(inputData.preferredSources)
+        : [],
+      curriculum: inputData.curriculum,
+      scheduledDate:
+        inputData.scheduledDate === null ? inputData.scheduledDate : undefined,
+    };
+
+    const {
+      title,
+      gradeLevel,
+      subject,
+      theme,
+      duration,
+      activityTypes,
+      classroomSize,
+      learningIntention,
+      successCriteria,
+      standardsFramework,
+      standards,
+      preferredSources,
+      curriculum,
+      scheduledDate,
+    } = normalizedData;
+
+    const validCurriculums: Curriculum[] = ["US", "AUS"];
+    if (!validCurriculums.includes(curriculum)) {
+      throw new Error(`Invalid curriculum: ${curriculum}`);
+    }
+
+    if (!validGradeLevels.includes(gradeLevel)) {
+      console.error(`Invalid gradeLevel received: ${gradeLevel}`);
+      throw new Error(`Invalid gradeLevel: ${gradeLevel}`);
+    }
     const earlyGrades = ["INFANT", "TODDLER", "PRESCHOOL", "KINDERGARTEN"];
     const elementaryGrades = [
       "GRADE_1",
@@ -420,10 +670,7 @@ export async function POST(request: Request) {
     } else if (highSchoolGrades.includes(gradeLevel)) {
       gradeCategory = "high";
     } else {
-      return NextResponse.json(
-        { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
-        { status: 400 }
-      );
+      throw new Error(`Invalid gradeLevel: ${gradeLevel}`);
     }
 
     const typedCurriculum = curriculum as Curriculum;
@@ -433,64 +680,34 @@ export async function POST(request: Request) {
       validActivityTypes[typedCurriculum][gradeCategory];
 
     if (!validGradeLevels.includes(gradeLevel)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid gradeLevel: ${gradeLevel}` },
-        { status: 400 }
-      );
+      throw new Error(`Invalid gradeLevel: ${gradeLevel}`);
     }
     if (!allowedSubjects.includes(subject)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid subject for ${gradeLevel} in ${curriculum} curriculum: ${subject}`,
-        },
-        { status: 400 }
+      throw new Error(
+        `Invalid subject for ${gradeLevel} in ${curriculum} curriculum: ${subject}`
       );
     }
-    if (
-      normalizedTheme &&
-      normalizedTheme !== "OTHER" &&
-      !allowedThemes.includes(normalizedTheme)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid theme for ${gradeLevel} in ${curriculum} curriculum: ${normalizedTheme}`,
-        },
-        { status: 400 }
+    if (theme && theme !== "OTHER" && !allowedThemes.includes(theme)) {
+      throw new Error(
+        `Invalid theme for ${gradeLevel} in ${curriculum} curriculum: ${theme}`
       );
     }
-    if (duration < 5 || duration > 120) {
-      return NextResponse.json(
-        { success: false, error: `Invalid duration: ${duration}` },
-        { status: 400 }
-      );
+    const durationNum = parseInt(duration, 10);
+    if (durationNum < 5 || durationNum > 120) {
+      throw new Error(`Invalid duration: ${duration}`);
     }
-    if (
-      typeof classroomSize !== "number" ||
-      classroomSize < 1 ||
-      classroomSize > 100
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid classroom size: ${classroomSize}. Must be between 1 and 100.`,
-        },
-        { status: 400 }
+    const classroomSizeNum = parseInt(classroomSize, 10);
+    if (classroomSizeNum < 1 || classroomSizeNum > 100) {
+      throw new Error(
+        `Invalid classroom size: ${classroomSize}. Must be between 1 and 100.`
       );
     }
     if (!Array.isArray(activityTypes)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid activityTypes: must be an array`,
-        },
-        { status: 400 }
-      );
+      throw new Error(`Invalid activityTypes: must be an array`);
     }
     if (
       activityTypes.length > 0 &&
-      !activityTypes.every((type: string) => {
+      !activityTypes.every((type) => {
         const isValidType = allowedActivityTypes.includes(type);
         const isCustomType = !Object.values(
           validActivityTypes[typedCurriculum]
@@ -498,14 +715,10 @@ export async function POST(request: Request) {
         return isValidType || isCustomType;
       })
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid activity types for ${gradeLevel} in ${curriculum} curriculum: ${activityTypes.join(
-            ", "
-          )}`,
-        },
-        { status: 400 }
+      throw new Error(
+        `Invalid activity types for ${gradeLevel} in ${curriculum} curriculum: ${activityTypes.join(
+          ", "
+        )}`
       );
     }
 
@@ -517,25 +730,16 @@ export async function POST(request: Request) {
       standardsFramework &&
       !validStandardsFrameworks.includes(standardsFramework)
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid standards framework for ${curriculum} curriculum: ${standardsFramework}`,
-        },
-        { status: 400 }
+      throw new Error(
+        `Invalid standards framework for ${curriculum} curriculum: ${standardsFramework}`
       );
     }
     if (
       standardsFramework &&
       (!Array.isArray(standards) || standards.length === 0)
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Standards must be provided when a standards framework is selected.",
-        },
-        { status: 400 }
+      throw new Error(
+        "Standards must be provided when a standards framework is selected."
       );
     }
 
@@ -567,21 +771,20 @@ export async function POST(request: Request) {
             },
           ];
 
-    const sources: Source[] =
-      Array.isArray(preferredSources) && preferredSources.length > 0
-        ? preferredSources.map((source) => ({
-            name: source.name || "Unnamed Source",
-            url: source.url || "https://www.example.com",
-            description:
-              source.description || "Source used for activity inspiration",
-          }))
-        : defaultSources;
+    const sources: Source[] = Array.isArray(preferredSources)
+      ? preferredSources.map((source) => ({
+          name: source.name || "Unnamed Source",
+          url: source.url || "https://www.example.com",
+          description:
+            source.description || "Source used for activity inspiration",
+        }))
+      : defaultSources;
 
     const prompt = `
         You are an AI lesson planner for the ${curriculum} curriculum, designed to support educators from nurturing infants to managing high school projects. Generate a structured JSON response for a lesson plan tailored to the provided inputs.
         
-        Create a ${duration}-minute lesson plan for ${gradeLevel.toLowerCase()} students focusing on ${subject.toLowerCase()}${
-      normalizedTheme ? ` with a ${normalizedTheme.toLowerCase()} theme` : ""
+        Create a ${duration}-minute lesson plan for ${normalizedGradeLevel} students focusing on ${normalizedSubject?.toLowerCase()}${
+      theme ? ` with a ${theme.toLowerCase()} theme` : ""
     } for a classroom of ${classroomSize} students, aligned with the ${curriculum} curriculum.
         
         **Curriculum Details**:
@@ -602,8 +805,8 @@ export async function POST(request: Request) {
         }
         - For each activity type, generate **2-3 activity ideas** and select the **best one** to include in the "activities" array, based on:
           - Engagement: Score (0-100) based on how engaging the activity is for ${gradeLevel.toLowerCase()} students.
-          - Alignment: Score (0-100) based on alignment with the subject (${subject.toLowerCase()})${
-      normalizedTheme ? ` and theme (${normalizedTheme.toLowerCase()})` : ""
+          - Alignment: Score (0-100) based on alignment with the subject (${subject?.toLowerCase()})${
+      theme ? ` and theme (${theme.toLowerCase()})` : ""
     } and the ${curriculum} curriculum.
           - Feasibility: Score (0-100) based on practicality for a classroom of ${classroomSize} students and the given duration.
         - Include the selected activity's "engagementScore", "alignmentScore", and "feasibilityScore" in the response.
@@ -643,7 +846,7 @@ export async function POST(request: Request) {
         - ${
           successCriteria.length > 0
             ? `Use these success criteria: ${successCriteria
-                .map((c: string) => `"${c}"`)
+                .map((c) => `"${c}"`)
                 .join(", ")}.`
             : `Include "Success Criteria" (a list of 3-5 measurable outcomes starting with "I can" statements, e.g., "I can identify properties of shapes" for US or "I can describe number patterns" for AUS).`
         }
@@ -672,7 +875,7 @@ export async function POST(request: Request) {
         - If a standards framework is provided (e.g., ${
           standardsFramework || "none"
         }), align the lesson plan with the specified standards: ${
-      standards.length > 0 ? standards.join(", ") : "none"
+      standards.length > 0 ? standards.map((s) => s.code).join(", ") : "none"
     }.
         - For US curriculum, use standards like "CCSS.MATH.CONTENT.2.OA.A.1" or NGSS codes.
         - For Australian curriculum, use ACARA codes like "AC9M4N01".
@@ -706,15 +909,15 @@ export async function POST(request: Request) {
         {
           "lessonPlan": {
             "title": string,
-            "gradeLevel": "${gradeLevel}",
-            "subject": "${subject}",
-            "theme": ${normalizedTheme ? `"${normalizedTheme}"` : "null"},
-            "status": "DRAFT",
-            "duration": ${duration},
-            "classroomSize": ${classroomSize},
-            "curriculum": "${curriculum}",
+            "gradeLevel": string,
+            "subject": string,
+            "theme": string | null,
+            "status": string,
+            "duration": number,
+            "classroomSize": number,
+            "curriculum": string,
             "learningIntention": string,
-            "successCriteria": [string],
+            "successCriteria": string[],
             "activities": [
               {
                 "title": string,
@@ -767,13 +970,13 @@ export async function POST(request: Request) {
                 "description": string
               }
             ],
-            "tags": [string],
+            "tags": string[],
             "drdpDomains": [
               {
                 "code": string,
                 "name": string,
                 "description": string,
-                "strategies": [string]
+                "strategies": string[]
               }
             ],
             "standards": [
@@ -883,7 +1086,7 @@ export async function POST(request: Request) {
 
     const lesson = parsed.lessonPlan;
 
-    const activitiesWithSources = (lesson.activities ?? []).map(
+    const activitiesWithSources: Activity[] = (lesson.activities ?? []).map(
       (activity, index) => {
         const sourceIndex = index % sources.length;
         const source = activity.source ?? sources[sourceIndex];
@@ -897,7 +1100,7 @@ export async function POST(request: Request) {
           description: activity.description ?? "",
           durationMins: parseInt(
             activity.durationMins?.toString().replace("minutes", "").trim() ??
-              `${Math.floor(duration / (activityTypes.length || 2))}`,
+              `${Math.floor(durationNum / (activityTypes.length || 2))}`,
             10
           ),
           source: {
@@ -918,10 +1121,10 @@ export async function POST(request: Request) {
       activitiesWithSources.push({
         title: `Default Activity`,
         activityType: defaultActivityTypes[0] ?? "GENERIC",
-        description: `A default activity aligned with ${subject.toLowerCase()}${
-          normalizedTheme ? ` and ${normalizedTheme.toLowerCase()} theme` : ""
+        description: `A default activity aligned with ${subject?.toLowerCase()}${
+          theme ? ` and ${theme.toLowerCase()} theme` : ""
         } in the ${curriculum} curriculum.`,
-        durationMins: duration,
+        durationMins: durationNum,
         source: sources[sourceIndex],
         engagementScore: 70,
         alignmentScore: 70,
@@ -933,12 +1136,9 @@ export async function POST(request: Request) {
       [key: string]: (Partial<Activity> & { source?: Source })[];
     } = lesson.alternateActivities ?? {};
     const formattedAlternateActivities: AlternateActivityGroup[] =
-      defaultActivityTypes.map((type: string) => {
+      defaultActivityTypes.map((type) => {
         const activities = (alternateActivities[type] ?? []).map(
-          (
-            activity: Partial<Activity> & { source?: Source },
-            index: number
-          ) => {
+          (activity, index) => {
             const sourceIndex =
               (activitiesWithSources.length + index) % sources.length;
             const source = activity.source ?? sources[sourceIndex];
@@ -953,7 +1153,7 @@ export async function POST(request: Request) {
                   .replace("minutes", "")
                   .trim() ??
                   `${Math.floor(
-                    duration / (defaultActivityTypes.length || 2)
+                    durationNum / (defaultActivityTypes.length || 2)
                   )}`,
                 10
               ),
@@ -985,10 +1185,10 @@ export async function POST(request: Request) {
         activitiesWithSources.push({
           title: `Placeholder ${type} Activity`,
           activityType: type,
-          description: `A ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
-            normalizedTheme ? ` and ${normalizedTheme.toLowerCase()} theme` : ""
+          description: `A ${type.toLowerCase()} activity aligned with ${subject?.toLowerCase()}${
+            theme ? ` and ${theme.toLowerCase()} theme` : ""
           } in the ${curriculum} curriculum.`,
-          durationMins: Math.floor(duration / (activityTypes.length || 1)),
+          durationMins: Math.floor(durationNum / (activityTypes.length || 1)),
           source: sources[sourceIndex],
           engagementScore: 70,
           alignmentScore: 70,
@@ -1001,12 +1201,12 @@ export async function POST(request: Request) {
             {
               title: `Alternate Placeholder ${type} Activity 1`,
               activityType: type,
-              description: `An alternate ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
-                normalizedTheme
-                  ? ` and ${normalizedTheme.toLowerCase()} theme`
-                  : ""
+              description: `An alternate ${type.toLowerCase()} activity aligned with ${subject?.toLowerCase()}${
+                theme ? ` and ${theme.toLowerCase()} theme` : ""
               } in the ${curriculum} curriculum.`,
-              durationMins: Math.floor(duration / (activityTypes.length || 1)),
+              durationMins: Math.floor(
+                durationNum / (activityTypes.length || 1)
+              ),
               source: sources[(sourceIndex + 1) % sources.length],
               engagementScore: 65,
               alignmentScore: 65,
@@ -1015,12 +1215,12 @@ export async function POST(request: Request) {
             {
               title: `Alternate Placeholder ${type} Activity 2`,
               activityType: type,
-              description: `Another alternate ${type.toLowerCase()} activity aligned with ${subject.toLowerCase()}${
-                normalizedTheme
-                  ? ` and ${normalizedTheme.toLowerCase()} theme`
-                  : ""
+              description: `Another alternate ${type.toLowerCase()} activity aligned with ${subject?.toLowerCase()}${
+                theme ? ` and ${theme.toLowerCase()} theme` : ""
               } in the ${curriculum} curriculum.`,
-              durationMins: Math.floor(duration / (activityTypes.length || 1)),
+              durationMins: Math.floor(
+                durationNum / (activityTypes.length || 1)
+              ),
               source: sources[(sourceIndex + 2) % sources.length],
               engagementScore: 60,
               alignmentScore: 60,
@@ -1036,8 +1236,8 @@ export async function POST(request: Request) {
       (sum, activity) => sum + activity.durationMins,
       0
     );
-    if (totalActivityDuration !== duration) {
-      const scalingFactor = duration / totalActivityDuration;
+    if (totalActivityDuration !== durationNum) {
+      const scalingFactor = durationNum / totalActivityDuration;
       activitiesWithSources.forEach((activity) => {
         activity.durationMins = Math.round(
           activity.durationMins * scalingFactor
@@ -1047,9 +1247,9 @@ export async function POST(request: Request) {
         (sum, activity) => sum + activity.durationMins,
         0
       );
-      if (finalTotal !== duration && activitiesWithSources.length > 0) {
+      if (finalTotal !== durationNum && activitiesWithSources.length > 0) {
         activitiesWithSources[activitiesWithSources.length - 1].durationMins +=
-          duration - finalTotal;
+          durationNum - finalTotal;
       }
     }
 
@@ -1064,14 +1264,12 @@ export async function POST(request: Request) {
     const usedSources = [
       ...new Set(
         [
-          ...activitiesWithSources.map((a) => a.source.name),
+          ...activitiesWithSources.map((a) => a?.source?.name),
           ...formattedAlternateActivities
             .flatMap((group) => group.activities)
             .map((a) => a?.source?.name),
           ...(lesson.sourceMetadata?.map((s) => s.name) ?? []),
-          ...(lesson.standards
-            ?.map((s) => s.source?.name)
-            .filter((name): name is string => !!name) ?? []),
+          ...(lesson.standards?.map((s) => s?.source?.name) ?? []),
         ].filter((name): name is string => !!name)
       ),
     ];
@@ -1087,26 +1285,25 @@ export async function POST(request: Request) {
     const lessonPlan: LessonPlan = {
       title: lesson.title ?? title,
       gradeLevel: lesson.gradeLevel ?? gradeLevel,
-      subject: lesson.subject ?? subject,
-      theme: lesson.theme === "" ? null : lesson.theme ?? normalizedTheme,
-      status: lesson.status ?? "DRAFT",
+      subject: normalizedSubject,
+      theme: lesson.theme === "" ? null : lesson.theme ?? theme,
       duration: parseInt(
         lesson.duration?.toString().replace("minutes", "").trim() ??
-          `${duration}`,
+          `${durationNum}`,
         10
       ),
-      classroomSize: lesson.classroomSize ?? classroomSize,
+      classroomSize: lesson.classroomSize ?? classroomSizeNum,
       curriculum: curriculum,
       learningIntention:
         (lesson.learningIntention ?? learningIntention) ||
-        `To learn key concepts of ${subject.toLowerCase()} in the ${curriculum} curriculum`,
+        `To learn key concepts of ${subject?.toLowerCase()} in the ${curriculum} curriculum`,
       successCriteria:
         lesson.successCriteria ??
         (successCriteria.length > 0
           ? successCriteria
           : [
-              `I can demonstrate understanding of ${subject.toLowerCase()}`,
-              `I can apply ${subject.toLowerCase()} concepts in activities`,
+              `I can demonstrate understanding of ${subject?.toLowerCase()}`,
+              `I can apply ${subject?.toLowerCase()} concepts in activities`,
               `I can collaborate effectively in class`,
             ]),
       activities: activitiesWithSources,
@@ -1115,13 +1312,13 @@ export async function POST(request: Request) {
         typeof supply === "string"
           ? {
               name: supply,
-              quantity: classroomSize,
+              quantity: classroomSizeNum,
               unit: "unit",
               note: null,
             }
           : {
               name: supply.name ?? "Unnamed Supply",
-              quantity: supply.quantity ?? classroomSize,
+              quantity: supply.quantity ?? classroomSizeNum,
               unit: supply.unit ?? "unit",
               note: supply.note ?? null,
             }
@@ -1146,40 +1343,32 @@ export async function POST(request: Request) {
               strategies: domain.strategies ?? [],
             }))
           : [],
-      standards: (lesson.standards ?? standards).map(
-        (standard: {
-          code?: string;
-          description?: string;
-          source?: Source;
-        }) => ({
-          code:
-            standard.code ??
-            (typeof standard === "string" ? standard : "UNKNOWN"),
-          description: standard.description ?? "",
-          source: standard.source
-            ? {
-                name:
-                  standard.source.name ??
-                  (curriculum === "US" ? "Common Core" : "ACARA"),
-                url:
-                  standard.source.url ??
-                  (curriculum === "US"
-                    ? "http://www.corestandards.org"
-                    : "https://www.australiancurriculum.edu.au"),
-                description:
-                  standard.source.description ??
-                  `Source used for standards alignment in ${curriculum} curriculum`,
-              }
-            : {
-                name: curriculum === "US" ? "Common Core" : "ACARA",
-                url:
-                  curriculum === "US"
-                    ? "http://www.corestandards.org"
-                    : "https://www.australiancurriculum.edu.au",
-                description: `Source used for standards alignment in ${curriculum} curriculum`,
-              },
-        })
-      ),
+      standards: standards.map((standard) => ({
+        code: standard.code ?? "UNKNOWN",
+        description: standard.description ?? "",
+        source: standard.source
+          ? {
+              name:
+                standard.source.name ??
+                (curriculum === "US" ? "Common Core" : "ACARA"),
+              url:
+                standard.source.url ??
+                (curriculum === "US"
+                  ? "http://www.corestandards.org"
+                  : "https://www.australiancurriculum.edu.au"),
+              description:
+                standard.source.description ??
+                `Source used for standards alignment in ${curriculum} curriculum`,
+            }
+          : {
+              name: curriculum === "US" ? "Common Core" : "ACARA",
+              url:
+                curriculum === "US"
+                  ? "http://www.corestandards.org"
+                  : "https://www.australiancurriculum.edu.au",
+              description: `Source used for standards alignment in ${curriculum} curriculum`,
+            },
+      })),
       sourceMetadata: lesson.sourceMetadata ?? sources,
       citationScore: lesson.citationScore ?? citationScore,
     };
@@ -1191,7 +1380,7 @@ export async function POST(request: Request) {
           title: lessonPlan.title,
           age_group: lessonPlan.gradeLevel,
           subject: lessonPlan.subject,
-          theme: lessonPlan.theme === "" ? null : lessonPlan.theme,
+          theme: lessonPlan.theme,
           status: lessonPlan.status,
           created_at: new Date(),
           created_by_id: user.id,
@@ -1229,27 +1418,19 @@ export async function POST(request: Request) {
       });
     }
 
-    const lessonPlanWithId: LessonPlan = {
-      ...lessonPlan,
-      id: newLessonPlan.id.toString(),
-      scheduledDate: scheduledDate || null,
-    };
-
-    return NextResponse.json({
+    revalidatePath("/calendar", "page");
+    return {
       success: true,
-      lessonPlan: lessonPlanWithId,
-    });
+      data: newLessonPlan,
+    };
   } catch (error: unknown) {
     console.error("Error generating lesson plan:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate lesson plan",
-      },
-      { status: 500 }
-    );
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate lesson plan",
+    };
   }
 }
