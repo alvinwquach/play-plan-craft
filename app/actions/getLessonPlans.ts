@@ -26,7 +26,7 @@ let parsedUrl: URL;
 try {
   parsedUrl = new URL(process.env.DATABASE_URL);
   console.log("Database hostname:", parsedUrl.hostname);
-} catch (e) {
+} catch (_) {
   console.error("Invalid DATABASE_URL format:", process.env.DATABASE_URL);
   throw new Error("Database configuration error: Invalid DATABASE_URL format");
 }
