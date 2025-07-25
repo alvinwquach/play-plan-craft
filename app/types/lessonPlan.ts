@@ -120,3 +120,9 @@ export interface Notification {
     image: string | null;
   } | null;
 }
+
+export type NotificationPayload = {
+  eventType: string;
+  new: { status?: string } | null;
+  old: { status?: string } | null;
+};
