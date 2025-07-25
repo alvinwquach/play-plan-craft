@@ -120,7 +120,7 @@ export interface Notification {
     name: string | null;
     image: string | null;
   } | null;
-  organizationId: string;
+  organizationId?: string;
 }
 
 export type NotificationPayload = {

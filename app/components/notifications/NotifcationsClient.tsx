@@ -84,6 +84,8 @@ export default function NotificationsClient({
                 name: "Unknown Sender",
                 image: null,
               },
+              organizationId:
+                newNotification.organizationId || "default_organization_id",
             },
           ]);
 
