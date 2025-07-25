@@ -1,4 +1,3 @@
-// app/auth/callback/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
@@ -20,10 +19,10 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient();
+
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(
       code
     );
-
     if (sessionError) {
       console.error("Error exchanging code for session:", sessionError.message);
       return NextResponse.redirect(
@@ -31,6 +30,13 @@ export async function GET(request: Request) {
           sessionError.message
         )}`
       );
+    }
+
+    const { data: sessionData, error: sessionCheckError } =
+      await supabase.auth.getSession();
+    if (sessionCheckError || !sessionData.session) {
+      console.error("User session not found or invalid");
+      return NextResponse.redirect(`${origin}/login`);
     }
 
     const {
@@ -43,9 +49,7 @@ export async function GET(request: Request) {
         "Error fetching user:",
         authError?.message || "No user found"
       );
-      return NextResponse.redirect(
-        `${origin}/auth/error?message=Failed+to+fetch+user`
-      );
+      return NextResponse.redirect(`${origin}/login`);
     }
 
     const { count, error: countError } = await supabase
@@ -62,7 +66,6 @@ export async function GET(request: Request) {
     let redirectPath = "/onboarding";
 
     if (count === 0) {
-      // First user: Assign ADMIN role, no organization, direct to lesson-plan
       const userData = {
         id: user.id,
         email: user.email!,
@@ -76,7 +79,6 @@ export async function GET(request: Request) {
       const { error: insertError } = await supabase
         .from("users")
         .insert(userData);
-
       if (insertError) {
         console.error(
           "Error inserting first user as admin:",
@@ -90,7 +92,6 @@ export async function GET(request: Request) {
       }
       redirectPath = "/lesson-plan";
     } else {
-      // Subsequent users: Check role and pendingApproval
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("role, organizationId, pendingApproval")
@@ -107,7 +108,6 @@ export async function GET(request: Request) {
       }
 
       if (!userData) {
-        // New user: Insert with no role or organization, redirect to onboarding
         const newUserData = {
           id: user.id,
           email: user.email!,
@@ -121,7 +121,6 @@ export async function GET(request: Request) {
         const { error: insertError } = await supabase
           .from("users")
           .insert(newUserData);
-
         if (insertError) {
           console.error("Error inserting new user:", insertError.message);
           return NextResponse.redirect(
@@ -131,14 +130,17 @@ export async function GET(request: Request) {
           );
         }
         redirectPath = "/onboarding";
-      } else if (userData.role) {
-        // Check for pending approval notifications
+      } else {
         const { data: notifications, error: notificationError } = await supabase
           .from("notifications")
-          .select("id")
+          .select("id, created_at")
           .eq("userId", user.id)
           .eq("type", "APPROVAL")
-          .eq("status", "INFO");
+          .eq("status", "INFO")
+          .gte(
+            "created_at",
+            new Date(Date.now() - 5 * 60 * 1000).toISOString()
+          );
 
         if (notificationError) {
           console.error(
@@ -147,7 +149,6 @@ export async function GET(request: Request) {
           );
         }
 
-        // Redirect to notifications if there’s an approval notification, otherwise based on pendingApproval
         redirectPath =
           notifications && notifications.length > 0
             ? "/notifications"

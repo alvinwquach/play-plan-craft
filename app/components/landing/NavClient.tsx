@@ -200,8 +200,6 @@ export default function NavClient({
             );
           })}
         </div>
-
-        {/* Subscription Status Indicator */}
         <div className="mt-auto mb-4">
           <div
             className={`w-3 h-3 rounded-full ${

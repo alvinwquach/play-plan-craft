@@ -9,19 +9,8 @@ import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
 import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
 import { RealtimeChannel } from "@supabase/supabase-js";
-
-interface Notification {
-  id: number;
-  senderId: string;
-  message: string;
-  status: string;
-  type: string;
-  user: {
-    email: string | null;
-    name: string | null;
-    image: string | null;
-  } | null;
-}
+import { approveUser } from "@/app/actions/approveUser";
+import { Notification } from "../../types/lessonPlan";
 
 interface NotificationsClientProps {
   initialNotifications: Notification[];
@@ -68,7 +57,6 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         async (payload) => {
-          console.log("INSERT event received:", payload);
           const newNotification = payload.new as Omit<Notification, "user">;
           if (!["PENDING", "INFO"].includes(newNotification.status)) return;
 
@@ -80,6 +68,11 @@ export default function NotificationsClient({
 
           if (error) {
             console.error("Error fetching sender details:", error.message);
+            toast.error("Failed to fetch sender details.", {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            });
           }
 
           setNotifications((prev) => [
@@ -93,6 +86,14 @@ export default function NotificationsClient({
               },
             },
           ]);
+
+          if (newNotification.type === "APPROVAL") {
+            toast.info(newNotification.message, {
+              position: "top-center",
+              autoClose: 5000,
+              theme: "colored",
+            });
+          }
         }
       )
       .on(
@@ -104,7 +105,6 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          console.log("UPDATE event received:", payload);
           if (
             ["PENDING", "INFO"].includes(payload.new.status) ||
             ["PENDING", "INFO"].includes(payload.old.status)
@@ -126,7 +126,6 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          console.log("DELETE event received:", payload);
           if (["PENDING", "INFO"].includes(payload.old.status)) {
             setNotifications((prev) =>
               prev.filter((n) => n.id !== payload.old.id)
@@ -135,20 +134,20 @@ export default function NotificationsClient({
         }
       )
       .subscribe((status, error) => {
-        console.log(
-          "Notification subscription status:",
-          status,
-          error ? `Error: ${error.message}` : ""
-        );
         setSubscribed(status === "SUBSCRIBED");
         if (error) {
           console.error("Subscription error:", error.message);
+          toast.error("Error connecting to notifications. Please refresh.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
         }
       });
 
     return () => {
-      console.log("Cleaning up notification subscription");
       supabase.removeChannel(channel);
+      setSubscribed(false);
     };
   }, [userId, supabase, subscribed]);
 
@@ -180,10 +179,11 @@ export default function NotificationsClient({
     }
 
     const {
-      data: { user },
+      data: { user: educator },
       error: authError,
     } = await supabase.auth.getUser();
-    if (authError || !user) {
+
+    if (authError || !educator) {
       console.error("Error fetching current user:", authError?.message);
       toast.error("Failed to authenticate user. Please try again.", {
         position: "top-center",
@@ -194,69 +194,58 @@ export default function NotificationsClient({
       return;
     }
 
-    const educatorId = user.id;
+    const response = await approveUser(senderId, educator.id);
 
-    const { data: originalNotification, error: fetchError } = await supabase
-      .from("notifications")
-      .select("organizationId")
-      .eq("id", notificationId)
-      .single();
-
-    if (fetchError || !originalNotification?.organizationId) {
-      console.error(
-        "Error fetching original notification:",
-        fetchError?.message || "No organizationId found"
+    if (response.data?.success) {
+      const originalNotification = notifications.find(
+        (n) => n.id === notificationId
       );
-      toast.error(
-        "Failed to retrieve organization details. Please try again.",
-        {
+
+      const { error: notificationUpdateError } = await supabase
+        .from("notifications")
+        .update({ status: "APPROVED" })
+        .eq("id", notificationId);
+
+      if (notificationUpdateError) {
+        console.error("Error updating notification:", notificationUpdateError);
+        toast.error("Failed to update notification.", {
           position: "top-center",
           autoClose: 3000,
           theme: "colored",
+        });
+      }
+
+      if (originalNotification?.user) {
+        const { error: notifyApprovedUserError } = await supabase
+          .from("notifications")
+          .insert([
+            {
+              userId: senderId,
+              senderId: educator.id,
+              type: "APPROVAL",
+              message: "🎉 You have been approved to join the organization!",
+              status: "INFO",
+              organizationId: originalNotification.organizationId,
+            },
+          ]);
+
+        if (notifyApprovedUserError) {
+          console.error(
+            "Failed to notify approved user:",
+            notifyApprovedUserError
+          );
         }
-      );
-      setLoading(false);
-      return;
-    }
+      }
 
-    const { error: userError } = await supabase
-      .from("users")
-      .update({ pendingApproval: false })
-      .eq("id", senderId);
-
-    const { error: notificationError } = await supabase
-      .from("notifications")
-      .update({ status: "APPROVED" })
-      .eq("id", notificationId);
-
-    const { error: notifyApprovedUserError } = await supabase
-      .from("notifications")
-      .insert([
-        {
-          userId: senderId,
-          senderId: educatorId,
-          type: "APPROVAL",
-          message: "🎉 You have been approved to join the organization!",
-          status: "INFO",
-          organizationId: originalNotification.organizationId,
-        },
-      ]);
-
-    if (userError || notificationError || notifyApprovedUserError) {
-      console.error(
-        "Error approving request:",
-        userError?.message ||
-          notificationError?.message ||
-          notifyApprovedUserError?.message
-      );
-      toast.error("Failed to approve request. Please try again.", {
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("User approved successfully!", {
         position: "top-center",
         autoClose: 3000,
         theme: "colored",
       });
     } else {
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      toast.success("User approved successfully!", {
+      console.error("Error approving user:", response.error);
+      toast.error(response.error?.message || "Failed to approve request.", {
         position: "top-center",
         autoClose: 3000,
         theme: "colored",
@@ -297,13 +286,13 @@ export default function NotificationsClient({
       .from("users")
       .update({ organizationId: null, pendingApproval: false })
       .eq("id", senderId);
+
     const { error: notificationError } = await supabase
       .from("notifications")
       .update({ status: "REJECTED" })
       .eq("id", notificationId);
 
     if (userError || notificationError) {
-      console.error("Error rejecting request:", userError || notificationError);
       toast.error("Failed to reject request. Please try again.", {
         position: "top-center",
         autoClose: 3000,
@@ -329,8 +318,7 @@ export default function NotificationsClient({
       .eq("id", notificationId);
 
     if (error) {
-      console.error("Error dismissing notification:", error.message);
-      toast.error("Failed to dismiss notification. Please try again.", {
+      toast.error("Failed to dismiss notification.", {
         position: "top-center",
         autoClose: 3000,
         theme: "colored",
@@ -348,8 +336,7 @@ export default function NotificationsClient({
   };
 
   const hasApprovalNotification = notifications?.some(
-    (notification) =>
-      notification.type === "APPROVAL" && notification.status === "INFO"
+    (n) => n.type === "APPROVAL" && n.status === "INFO"
   );
 
   const skeletonCount = Math.max(initialNotifications.length, 1);
@@ -442,11 +429,7 @@ export default function NotificationsClient({
                         }
                         disabled={loading}
                         className="flex items-center justify-center bg-teal-500 hover:bg-teal-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title={
-                          notification.type === "LESSON_DELETION_REQUEST"
-                            ? "Approve lesson deletion"
-                            : "Approve"
-                        }
+                        title="Approve"
                       >
                         <FaCheckCircle className="text-xl" />
                       </button>
@@ -460,11 +443,7 @@ export default function NotificationsClient({
                         }
                         disabled={loading}
                         className="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title={
-                          notification.type === "LESSON_DELETION_REQUEST"
-                            ? "Reject lesson deletion"
-                            : "Reject"
-                        }
+                        title="Reject"
                       >
                         <FaTimesCircle className="text-xl" />
                       </button>
