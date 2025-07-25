@@ -110,6 +110,10 @@ const LessonPlannerPDF = ({ lessonPlan }: { lessonPlan: LessonPlan }) => (
     <Page size="A4" style={styles.page}>
       <Text style={styles.title}>{lessonPlan.title}</Text>
       <View style={styles.section}>
+        <Text style={styles.heading}>Created By</Text>
+        <Text style={styles.text}>{lessonPlan.createdByName || "Unknown"}</Text>
+      </View>
+      <View style={styles.section}>
         <Text style={styles.heading}>Learning Intention</Text>
         <Text style={styles.text}>
           {lessonPlan.learningIntention || "No learning intention specified."}
@@ -355,9 +359,17 @@ interface HeaderToolbar {
 
 interface CalendarProps {
   initialLessonPlans: LessonPlan[];
+  userRole: "EDUCATOR" | "ASSISTANT" | null;
+  isOrganizationOwner: boolean;
+  userId: string;
 }
 
-export default function Calendar({ initialLessonPlans }: CalendarProps) {
+export default function Calendar({
+  initialLessonPlans,
+  userRole,
+  isOrganizationOwner,
+  userId,
+}: CalendarProps) {
   const [lessonPlans, setLessonPlans] =
     useState<LessonPlan[]>(initialLessonPlans);
   const [selectedLesson, setSelectedLesson] = useState<LessonPlan | null>(null);
@@ -400,6 +412,7 @@ export default function Calendar({ initialLessonPlans }: CalendarProps) {
         return `https://www.google.com/search?tbm=shop&q=${encodedQuery}`;
     }
   };
+
   const updateHeaderToolbar = (date: Date) => {
     const currentMonth = today.getMonth();
     const selectedMonth = date.getMonth();
@@ -452,27 +465,39 @@ export default function Calendar({ initialLessonPlans }: CalendarProps) {
         (config) => window.innerWidth >= config.minWidth
       );
       if (matchedConfig) {
-        calendarApi.changeView(matchedConfig.view);
-        setHeaderToolbar(matchedConfig.toolbar);
+        // Defer the view change to avoid flushSync error
+        requestAnimationFrame(() => {
+          calendarApi.changeView(matchedConfig.view);
+          setHeaderToolbar(matchedConfig.toolbar);
+        });
       }
     };
+
     window.addEventListener("resize", updateViewBasedOnScreenSize);
-    updateViewBasedOnScreenSize();
+    updateViewBasedOnScreenSize(); // Initial call
     return () =>
       window.removeEventListener("resize", updateViewBasedOnScreenSize);
   }, [currentMonth]);
 
-  const events: EventInput[] = lessonPlans.map((lesson) => ({
-    id: lesson.id || lesson.title,
-    title: lesson.title,
-    start: lesson.scheduledDate || new Date().toISOString(),
-    end: lesson.scheduledDate
-      ? new Date(
-          new Date(lesson.scheduledDate).getTime() + lesson.duration * 60 * 1000
-        ).toISOString()
-      : new Date().toISOString(),
-    extendedProps: { lesson },
-  }));
+  const events: EventInput[] = lessonPlans.map((lesson) => {
+    const start = lesson.scheduledDate
+      ? new Date(lesson.scheduledDate)
+      : new Date();
+    const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
+
+    return {
+      id: lesson.id || lesson.title,
+      title: `${lesson.title} (${lesson.createdByName || "Unknown"})`,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      allDay: false,
+      extendedProps: { lesson },
+      backgroundColor: lesson.created_by_id === userId ? "#2c7a7b" : "#4a9f9e",
+      borderColor: lesson.created_by_id === userId ? "#1a5f5f" : "#3a8f8e",
+      textColor: "#ffffff",
+      classNames: ["custom-event"],
+    };
+  });
 
   const formatGoogleCalendarDate = (date: Date) => {
     return date
@@ -484,6 +509,7 @@ export default function Calendar({ initialLessonPlans }: CalendarProps) {
   const generateEventDescription = (lesson: LessonPlan): string => {
     return `
 Title: ${lesson.title}
+Created By: ${lesson.createdByName || "Unknown"}
 
 Learning Intention: ${lesson.learningIntention || "None"}
 
@@ -591,7 +617,7 @@ ${
         calendar.createEvent({
           start,
           end,
-          summary: lesson.title,
+          summary: `${lesson.title} (${lesson.createdByName || "Unknown"})`,
           description,
           location: lesson.theme ? lesson.theme.replace("_", " ") : undefined,
         });
@@ -631,7 +657,10 @@ ${
           "https://www.google.com/calendar/render"
         );
         googleCalendarUrl.searchParams.append("action", "TEMPLATE");
-        googleCalendarUrl.searchParams.append("text", lesson.title);
+        googleCalendarUrl.searchParams.append(
+          "text",
+          `${lesson.title} (${lesson.createdByName || "Unknown"})`
+        );
         googleCalendarUrl.searchParams.append(
           "dates",
           `${formatGoogleCalendarDate(start)}/${formatGoogleCalendarDate(end)}`
@@ -767,6 +796,13 @@ ${
               new Paragraph({
                 text: lesson.title,
                 heading: "Heading1",
+              }),
+              new Paragraph({
+                text: "Created By",
+                heading: "Heading2",
+              }),
+              new Paragraph({
+                text: lesson.createdByName || "Unknown",
               }),
               new Paragraph({
                 text: "Learning Intention",
@@ -1183,22 +1219,12 @@ ${
     };
 
     try {
-      const response = await fetch(
-        `/api/lesson-plan/${updatedLesson.id}/schedule`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            scheduledDate: updatedLesson.scheduledDate,
-          }),
-        }
+      const response = await rescheduleLessonPlan(
+        updatedLesson.id || updatedLesson.title,
+        updatedLesson.scheduledDate!
       );
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.success && response.lessonPlan) {
         const updatedPlans = lessonPlans.map((lp) =>
           lp.id === updatedLesson.id
             ? { ...updatedLesson, supplies: lp.supplies }
@@ -1219,7 +1245,7 @@ ${
           draggable: true,
         });
       } else {
-        toast.error(data.error || "Failed to update lesson schedule", {
+        toast.error(response.error || "Failed to update lesson schedule", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -1288,23 +1314,157 @@ ${
 
   return (
     <TooltipProvider>
-      <div className="bg-teal-50 text-gray-800 max-w-screen-2xl mx-auto px-5 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-24 min-h-screen p-4 sm:p-8">
-        <main className="max-w-5xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center mb-6 gap-4">
-            <div className="flex flex-wrap gap-2 sm:gap-4 items-center justify-center sm:justify-end">
-              <Link
-                href="/lesson-plan"
-                className="bg-teal-400 text-white py-2 px-4 rounded-full font-semibold hover:bg-teal-500 transition text-sm sm:text-base"
-              >
-                Create New Lesson
-              </Link>
+      <style jsx global>{`
+        .fc {
+          --fc-bg-event-opacity: 0.9;
+          --fc-border-color: #e0e0e0;
+          --fc-daygrid-event-dot-width: 6px;
+          --fc-event-border-color: transparent;
+          --fc-event-text-color: #ffffff;
+          --fc-page-bg-color: #ffffff;
+          --fc-neutral-bg-color: #f8fafc;
+          --fc-neutral-text-color: #374151;
+          --fc-today-bg-color: rgba(45, 212, 191, 0.1);
+        }
+
+        .fc .fc-daygrid-day {
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        }
+
+        .fc .fc-daygrid-day:hover {
+          background-color: rgba(45, 212, 191, 0.05);
+        }
+
+        .fc .fc-timegrid-slot {
+          height: 2.5rem;
+          border-color: #e0e0e0;
+        }
+
+        .fc .fc-timegrid-col {
+          background: #ffffff;
+        }
+
+        .fc .fc-timegrid-event {
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 0.9rem;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          min-height: 2.5rem;
+          display: flex;
+          align-items: center;
+        }
+
+        .fc .fc-daygrid-event {
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 0.85rem;
+          margin: 2px;
+          white-space: normal;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.4;
+          max-height: 4.5rem; /* Increased for time range */
+        }
+
+        .custom-event {
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .custom-event:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .fc .fc-timegrid-event .fc-event-main {
+          padding: 4px;
+        }
+
+        .fc .fc-daygrid-event .fc-event-main {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          height: 100%;
+        }
+
+        .fc .fc-timegrid-axis {
+          font-size: 0.9rem;
+          color: #374151;
+        }
+
+        .fc .fc-daygrid-day-number {
+          font-size: 0.9rem;
+          color: #374151;
+        }
+
+        .fc .fc-col-header-cell {
+          background: #2c7a7b;
+          color: #ffffff;
+          font-weight: 600;
+          padding: 8px;
+        }
+
+        .fc .fc-button {
+          background: #2c7a7b;
+          border: none;
+          color: #ffffff;
+          font-weight: 500;
+          border-radius: 4px;
+          padding: 6px 12px;
+          transition: background-color 0.2s;
+        }
+
+        .fc .fc-button:hover {
+          background: #1a5f5f;
+        }
+
+        .fc .fc-button.fc-button-active,
+        .fc .fc-button:focus {
+          background: #1a5f5f;
+          box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+        }
+
+        .fc .fc-toolbar-title {
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        @media (max-width: 640px) {
+          .fc .fc-toolbar-title {
+            font-size: 1.2rem;
+          }
+
+          .fc .fc-timegrid-event {
+            font-size: 0.8rem;
+            padding: 3px 6px;
+          }
+
+          .fc .fc-daygrid-event {
+            font-size: 0.75rem;
+            padding: 3px 6px;
+            max-height: 4rem; /* Adjusted for time range on mobile */
+          }
+
+          .fc .fc-daygrid-event .fc-event-time {
+            font-size: 0.7rem;
+          }
+        }
+      `}</style>
+      <div className="bg-teal-50 text-gray-800 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 min-h-screen">
+        <main className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center my-8 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
+              Lesson Plan Calendar
+            </h1>
+            <div className="flex flex-wrap gap-3 sm:gap-4 sm:items-center sm:justify-center justify-end">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={exportToICal}
-                    className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
+                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm"
                   >
-                    <FaRegCalendarAlt className="text-xl" />
+                    <FaRegCalendarAlt className="text-lg sm:text-xl" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center">
@@ -1315,9 +1475,9 @@ ${
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => exportToGoogleCalendar()}
-                    className="bg-teal-400 text-white p-3 rounded-full hover:bg-teal-500 transition"
+                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm"
                   >
-                    <SiGooglecalendar className="text-xl" />
+                    <SiGooglecalendar className="text-lg sm:text-xl" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="center">
@@ -1326,35 +1486,133 @@ ${
               </Tooltip>
             </div>
           </div>
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={headerToolbar}
-            events={events}
-            eventClick={handleEventClick}
-            eventDrop={handleEventDrop}
-            editable={true}
-            selectable={false}
-            datesSet={(dateInfo) =>
-              updateHeaderToolbar(dateInfo.view.currentStart)
-            }
-            slotMinTime="07:00:00"
-            slotMaxTime="18:00:00"
-            allDaySlot={false}
-            eventColor="#2c7a7b"
-            height="auto"
-            themeSystem="bootstrap5"
-          />
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={headerToolbar}
+              events={events}
+              eventClick={handleEventClick}
+              eventDrop={handleEventDrop}
+              editable={userRole === "EDUCATOR"}
+              selectable={false}
+              datesSet={(dateInfo) =>
+                updateHeaderToolbar(dateInfo.view.currentStart)
+              }
+              slotMinTime="07:00:00"
+              slotMaxTime="18:00:00"
+              allDaySlot={false}
+              height="auto"
+              themeSystem="bootstrap5"
+              eventTimeFormat={{
+                hour: "numeric",
+                minute: "2-digit",
+                meridiem: "short",
+                hour12: true,
+              }}
+              slotLabelFormat={{
+                hour: "numeric",
+                minute: "2-digit",
+                meridiem: "short",
+                hour12: true,
+              }}
+              views={{
+                dayGridMonth: {
+                  dayHeaderFormat: { weekday: "short" },
+                },
+                timeGridWeek: {
+                  dayHeaderFormat: {
+                    weekday: "short",
+                    month: "numeric",
+                    day: "numeric",
+                    omitCommas: true,
+                  },
+                },
+                timeGridDay: {
+                  dayHeaderFormat: {
+                    weekday: "short",
+                    month: "numeric",
+                    day: "numeric",
+                    omitCommas: true,
+                  },
+                },
+              }}
+              eventDisplay="block"
+              eventMinHeight={40}
+              slotDuration="00:15:00"
+              slotLabelInterval="01:00"
+              eventOverlap={false}
+              eventConstraint={{
+                startTime: "07:00",
+                endTime: "18:00",
+              }}
+              eventContent={(eventInfo) => {
+                const isMonthView = eventInfo.view.type === "dayGridMonth";
+                const start = eventInfo.event.start;
+                const end = eventInfo.event.end;
+                let timeText = "";
+
+                if (start && end) {
+                  const startTime = start.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  });
+                  const endTime = end.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  });
+                  timeText = `${startTime}–${endTime}`;
+                } else if (start) {
+                  timeText = start.toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  });
+                }
+
+                return (
+                  <div className="flex flex-col p-1 overflow-hidden">
+                    <b
+                      className={`${
+                        isMonthView ? "text-xs sm:text-sm" : "text-sm"
+                      } font-semibold truncate`}
+                    >
+                      {eventInfo.event.title}
+                    </b>
+                    <p
+                      className={`${
+                        isMonthView ? "text-xs" : "text-xs"
+                      } text-white opacity-90 truncate`}
+                    >
+                      {timeText}
+                    </p>
+                  </div>
+                );
+              }}
+            />
+          </div>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent className="max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-h-[80vh] overflow-y-auto max-w-3xl bg-white rounded-lg">
               <DialogHeader>
-                <DialogTitle>{selectedLesson?.title}</DialogTitle>
+                <DialogTitle className="text-2xl font-bold text-teal-800">
+                  {selectedLesson?.title}
+                </DialogTitle>
               </DialogHeader>
               {selectedLesson && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                      Created By
+                    </h2>
+                    <p className="text-gray-600">
+                      {selectedLesson.createdByName || "Unknown"}
+                    </p>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Learning Intention
                     </h2>
                     <p className="text-gray-600">
@@ -1362,7 +1620,7 @@ ${
                     </p>
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Success Criteria
                     </h2>
                     {selectedLesson.successCriteria.length > 0 ? (
@@ -1380,10 +1638,10 @@ ${
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Details
                     </h2>
-                    <ul className="text-gray-600 list-inside list-disc">
+                    <ul className="text-gray-600 list-inside list-disc space-y-2">
                       <li>
                         <strong>Grade Level:</strong>{" "}
                         {selectedLesson.gradeLevel.replace("_", " ")}
@@ -1423,7 +1681,7 @@ ${
                     </ul>
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Activities
                     </h2>
                     {selectedLesson.activities.length > 0 ? (
@@ -1472,7 +1730,7 @@ ${
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Supplies
                     </h2>
                     <div className="mb-4">
@@ -1529,7 +1787,7 @@ ${
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Tags
                     </h2>
                     {selectedLesson.tags.length > 0 ? (
@@ -1543,7 +1801,7 @@ ${
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       Developmental Goals
                     </h2>
                     {selectedLesson.developmentGoals.length > 0 ? (
@@ -1566,7 +1824,7 @@ ${
                   {selectedLesson.gradeLevel === "PRESCHOOL" &&
                     selectedLesson.drdpDomains && (
                       <div>
-                        <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                        <h2 className="text-xl font-semibold text-teal-800 mb-3">
                           DRDP Domains
                         </h2>
                         {selectedLesson.drdpDomains.length > 0 ? (
@@ -1594,7 +1852,7 @@ ${
                     )}
                   {selectedLesson.standards && (
                     <div>
-                      <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
                         Standards Alignment
                       </h2>
                       {selectedLesson.standards.length > 0 ? (
@@ -1628,7 +1886,7 @@ ${
                   {selectedLesson.sourceMetadata &&
                     selectedLesson.sourceMetadata.length > 0 && (
                       <div>
-                        <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                        <h2 className="text-xl font-semibold text-teal-800 mb-3">
                           General Source Metadata
                         </h2>
                         <ul className="text-gray-600 list-inside list-disc space-y-4">
@@ -1657,7 +1915,7 @@ ${
                     )}
                   {selectedLesson.citationScore !== undefined && (
                     <div>
-                      <h2 className="text-xl font-semibold text-teal-800 mb-4">
+                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
                         Citation Score
                       </h2>
                       <p className="text-gray-600">
@@ -1666,31 +1924,33 @@ ${
                       </p>
                     </div>
                   )}
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-4">
-                      Update Schedule
-                    </h2>
-                    <input
-                      type="datetime-local"
-                      value={selectedLesson.scheduledDate || ""}
-                      onChange={handleDateTimeChange}
-                      className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                    />
-                  </div>
-                  <div className="flex justify-between items-end w-full mt-8 flex-wrap">
-                    <div className="flex gap-4 flex-wrap">
+                  {userRole === "EDUCATOR" && (
+                    <div>
+                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                        Update Schedule
+                      </h2>
+                      <input
+                        type="datetime-local"
+                        value={selectedLesson.scheduledDate?.slice(0, 16) || ""}
+                        onChange={handleDateTimeChange}
+                        className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                      />
+                    </div>
+                  )}
+                  <div className="flex justify-between items-end w-full mt-6 flex-wrap gap-4">
+                    <div className="flex gap-3 flex-wrap">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             onClick={() => printPDF(selectedLesson)}
                             disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-full transition ${
+                            className={`p-3 rounded-lg transition shadow-sm ${
                               printLoading || pdfLoading
                                 ? "bg-gray-200 text-gray-400"
                                 : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
                             }`}
                           >
-                            <FaPrint className="text-xl" />
+                            <FaPrint className="text-lg sm:text-xl" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
@@ -1702,13 +1962,13 @@ ${
                           <Button
                             onClick={() => exportToPDF(selectedLesson)}
                             disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-full transition ${
+                            className={`p-3 rounded-lg transition shadow-sm ${
                               pdfLoading || printLoading
                                 ? "bg-gray-200 text-gray-400"
                                 : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
                             }`}
                           >
-                            <FaFilePdf className="text-xl" />
+                            <FaFilePdf className="text-lg sm:text-xl" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
@@ -1720,13 +1980,13 @@ ${
                           <Button
                             onClick={() => exportToWord(selectedLesson)}
                             disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-full transition ${
+                            className={`p-3 rounded-lg transition shadow-sm ${
                               pdfLoading || printLoading
                                 ? "bg-gray-200 text-gray-400"
                                 : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
                             }`}
                           >
-                            <FaRegFileWord className="text-xl" />
+                            <FaRegFileWord className="text-lg sm:text-xl" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
@@ -1738,32 +1998,59 @@ ${
                           <Button
                             onClick={() => shareLessonPlan(selectedLesson)}
                             disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-full transition ${
+                            className={`p-3 rounded-lg transition shadow-sm ${
                               pdfLoading || printLoading
                                 ? "bg-gray-200 text-gray-400"
                                 : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
                             }`}
                           >
-                            <CiShare2 className="text-xl" />
+                            <CiShare2 className="text-lg sm:text-xl" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
                           Share Lesson Plan
                         </TooltipContent>
                       </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={() =>
+                              exportToGoogleCalendar(selectedLesson)
+                            }
+                            disabled={pdfLoading || printLoading}
+                            className={`p-3 rounded-lg transition shadow-sm ${
+                              pdfLoading || printLoading
+                                ? "bg-gray-200 text-gray-400"
+                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                            }`}
+                          >
+                            <SiGooglecalendar className="text-lg sm:text-xl" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="center">
+                          Add to Google Calendar
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <div className="mt-4 sm:mt-0">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={handleDeleteLesson}
-                            className="bg-white text-red-500 p-2 hover:bg-gray-100 rounded-full"
+                            disabled={!isOrganizationOwner}
+                            className={`p-2 rounded-lg transition shadow-sm ${
+                              !isOrganizationOwner
+                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                : "bg-white text-red-500 hover:bg-gray-100"
+                            }`}
                           >
-                            <FaTrash className="text-xl" />
-                          </button>
+                            <FaTrash className="text-lg sm:text-xl" />
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
-                          Delete Lesson Plan
+                          {isOrganizationOwner
+                            ? "Delete Lesson Plan"
+                            : "Only the organization owner can delete lesson plans"}
                         </TooltipContent>
                       </Tooltip>
                     </div>

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PlayPlanCraft",
+  title: "Play Plan Craft",
   description: "Lesson planning made simple",
 };
 

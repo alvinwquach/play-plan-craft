@@ -25,7 +25,9 @@ import {
   lte,
   gt,
   gte,
+  inArray,
 } from "drizzle-orm";
+import { users } from "../db/schema/table/users";
 
 interface FormDataInput {
   title?: string;
@@ -918,7 +920,6 @@ export async function createLessonPlan(formData: FormData) {
             "gradeLevel": string,
             "subject": string,
             "theme": string | null,
-            "status": string,
             "duration": number,
             "classroomSize": number,
             "curriculum": string,
@@ -1059,7 +1060,6 @@ export async function createLessonPlan(formData: FormData) {
         typeof lesson.title !== "string" ||
         typeof lesson.gradeLevel !== "string" ||
         typeof lesson.subject !== "string" ||
-        typeof lesson.status !== "string" ||
         typeof lesson.classroomSize !== "number"
       ) {
         throw new Error("Incomplete lesson plan response");
@@ -1377,6 +1377,8 @@ export async function createLessonPlan(formData: FormData) {
       })),
       sourceMetadata: lesson.sourceMetadata ?? sources,
       citationScore: lesson.citationScore ?? citationScore,
+      created_by_id: user.id, 
+      createdByName: "",
     };
 
     const newLessonPlans = await db
@@ -1387,9 +1389,8 @@ export async function createLessonPlan(formData: FormData) {
           age_group: lessonPlan.gradeLevel,
           subject: lessonPlan.subject,
           theme: lessonPlan.theme,
-          status: lessonPlan.status,
           created_at: new Date(),
-          created_by_id: user.id,
+          created_by_id: lessonPlan.created_by_id,
           curriculum: lessonPlan.curriculum,
           duration: lessonPlan.duration,
           classroom_size: lessonPlan.classroomSize,
@@ -1416,14 +1417,31 @@ export async function createLessonPlan(formData: FormData) {
       const start = new Date(scheduledDate);
       const end = new Date(start.getTime() + lessonPlan.duration * 60 * 1000);
 
+      const [userData] = await db
+        .select({ organizationId: users.organizationId })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      if (!userData || !userData.organizationId) {
+        throw new Error("User is not associated with an organization");
+      }
+
+      const organizationUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.organizationId, userData.organizationId));
+
+      const organizationUserIds = organizationUsers.map((u) => u.id);
+
       const conflictingSchedules = await db
         .select()
         .from(schedules)
         .where(
           and(
-            eq(schedules.userId, user.id),
-            eq(schedules.date, start),
+            inArray(schedules.userId, organizationUserIds),
             or(
+              eq(schedules.date, start),
               and(
                 lte(schedules.startTime, start),
                 gt(schedules.endTime, start)
@@ -1436,7 +1454,7 @@ export async function createLessonPlan(formData: FormData) {
 
       if (conflictingSchedules.length > 0) {
         throw new Error(
-          `Schedule conflict detected: A lesson is already scheduled between ${start.toLocaleTimeString()} and ${end.toLocaleTimeString()} on ${start.toLocaleDateString()}.`
+          `Schedule conflict detected: A lesson is already scheduled between ${start.toLocaleTimeString()} and ${end.toLocaleTimeString()} on ${start.toLocaleDateString()} by another organization member.`
         );
       }
 
