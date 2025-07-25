@@ -30,7 +30,7 @@ export interface Supply {
 }
 
 export interface Activity {
-  id: string;
+  id?: string;
   title: string;
   activityType: string;
   description: string;
