@@ -1330,68 +1330,83 @@ ${
     <TooltipProvider>
       <style jsx global>{`
         .fc {
-          --fc-bg-event-opacity: 0.9;
-          --fc-border-color: #e0e0e0;
-          --fc-daygrid-event-dot-width: 6px;
+          --fc-bg-event-opacity: 0.95;
+          --fc-border-color: #d1d5db;
+          --fc-daygrid-event-dot-width: 8px;
           --fc-event-border-color: transparent;
           --fc-event-text-color: #ffffff;
           --fc-page-bg-color: #ffffff;
-          --fc-neutral-bg-color: #f8fafc;
-          --fc-neutral-text-color: #374151;
-          --fc-today-bg-color: rgba(45, 212, 191, 0.1);
+          --fc-neutral-bg-color: #f9fafb;
+          --fc-neutral-text-color: #1f2937;
+          --fc-today-bg-color: rgba(45, 212, 191, 0.15);
+          transition: all 0.3s ease;
         }
 
         .fc .fc-daygrid-day {
-          border-radius: 4px;
-          transition: background-color 0.2s;
+          border-radius: 6px;
+          transition: background-color 0.3s ease, transform 0.2s ease;
+          border: 1px solid #e5e7eb;
+          padding: 4px;
+        }
+
+        .fc .fc-daygrid-day.fc-day-today {
+          border: 2px solid #2c7a7b;
+          background-color: rgba(45, 212, 191, 0.2);
         }
 
         .fc .fc-daygrid-day:hover {
-          background-color: rgba(45, 212, 191, 0.05);
+          background-color: rgba(45, 212, 191, 0.1);
+          transform: scale(1.02);
         }
 
         .fc .fc-timegrid-slot {
-          height: 2.5rem;
-          border-color: #e0e0e0;
+          height: 1.8rem; /* Reduced height for day/week view */
+          border-color: #e5e7eb;
+          background: #ffffff;
         }
 
         .fc .fc-timegrid-col {
           background: #ffffff;
+          border-right: 1px solid #e5e7eb;
         }
 
         .fc .fc-timegrid-event {
-          border-radius: 4px;
-          padding: 4px 8px;
-          font-size: 0.9rem;
+          border-radius: 4px; /* Smaller radius for compact look */
+          padding: 4px 8px; /* Reduced padding */
+          font-size: 0.85rem; /* Smaller font size */
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          min-height: 2.5rem;
+          min-height: 2.5rem; /* Reduced min-height */
           display: flex;
           align-items: center;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .fc .fc-daygrid-event {
-          border-radius: 4px;
-          padding: 4px 8px;
-          font-size: 0.85rem;
-          margin: 2px;
+          border-radius: 6px;
+          padding: 6px 10px;
+          font-size: 0.9rem;
+          margin: 3px;
           white-space: normal;
           overflow: hidden;
           text-overflow: ellipsis;
-          line-height: 1.4;
-          max-height: 4.5rem;
+          line-height: 1.5;
+          max-height: 5rem;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .custom-event {
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .custom-event:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+          transform: translateY(-3px);
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
 
         .fc .fc-timegrid-event .fc-event-main {
-          padding: 4px;
+          padding: 4px; /* Reduced padding */
         }
 
         .fc .fc-daygrid-event .fc-event-main {
@@ -1402,72 +1417,97 @@ ${
         }
 
         .fc .fc-timegrid-axis {
-          font-size: 0.9rem;
-          color: #374151;
+          font-size: 0.85rem; /* Smaller font size */
+          color: #1f2937;
+          font-weight: 500;
         }
 
         .fc .fc-daygrid-day-number {
-          font-size: 0.9rem;
-          color: #374151;
+          font-size: 0.95rem;
+          color: #1f2937;
+          font-weight: 600;
+          padding: 6px;
         }
 
         .fc .fc-col-header-cell {
           background: #2c7a7b;
           color: #ffffff;
-          font-weight: 600;
-          padding: 8px;
+          font-weight: 700;
+          padding: 8px; /* Slightly reduced padding */
+          border-radius: 4px;
         }
 
         .fc .fc-button {
           background: #2c7a7b;
           border: none;
           color: #ffffff;
-          font-weight: 500;
-          border-radius: 4px;
-          padding: 6px 12px;
-          transition: background-color 0.2s;
+          font-weight: 600;
+          border-radius: 6px;
+          padding: 8px 16px;
+          transition: background-color 0.3s ease, transform 0.2s ease;
         }
 
         .fc .fc-button:hover {
           background: #1a5f5f;
+          transform: translateY(-1px);
         }
 
         .fc .fc-button.fc-button-active,
         .fc .fc-button:focus {
           background: #1a5f5f;
-          box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+          box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.4);
+          transform: translateY(0);
         }
 
         .fc .fc-toolbar-title {
-          font-size: 1.5rem;
-          font-weight: 600;
+          font-size: 1.75rem;
+          font-weight: 700;
           color: #1f2937;
+          letter-spacing: 0.02em;
+        }
+
+        .fc-view-harness.fc-timeGridDay-view {
+          max-height: 70vh; /* Fixed height for day view */
+          overflow-y: auto; /* Scrollbar for overflow */
         }
 
         @media (max-width: 640px) {
           .fc .fc-toolbar-title {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
           }
 
           .fc .fc-timegrid-event {
-            font-size: 0.8rem;
+            font-size: 0.75rem; /* Even smaller for mobile */
             padding: 3px 6px;
+            min-height: 2rem;
           }
 
           .fc .fc-daygrid-event {
-            font-size: 0.75rem;
-            padding: 3px 6px;
-            max-height: 4rem;
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            max-height: 4.5rem;
           }
 
           .fc .fc-daygrid-event .fc-event-time {
-            font-size: 0.7rem;
+            font-size: 0.75rem;
+          }
+
+          .fc .fc-timegrid-slot {
+            height: 1.5rem; /* Further reduced for mobile */
+          }
+
+          .fc .fc-daygrid-day-number {
+            font-size: 0.85rem;
+            padding: 4px;
+          }
+
+          .fc-view-harness.fc-timeGridDay-view {
+            max-height: 60vh; /* Slightly smaller for mobile */
           }
         }
       `}</style>
-      <div className="bg-teal-50 text-gray-800 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 min-h-screen">
-        <main className="max-w-7xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center my-8 gap-4">
+ 
+          <div className="flex flex-col sm:flex-row justify-end sm:items-center">
             <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
               Lesson Plan Calendar
             </h1>
@@ -1476,7 +1516,7 @@ ${
                 <TooltipTrigger asChild>
                   <button
                     onClick={exportToICal}
-                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm"
+                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
                   >
                     <FaRegCalendarAlt className="text-lg sm:text-xl" />
                   </button>
@@ -1489,7 +1529,7 @@ ${
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => exportToGoogleCalendar()}
-                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm"
+                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
                   >
                     <SiGooglecalendar className="text-lg sm:text-xl" />
                   </button>
@@ -1514,8 +1554,8 @@ ${
               datesSet={(dateInfo) =>
                 updateHeaderToolbar(dateInfo.view.currentStart)
               }
-              slotMinTime="07:00:00"
-              slotMaxTime="18:00:00"
+              slotMinTime="08:00:00"
+              slotMaxTime="17:00:00"
               allDaySlot={false}
               height="auto"
               themeSystem="bootstrap5"
@@ -1533,33 +1573,36 @@ ${
               }}
               views={{
                 dayGridMonth: {
-                  dayHeaderFormat: { weekday: "short" },
+                  dayHeaderFormat: { weekday: "long" },
+                  eventMaxHeight: 80,
                 },
                 timeGridWeek: {
                   dayHeaderFormat: {
-                    weekday: "short",
+                    weekday: "long",
                     month: "numeric",
                     day: "numeric",
                     omitCommas: true,
                   },
+                  slotLabelInterval: "00:30",
                 },
                 timeGridDay: {
                   dayHeaderFormat: {
-                    weekday: "short",
+                    weekday: "long",
                     month: "numeric",
                     day: "numeric",
                     omitCommas: true,
                   },
+                  slotLabelInterval: "00:30",
                 },
               }}
               eventDisplay="block"
               eventMinHeight={40}
-              slotDuration="00:15:00"
+              slotDuration="00:10:00"
               slotLabelInterval="01:00"
               eventOverlap={false}
               eventConstraint={{
-                startTime: "07:00",
-                endTime: "18:00",
+                startTime: "08:00",
+                endTime: "16:00",
               }}
               eventContent={(eventInfo) => {
                 const isMonthView = eventInfo.view.type === "dayGridMonth";
@@ -1591,7 +1634,7 @@ ${
                   <div className="flex flex-col p-1 overflow-hidden">
                     <b
                       className={`${
-                        isMonthView ? "text-xs sm:text-sm" : "text-sm"
+                        isMonthView ? "text-sm sm:text-base" : "text-sm"
                       } font-semibold truncate`}
                     >
                       {eventInfo.event.title}
@@ -2074,7 +2117,6 @@ ${
               )}
             </DialogContent>
           </Dialog>
-        </main>
         <ToastContainer
           position="top-right"
           autoClose={3000}
@@ -2084,7 +2126,6 @@ ${
           draggable
           theme="light"
         />
-      </div>
     </TooltipProvider>
   );
 }
