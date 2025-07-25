@@ -138,7 +138,7 @@ export async function createEducatorOrganization(
     console.error("Error processing educator organization:", error);
     const pgError = error as PostgresError;
     let errorMessage = "Failed to process organization";
-    let errorCode = pgError.code || "500";
+    const errorCode = pgError.code || "500";
 
     switch (pgError.code) {
       case "42703":
@@ -163,5 +163,3 @@ export async function createEducatorOrganization(
     };
   }
 }
-
-

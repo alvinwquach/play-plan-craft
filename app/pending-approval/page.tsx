@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { FaSpinner, FaCheckCircle } from "react-icons/fa";
@@ -17,44 +17,47 @@ export default function PendingApproval() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
-  const checkUserStatus = async (id: string) => {
-    const { data, error } = await supabase
-      .from("users")
-      .select("pendingApproval")
-      .eq("id", id)
-      .single();
+  const checkUserStatus = useCallback(
+    async (id: string) => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("pendingApproval")
+        .eq("id", id)
+        .single();
 
-    if (error) {
-      console.error("Error checking user status:", error.message);
-      return;
-    }
+      if (error) {
+        console.error("Error checking user status:", error.message);
+        return;
+      }
 
-    console.log("User status check:", {
-      id,
-      pendingApproval: data.pendingApproval,
-    });
+      console.log("User status check:", {
+        id,
+        pendingApproval: data.pendingApproval,
+      });
 
-    if (!data.pendingApproval && isMountedRef.current) {
-      setApproved(true);
-      toast.success(
-        "🎉 You've been approved! Redirecting to notifications...",
-        {
-          position: "top-center",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: false,
-          draggable: false,
-          theme: "colored",
-        }
-      );
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          router.push("/notifications");
-        }
-      }, 5500);
-    }
-  };
+      if (!data.pendingApproval && isMountedRef.current) {
+        setApproved(true);
+        toast.success(
+          "🎉 You've been approved! Redirecting to notifications...",
+          {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: false,
+            theme: "colored",
+          }
+        );
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            router.push("/notifications");
+          }
+        }, 5500);
+      }
+    },
+    [supabase, router]
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -84,7 +87,7 @@ export default function PendingApproval() {
       }
 
       setUserId(user.id);
-      await checkUserStatus(user.id); 
+      await checkUserStatus(user.id);
     };
 
     fetchUserId();
@@ -98,7 +101,7 @@ export default function PendingApproval() {
     return () => {
       isMountedRef.current = false;
     };
-  }, [router, supabase]);
+  }, [router, supabase, checkUserStatus]);
 
   useEffect(() => {
     if (!userId || approved) return;
@@ -226,7 +229,7 @@ export default function PendingApproval() {
       supabase.removeChannel(userChannel);
       supabase.removeChannel(notificationChannel);
     };
-  }, [userId, router, supabase, approved]);
+  }, [userId, router, supabase, approved, checkUserStatus]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -244,7 +247,7 @@ export default function PendingApproval() {
             </h1>
             <p className="text-gray-600 mb-6">
               Your request to join the organization is pending approval from
-              your educator. You'll be notified once approved.
+              your educator. You&apos;ll be notified once approved.
             </p>
             <button
               onClick={handleLogout}
