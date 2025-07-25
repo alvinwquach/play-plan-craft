@@ -1,3 +1,4 @@
+import { getLessonPlans } from "@/app/actions/getLessonPlans";
 import { createSchema, createYoga } from "graphql-yoga";
 
 interface NextContext {
@@ -125,6 +126,7 @@ const { handleRequest } = createYoga<NextContext>({
       }
 
       enum ActivityType {
+        UNKNOWN
         STORYTELLING
         CRAFT
         MOVEMENT
@@ -222,6 +224,7 @@ const { handleRequest } = createYoga<NextContext>({
       type LessonPlan {
         id: ID!
         title: String!
+        gradeLevel: String!
         ageGroup: AgeGroup!
         subject: Subject!
         theme: Theme
@@ -243,6 +246,9 @@ const { handleRequest } = createYoga<NextContext>({
         sourceMetadata: [Source!]!
         citationScore: Int!
         tags: [String!]!
+        created_by_id: String!
+        createdByName: String!
+        scheduledDate: String
       }
 
       type Activity {
@@ -312,14 +318,33 @@ const { handleRequest } = createYoga<NextContext>({
         user: User!
       }
 
+      type LessonPlansResponse {
+        lessonPlans: [LessonPlan!]!
+        userRole: UserRole
+        isOrganizationOwner: Boolean!
+      }
+
       type Query {
         greetings: String
+        lessonPlans: LessonPlansResponse!
       }
     `,
     resolvers: {
       Query: {
-        greetings: () =>
-          "This is the `greetings` field of the root `Query` type",
+        lessonPlans: async () => {
+          const { success, lessonPlans, userRole, isOrganizationOwner, error } =
+            await getLessonPlans();
+
+          if (!success || !lessonPlans) {
+            throw new Error(error || "Failed to fetch lesson plans");
+          }
+
+          return {
+            lessonPlans,
+            userRole,
+            isOrganizationOwner,
+          };
+        },
       },
     },
   }),

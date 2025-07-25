@@ -8,7 +8,7 @@ import { schedules } from "@/app/db/schema/table/schedules";
 import { users } from "@/app/db/schema/table/users";
 import { organizations } from "@/app/db/schema/table/organizations";
 import { eq, and, inArray } from "drizzle-orm";
-import { Activity, LessonPlan } from "@/app/types/lessonPlan";
+import { LessonPlan } from "@/app/types/lessonPlan";
 import { AlternateActivityGroup } from "@/app/types/lessonPlan";
 
 const pool = new Pool({
@@ -138,23 +138,15 @@ export async function getLessonPlans(): Promise<{
       (lp): LessonPlan => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
 
-        let alternateActivities: Record<string, Activity[]> = {};
+        let alternateActivities: AlternateActivityGroup[] = [];
+
         if (lp.alternate_activities && Array.isArray(lp.alternate_activities)) {
-          try {
-            alternateActivities = (
-              lp.alternate_activities as AlternateActivityGroup[]
-            ).reduce((acc, group) => {
-              if (group.groupName && Array.isArray(group.activities)) {
-                acc[group.groupName] = group.activities;
-              }
-              return acc;
-            }, {} as Record<string, Activity[]>);
-          } catch (e) {
-            console.warn(
-              `Invalid alternate_activities format for lesson plan ${lp.id}:`,
-              e
-            );
-          }
+          alternateActivities = lp.alternate_activities.map((group) => ({
+            activityType: group.activityType,
+            activities: (group.activities || []).filter(
+              (a) => a && typeof a.id === "string" && a.id !== ""
+            ),
+          }));
         }
 
         return {

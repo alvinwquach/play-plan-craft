@@ -1,21 +1,23 @@
-import { getLessonPlans } from "@/app/actions/getLessonPlans";
-import { createClient } from "@/utils/supabase/server";
+"use client";
+
+import { useQuery, gql } from "@apollo/client";
 import { Suspense } from "react";
 import Calendar from "../components/calendar/Calendar";
 import CalendarLoadingSkeleton from "../components/calendar/CalendarLoadingSkeleton";
+import { GET_LESSON_PLANS } from "../graphql/queries/getLessonPlans";
 
-export default async function CalendarPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function CalendarPage() {
+  const { loading, error, data } = useQuery(GET_LESSON_PLANS);
 
-  const { success, lessonPlans, userRole, isOrganizationOwner, error } =
-    await getLessonPlans();
-
-  if (!success || !lessonPlans) {
-    return <div>Error: {error}</div>;
+  if (loading) {
+    return <CalendarLoadingSkeleton />;
   }
+
+  if (error) {
+    return <div>Error: {error.message}</div>;
+  }
+
+  const { lessonPlans, userRole, isOrganizationOwner } = data.lessonPlans;
 
   return (
     <Suspense fallback={<CalendarLoadingSkeleton />}>
@@ -24,7 +26,7 @@ export default async function CalendarPage() {
           initialLessonPlans={lessonPlans}
           userRole={userRole || null}
           isOrganizationOwner={isOrganizationOwner || false}
-          userId={user?.id || ""}
+          userId={lessonPlans[0]?.created_by_id || ""}
         />
       </section>
     </Suspense>
