@@ -1,9 +1,9 @@
 import { getNotifications } from "@/app/actions/getNotifications";
-import BottomNavClient from "./BottomNavClient";
+import NavClient from "./NavClient";
 
-export default async function BottomNav() {
+export default async function Nav() {
   const { notifications } = await getNotifications();
   const notificationCount = notifications.length;
 
-  return <BottomNavClient notificationCount={notificationCount} />;
+  return <NavClient notificationCount={notificationCount} />;
 }
