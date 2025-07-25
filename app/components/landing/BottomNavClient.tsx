@@ -14,7 +14,7 @@ import { createClient } from "@/utils/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 type BottomNavClientProps = {
-  notificationCount: number; 
+  notificationCount: number;
 };
 
 export default function BottomNavClient({
@@ -27,7 +27,7 @@ export default function BottomNavClient({
   const [subscribed, setSubscribed] = useState(false);
   const supabase = createClient();
 
-  const debounce = <T extends (...args: any[]) => void>(
+  const debounce = <T extends (...args: unknown[]) => void>(
     func: T,
     wait: number
   ) => {
@@ -58,7 +58,7 @@ export default function BottomNavClient({
       .from("notifications")
       .select("*", { count: "exact", head: true })
       .eq("userId", user.id)
-      .in("status", ["PENDING", "INFO"]); 
+      .in("status", ["PENDING", "INFO"]);
 
     if (error) {
       console.error("Error fetching notification count:", error.message);
@@ -71,7 +71,7 @@ export default function BottomNavClient({
   }, [supabase]);
 
   const debouncedFetchNotificationCount = useCallback(
-    debounce(fetchNotificationCount, 500),
+    () => debounce(fetchNotificationCount, 500)(),
     [fetchNotificationCount]
   );
 
@@ -150,7 +150,7 @@ export default function BottomNavClient({
           setSubscribed(status === "SUBSCRIBED");
           if (error) {
             console.error("Subscription error:", error.message);
-            debouncedFetchNotificationCount(); 
+            debouncedFetchNotificationCount();
           }
         });
 
@@ -168,7 +168,12 @@ export default function BottomNavClient({
         supabase.removeChannel(channel);
       }
     };
-  }, [debouncedFetchNotificationCount, supabase, subscribed]);
+  }, [
+    debouncedFetchNotificationCount,
+    fetchNotificationCount,
+    supabase,
+    subscribed,
+  ]);
 
   const navItems = [
     { href: "/", label: "Home", icon: FaHome },

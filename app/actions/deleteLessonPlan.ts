@@ -7,8 +7,7 @@ import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { users } from "@/app/db/schema/table/users";
 import { organizations } from "@/app/db/schema/table/organizations";
-import { notifications } from "@/app/db/schema/table/notifications";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const pool = new Pool({
@@ -45,8 +44,6 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       .select({
         organizationId: users.organizationId,
         role: users.role,
-        name: users.name,
-        email: users.email,
       })
       .from(users)
       .where(eq(users.id, user.id))
@@ -60,10 +57,7 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
     }
 
     const [organization] = await db
-      .select({
-        id: organizations.id,
-        user_id: organizations.user_id,
-      })
+      .select()
       .from(organizations)
       .where(eq(organizations.id, userData.organizationId))
       .limit(1);
@@ -71,16 +65,12 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
     if (!organization) {
       return {
         success: false,
-        error: "Organization not found",
+        error: "Only the organization owner can delete lesson plans",
       };
     }
 
     const [lessonPlan] = await db
-      .select({
-        id: lessonPlans.id,
-        created_by_id: lessonPlans.created_by_id,
-        title: lessonPlans.title,
-      })
+      .select()
       .from(lessonPlans)
       .where(eq(lessonPlans.id, lessonPlanId))
       .limit(1);
@@ -89,68 +79,22 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       return { success: false, error: "Lesson plan not found" };
     }
 
-    const isOrganizationOwner = organization.user_id === user.id;
-    const isLessonCreator = lessonPlan.created_by_id === user.id;
-
-    if (isOrganizationOwner && isLessonCreator) {
-      await db
-        .delete(schedules)
-        .where(eq(schedules.lessonPlanId, lessonPlanId));
-      await db.delete(lessonPlans).where(eq(lessonPlans.id, lessonPlanId));
-
-      revalidatePath("/calendar", "page");
-
-      return { success: true };
-    } else if (!isOrganizationOwner) {
-      if (!organization.user_id) {
-        return {
-          success: false,
-          error: "Organization owner not specified",
-        };
-      }
-
-      const [ownerData] = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.id, organization.user_id))
-        .limit(1);
-
-      if (!ownerData) {
-        return {
-          success: false,
-          error: "Organization owner not found",
-        };
-      }
-
-      await db.insert(notifications).values({
-        userId: ownerData.id,
-        senderId: user.id,
-        type: "LESSON_DELETION_REQUEST",
-        message: `${userData.name || "User"} (${
-          userData.email
-        }) has requested to delete the lesson plan "${
-          lessonPlan.title
-        }" (ID: ${lessonPlanId}).`,
-        organizationId: userData.organizationId,
-        status: "PENDING",
-      });
-
-      revalidatePath("/pending-approval");
-
-      return {
-        success: true,
-        error: "Deletion request sent to organization owner for approval",
-      };
-    } else {
+    if (lessonPlan.created_by_id !== user.id) {
       return {
         success: false,
-        error:
-          "Only the organization owner who created the lesson plan can delete it",
+        error: "Only the creator of the lesson plan can delete it",
       };
     }
+
+    await db.delete(schedules).where(eq(schedules.lessonPlanId, lessonPlanId));
+    await db.delete(lessonPlans).where(eq(lessonPlans.id, lessonPlanId));
+
+    revalidatePath("/calendar", "page");
+
+    return { success: true };
   } catch (error: unknown) {
-    console.error("Error processing lesson plan deletion:", error);
-    let errorMessage = "Failed to process lesson plan deletion";
+    console.error("Error deleting lesson plan:", error);
+    let errorMessage = "Failed to delete lesson plan";
     if (error instanceof Error) {
       errorMessage = error.message;
       const pgError = error as PostgresError;
