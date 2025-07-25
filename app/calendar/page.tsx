@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, gql } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { Suspense } from "react";
 import Calendar from "../components/calendar/Calendar";
 import CalendarLoadingSkeleton from "../components/calendar/CalendarLoadingSkeleton";
