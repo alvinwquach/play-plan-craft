@@ -9,6 +9,7 @@ import { users } from "@/app/db/schema/table/users";
 import { eq, and, inArray, or, lte, gt, lt, gte, ne } from "drizzle-orm";
 import { LessonPlan } from "@/app/types/lessonPlan";
 import { revalidatePath } from "next/cache";
+import { organizations } from "../db/schema/table/organizations";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -64,6 +65,19 @@ export async function rescheduleLessonPlan(
       return {
         success: false,
         error: "User is not associated with an organization",
+      };
+    }
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, userData.organizationId))
+      .limit(1);
+
+    if (!organization || organization.user_id !== user.id) {
+      return {
+        success: false,
+        error: "Only the organization owner can reschedule lesson plans",
       };
     }
 
