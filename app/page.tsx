@@ -61,7 +61,7 @@ export default function Home() {
       scrollTrigger: { trigger: howRefs.current[0], start: "top 80%" },
     });
 
-    howRefs.current.forEach((el, i) => {
+    howRefs.current.forEach((el) => {
       if (el) {
         tl.from(el.querySelector(".icon"), {
           opacity: 0,
