@@ -5,14 +5,18 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { notifications } from "../db/schema/table/notifications";
+import { users } from "@/app/db/schema/table/users";
 import { organizations } from "../db/schema/table/organizations";
-import { users } from "../db/schema/table/users";
+import { notifications } from "@/app/db/schema/table/notifications";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 const db = drizzle(pool);
+
+interface PostgresError extends Error {
+  code?: string;
+}
 
 interface ActionResponse<T = unknown> {
   data?: T;
@@ -100,6 +104,7 @@ export async function createEducatorOrganization(
           message: `${userName} - ${userEmail} has requested to join your organization as an educator.`,
           organizationId: educatorData.organizationId,
           status: "PENDING",
+          createdAt: new Date(),
         });
 
         revalidatePath("/pending-approval");
@@ -131,105 +136,29 @@ export async function createEducatorOrganization(
     });
   } catch (error: unknown) {
     console.error("Error processing educator organization:", error);
-
+    const pgError = error as PostgresError;
     let errorMessage = "Failed to process organization";
-    let errorCode = "500";
+    const errorCode = pgError.code || "500";
 
-    if (error instanceof Error && "code" in error) {
-      const pgError = error as { code: string; message: string };
-      errorCode = pgError.code;
-
-      switch (pgError.code) {
-        case "42703":
-          errorMessage =
-            "Column 'user_id' does not exist in organizations table";
-          break;
-        case "23503":
-          errorMessage =
-            "Foreign key constraint violation: User ID does not exist in users table";
-          break;
-        case "23505":
-          errorMessage = "Organization name already exists";
-          break;
-        default:
-          errorMessage = pgError.message;
-      }
-    } else if (error instanceof Error) {
-      errorMessage = error.message;
+    switch (pgError.code) {
+      case "42703":
+        errorMessage = "Column 'user_id' does not exist in organizations table";
+        break;
+      case "23503":
+        errorMessage =
+          "Foreign key constraint violation: User ID does not exist in users table";
+        break;
+      case "23505":
+        errorMessage = "Organization name already exists";
+        break;
+      default:
+        errorMessage = pgError.message || errorMessage;
     }
 
     return {
       error: {
         message: errorMessage,
         code: errorCode,
-      },
-    };
-  }
-}
-
-// Request assistant role
-export async function requestAssistantRole(
-  userId: string,
-  educatorEmail: string
-): Promise<ActionResponse<{ success: boolean }>> {
-  try {
-    const supabase = await createClient();
-
-    const { data: authUser, error: userError } = await supabase.auth.getUser();
-    if (userError || !authUser || authUser.user.id !== userId) {
-      return {
-        error: { message: "User not found or unauthorized", code: "401" },
-      };
-    }
-
-    const userEmail = authUser.user.email;
-    const userName = authUser.user.user_metadata?.full_name ?? "New User";
-
-    const [educatorData] = await db
-      .select({ id: users.id, organizationId: users.organizationId })
-      .from(users)
-      .where(eq(users.email, educatorEmail))
-      .limit(1);
-
-    if (!educatorData || !educatorData.organizationId) {
-      return {
-        error: {
-          message:
-            "Educator email not found or not associated with an organization",
-          code: "404",
-        },
-      };
-    }
-
-    await db
-      .update(users)
-      .set({
-        role: "ASSISTANT",
-        organizationId: educatorData.organizationId,
-        pendingApproval: true,
-      })
-      .where(eq(users.id, userId));
-
-    await db.insert(notifications).values({
-      userId: educatorData.id,
-      senderId: userId,
-      type: "ASSISTANT_REQUEST",
-      message: `${userName} - ${userEmail} has requested to join your organization as an assistant.`,
-      organizationId: educatorData.organizationId,
-      status: "PENDING",
-    });
-
-    revalidatePath("/pending-approval");
-    return { data: { success: true } };
-  } catch (error: unknown) {
-    console.error("Error requesting assistant role:", error);
-    return {
-      error: {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to request assistant role",
-        code: "500",
       },
     };
   }

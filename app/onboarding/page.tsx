@@ -8,10 +8,8 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {
-  createEducatorOrganization,
-  requestAssistantRole,
-} from "../actions/createEducatorOrganization";
+import { createEducatorOrganization } from "../actions/createEducatorOrganization";
+import { requestAssistantRole } from "../actions/requestAssistantRole";
 
 gsap.registerPlugin(ScrollTrigger);
 

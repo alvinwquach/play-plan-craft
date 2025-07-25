@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { FaSpinner, FaCheckCircle } from "react-icons/fa";
@@ -9,13 +9,59 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function PendingApproval() {
-  const supabase = createClient();
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [userId, setUserId] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
   const [newNotification, setNewNotification] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+
+  const checkUserStatus = useCallback(
+    async (id: string) => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("pendingApproval")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error("Error checking user status:", error.message);
+        return;
+      }
+
+      console.log("User status check:", {
+        id,
+        pendingApproval: data.pendingApproval,
+      });
+
+      if (!data.pendingApproval && isMountedRef.current) {
+        setApproved(true);
+        toast.success(
+          "🎉 You've been approved! Redirecting to notifications...",
+          {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: false,
+            draggable: false,
+            theme: "colored",
+          }
+        );
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            router.push("/notifications");
+          }
+        }, 5500);
+      }
+    },
+    [supabase, router]
+  );
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     const fetchUserId = async () => {
       const {
         data: { user },
@@ -27,11 +73,21 @@ export default function PendingApproval() {
           "Error fetching user:",
           error?.message || "No user found"
         );
-        router.push("/login");
+        toast.error("Failed to authenticate. Redirecting to login...", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            router.push("/login");
+          }
+        }, 3000);
         return;
       }
 
       setUserId(user.id);
+      await checkUserStatus(user.id);
     };
 
     fetchUserId();
@@ -41,13 +97,25 @@ export default function PendingApproval() {
       { opacity: 0, y: 50, scale: 0.95 },
       { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power3.out" }
     );
-  }, [router, supabase]);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [router, supabase, checkUserStatus]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || approved) return;
+
+    if (!pollingIntervalRef.current) {
+      console.log("Starting polling for user ID:", userId);
+      pollingIntervalRef.current = setInterval(() => {
+        console.log("Polling user status for ID:", userId);
+        checkUserStatus(userId);
+      }, 10000);
+    }
 
     const userChannel = supabase
-      .channel("user-approval")
+      .channel(`user-approval-${userId}`)
       .on(
         "postgres_changes",
         {
@@ -57,9 +125,11 @@ export default function PendingApproval() {
           filter: `id=eq.${userId}`,
         },
         (payload) => {
+          console.log("User UPDATE event received:", payload);
           const updatedUser = payload.new;
 
-          if (!updatedUser.pendingApproval) {
+          if (updatedUser.pendingApproval === false && isMountedRef.current) {
+            console.log("Approval detected via subscription:", updatedUser);
             setApproved(true);
             toast.success(
               "🎉 You've been approved! Redirecting to notifications...",
@@ -70,21 +140,38 @@ export default function PendingApproval() {
                 closeOnClick: true,
                 pauseOnHover: false,
                 draggable: false,
-                progress: undefined,
                 theme: "colored",
               }
             );
-
             setTimeout(() => {
-              router.push("/notifications");
+              if (isMountedRef.current) {
+                router.push("/notifications");
+              }
             }, 5500);
           }
         }
       )
-      .subscribe();
+      .subscribe((status, error) => {
+        console.log(
+          "User channel subscription status:",
+          status,
+          error ? `Error: ${error.message}` : ""
+        );
+        if (status === "CHANNEL_ERROR" && isMountedRef.current) {
+          console.error("Failed to subscribe to user-approval channel");
+          toast.error(
+            "Error connecting to approval updates. Polling enabled.",
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+        }
+      });
 
     const notificationChannel = supabase
-      .channel("notifications")
+      .channel(`notifications-${userId}`)
       .on(
         "postgres_changes",
         {
@@ -94,9 +181,12 @@ export default function PendingApproval() {
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
+          console.log("Notification INSERT event received:", payload);
           const newNotification = payload.new;
-          if (newNotification.type === "APPROVAL") {
+          if (newNotification.type === "APPROVAL" && isMountedRef.current) {
+            console.log("Approval notification detected:", newNotification);
             setNewNotification(newNotification.message);
+            setApproved(true);
             toast.info(newNotification.message, {
               position: "top-center",
               autoClose: 5000,
@@ -106,16 +196,40 @@ export default function PendingApproval() {
               draggable: false,
               theme: "colored",
             });
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                router.push("/notifications");
+              }
+            }, 5500);
           }
         }
       )
-      .subscribe();
+      .subscribe((status, error) => {
+        console.log(
+          "Notification channel subscription status:",
+          status,
+          error ? `Error: ${error.message}` : ""
+        );
+        if (status === "CHANNEL_ERROR" && isMountedRef.current) {
+          console.error("Failed to subscribe to notifications channel");
+          toast.error("Error connecting to notifications. Polling enabled.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
+      });
 
     return () => {
+      console.log("Cleaning up subscriptions and polling");
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
       supabase.removeChannel(userChannel);
       supabase.removeChannel(notificationChannel);
     };
-  }, [userId, router, supabase]);
+  }, [userId, router, supabase, approved, checkUserStatus]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
