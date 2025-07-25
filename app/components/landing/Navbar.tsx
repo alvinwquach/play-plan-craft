@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -25,10 +26,10 @@ export default function Navbar() {
       setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (!user) return null;
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [supabase.auth]);
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white/90 backdrop-blur-md shadow-md z-50">
@@ -40,27 +41,31 @@ export default function Navbar() {
           Play Plan Craft
         </Link>
         <div className="flex items-center gap-4">
-          {user.user_metadata?.avatar_url && (
-            <Image
-              src={user.user_metadata.avatar_url}
-              alt="User"
-              width={32}
-              height={32}
-              className="rounded-full object-cover"
-            />
+          {user && (
+            <>
+              {user.user_metadata?.avatar_url && (
+                <Image
+                  src={user.user_metadata.avatar_url}
+                  alt="User"
+                  width={32}
+                  height={32}
+                  className="rounded-full object-cover"
+                />
+              )}
+              <span className="text-teal-800 font-medium hidden sm:block">
+                {user.user_metadata?.full_name || "Educator"}
+              </span>
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  setUser(null);
+                }}
+                className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-full text-sm shadow transition"
+              >
+                Log Out
+              </button>
+            </>
           )}
-          <span className="text-teal-800 font-medium hidden sm:block">
-            {user.user_metadata?.full_name || "Educator"}
-          </span>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              setUser(null);
-            }}
-            className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-full text-sm shadow transition"
-          >
-            Log Out
-          </button>
         </div>
       </div>
     </nav>
