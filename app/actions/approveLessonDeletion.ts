@@ -20,7 +20,10 @@ interface PostgresError extends Error {
   code?: string;
 }
 
-export async function deleteLessonPlan(lessonPlanId: number): Promise<{
+export async function approveLessonDeletion(
+  notificationId: number,
+  approve: boolean
+): Promise<{
   success: boolean;
   error?: string;
 }> {
@@ -35,18 +38,10 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       return { success: false, error: "Unauthorized: No user found" };
     }
 
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(user.id)) {
-      return { success: false, error: "Invalid user ID format" };
-    }
-
     const [userData] = await db
       .select({
         organizationId: users.organizationId,
         role: users.role,
-        name: users.name,
-        email: users.email,
       })
       .from(users)
       .where(eq(users.id, user.id))
@@ -68,17 +63,49 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       .where(eq(organizations.id, userData.organizationId))
       .limit(1);
 
-    if (!organization) {
+    if (!organization || organization.user_id !== user.id) {
       return {
         success: false,
-        error: "Organization not found",
+        error:
+          "Only the organization owner can approve or deny lesson plan deletion",
       };
     }
+
+    const [notification] = await db
+      .select({
+        message: notifications.message,
+        senderId: notifications.senderId,
+        status: notifications.status,
+      })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.id, notificationId),
+          eq(notifications.type, "LESSON_DELETION_REQUEST"),
+          eq(notifications.status, "PENDING")
+        )
+      )
+      .limit(1);
+
+    if (!notification) {
+      return {
+        success: false,
+        error: "Notification not found or already processed",
+      };
+    }
+
+    const lessonPlanIdMatch = notification.message.match(/ID: (\d+)/);
+    if (!lessonPlanIdMatch) {
+      return {
+        success: false,
+        error: "Invalid notification message format",
+      };
+    }
+    const lessonPlanId = parseInt(lessonPlanIdMatch[1]);
 
     const [lessonPlan] = await db
       .select({
         id: lessonPlans.id,
-        created_by_id: lessonPlans.created_by_id,
         title: lessonPlans.title,
       })
       .from(lessonPlans)
@@ -89,68 +116,42 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       return { success: false, error: "Lesson plan not found" };
     }
 
-    const isOrganizationOwner = organization.user_id === user.id;
-    const isLessonCreator = lessonPlan.created_by_id === user.id;
+    await db.transaction(async (tx) => {
+      await tx
+        .update(notifications)
+        .set({
+          status: approve ? "APPROVED" : "REJECTED",
+        })
+        .where(eq(notifications.id, notificationId));
 
-    if (isOrganizationOwner && isLessonCreator) {
-      await db
-        .delete(schedules)
-        .where(eq(schedules.lessonPlanId, lessonPlanId));
-      await db.delete(lessonPlans).where(eq(lessonPlans.id, lessonPlanId));
-
-      revalidatePath("/calendar", "page");
-
-      return { success: true };
-    } else if (!isOrganizationOwner) {
-      if (!organization.user_id) {
-        return {
-          success: false,
-          error: "Organization owner not specified",
-        };
-      }
-
-      const [ownerData] = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.id, organization.user_id))
-        .limit(1);
-
-      if (!ownerData) {
-        return {
-          success: false,
-          error: "Organization owner not found",
-        };
-      }
-
-      await db.insert(notifications).values({
-        userId: ownerData.id,
+      await tx.insert(notifications).values({
+        userId: notification.senderId,
         senderId: user.id,
-        type: "LESSON_DELETION_REQUEST",
-        message: `${userData.name || "User"} (${
-          userData.email
-        }) has requested to delete the lesson plan "${
+        type: "LESSON_DELETION_RESPONSE",
+        message: `Your request to delete lesson plan "${
           lessonPlan.title
-        }" (ID: ${lessonPlanId}).`,
-        organizationId: userData.organizationId,
-        status: "PENDING",
+        }" (ID: ${lessonPlanId}) was ${
+          approve ? "approved" : "rejected"
+        } by the organization owner.`,
+        organizationId: userData.organizationId!,
+        status: "RESOLVED",
       });
 
-      revalidatePath("/pending-approval");
+      if (approve) {
+        await tx
+          .delete(schedules)
+          .where(eq(schedules.lessonPlanId, lessonPlanId));
+        await tx.delete(lessonPlans).where(eq(lessonPlans.id, lessonPlanId));
+      }
+    });
 
-      return {
-        success: true,
-        error: "Deletion request sent to organization owner for approval",
-      };
-    } else {
-      return {
-        success: false,
-        error:
-          "Only the organization owner who created the lesson plan can delete it",
-      };
-    }
+    revalidatePath("/calendar");
+    revalidatePath("/pending-approval");
+
+    return { success: true };
   } catch (error: unknown) {
-    console.error("Error processing lesson plan deletion:", error);
-    let errorMessage = "Failed to process lesson plan deletion";
+    console.error("Error processing lesson deletion approval:", error);
+    let errorMessage = "Failed to process lesson deletion approval";
     if (error instanceof Error) {
       errorMessage = error.message;
       const pgError = error as PostgresError;

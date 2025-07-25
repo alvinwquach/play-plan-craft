@@ -464,7 +464,6 @@ export default function Calendar({
         (config) => window.innerWidth >= config.minWidth
       );
       if (matchedConfig) {
-        // Defer the view change to avoid flushSync error
         requestAnimationFrame(() => {
           calendarApi.changeView(matchedConfig.view);
           setHeaderToolbar(matchedConfig.toolbar);
@@ -473,7 +472,7 @@ export default function Calendar({
     };
 
     window.addEventListener("resize", updateViewBasedOnScreenSize);
-    updateViewBasedOnScreenSize(); // Initial call
+    updateViewBasedOnScreenSize();
     return () =>
       window.removeEventListener("resize", updateViewBasedOnScreenSize);
   }, [currentMonth]);
@@ -1273,21 +1272,37 @@ ${
       const response = await deleteLessonPlan(Number(selectedLesson.id));
 
       if (response.success) {
-        const updatedPlans = lessonPlans.filter(
-          (lp) => lp.id !== selectedLesson.id
-        );
-        setLessonPlans(updatedPlans);
-        setIsModalOpen(false);
-        setSelectedLesson(null);
+        if (response.error?.includes("request sent")) {
+          toast.success(
+            "Deletion request sent to organization owner for approval!",
+            {
+              position: "top-right",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            }
+          );
+          setIsModalOpen(false);
+          setSelectedLesson(null);
+        } else {
+          const updatedPlans = lessonPlans.filter(
+            (lp) => lp.id !== selectedLesson.id
+          );
+          setLessonPlans(updatedPlans);
+          setIsModalOpen(false);
+          setSelectedLesson(null);
 
-        toast.success("Lesson plan deleted successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+          toast.success("Lesson plan deleted successfully!", {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
       } else {
         toast.error(response.error || "Failed to delete lesson plan", {
           position: "top-right",
@@ -1363,7 +1378,7 @@ ${
           overflow: hidden;
           text-overflow: ellipsis;
           line-height: 1.4;
-          max-height: 4.5rem; /* Increased for time range */
+          max-height: 4.5rem;
         }
 
         .custom-event {
@@ -1442,7 +1457,7 @@ ${
           .fc .fc-daygrid-event {
             font-size: 0.75rem;
             padding: 3px 6px;
-            max-height: 4rem; /* Adjusted for time range on mobile */
+            max-height: 4rem;
           }
 
           .fc .fc-daygrid-event .fc-event-time {
@@ -2036,9 +2051,9 @@ ${
                         <TooltipTrigger asChild>
                           <Button
                             onClick={handleDeleteLesson}
-                            disabled={!isOrganizationOwner}
-                            className={`p-2 rounded-lg transition shadow-sm ${
-                              !isOrganizationOwner
+                            disabled={pdfLoading || printLoading}
+                            className={`p-3 rounded-lg transition shadow-sm ${
+                              pdfLoading || printLoading
                                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                                 : "bg-white text-red-500 hover:bg-gray-100"
                             }`}
@@ -2047,9 +2062,10 @@ ${
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" align="center">
-                          {isOrganizationOwner
+                          {isOrganizationOwner &&
+                          selectedLesson?.created_by_id === userId
                             ? "Delete Lesson Plan"
-                            : "Only the organization owner can delete lesson plans"}
+                            : "Request Lesson Plan Deletion"}
                         </TooltipContent>
                       </Tooltip>
                     </div>
