@@ -10,8 +10,14 @@ import {
 import { PropsWithChildren } from "react";
 
 function makeClient() {
+  const isDev = process.env.NODE_ENV === "development";
+  const graphqlUrl = isDev
+    ? "http://localhost:3000/api/graphql"
+    : process.env.NEXT_PUBLIC_GRAPHQL_URL ||
+      "https://playplancraft.com/api/graphql";
+
   const httpLink = new HttpLink({
-    uri: process.env.NEXT_PUBLIC_GRAPHQL_API,
+    uri: graphqlUrl,
   });
 
   return new ApolloClient({
