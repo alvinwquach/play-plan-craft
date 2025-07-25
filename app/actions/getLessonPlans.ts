@@ -5,45 +5,26 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
-import { eq, inArray, and } from "drizzle-orm";
-import {
-  LessonPlan,
-  Activity,
-  AlternateActivityGroup,
-} from "@/app/types/lessonPlan";
-import { InferSelectModel } from "drizzle-orm";
+import { users } from "@/app/db/schema/table/users";
+import { organizations } from "@/app/db/schema/table/organizations";
+import { eq, and, inArray } from "drizzle-orm";
+import { Activity, LessonPlan } from "@/app/types/lessonPlan";
+import { AlternateActivityGroup } from "@/app/types/lessonPlan";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+const db = drizzle(pool);
 
 interface PostgresError extends Error {
   code?: string;
 }
 
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not set");
-  throw new Error("Database configuration error: DATABASE_URL is missing");
-}
-
-let parsedUrl: URL;
-try {
-  parsedUrl = new URL(process.env.DATABASE_URL);
-  console.log("Database hostname:", parsedUrl.hostname);
-} catch {
-  throw new Error("Database configuration error: Invalid DATABASE_URL format");
-}
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
-
-const db = drizzle(pool);
-
-type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
-
 export async function getLessonPlans(): Promise<{
   success: boolean;
   lessonPlans?: LessonPlan[];
+  userRole?: "EDUCATOR" | "ASSISTANT" | null;
+  isOrganizationOwner?: boolean;
   error?: string;
 }> {
   try {
@@ -65,6 +46,40 @@ export async function getLessonPlans(): Promise<{
       return { success: false, error: "Invalid user ID format" };
     }
 
+    const [userData] = await db
+      .select({
+        organizationId: users.organizationId,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1);
+
+    if (!userData || !userData.organizationId) {
+      return {
+        success: false,
+        error: "User is not associated with an organization",
+      };
+    }
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(
+        and(
+          eq(organizations.id, userData.organizationId),
+          eq(organizations.user_id, user.id)
+        )
+      )
+      .limit(1);
+
+    const organizationUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.organizationId, userData.organizationId));
+
+    const organizationUserIds = organizationUsers.map((u) => u.id);
+
     const userLessonPlans = await db
       .select({
         id: lessonPlans.id,
@@ -75,6 +90,7 @@ export async function getLessonPlans(): Promise<{
         status: lessonPlans.status,
         created_at: lessonPlans.created_at,
         created_by_id: lessonPlans.created_by_id,
+        createdByName: users.name,
         curriculum: lessonPlans.curriculum,
         duration: lessonPlans.duration,
         classroom_size: lessonPlans.classroom_size,
@@ -89,13 +105,19 @@ export async function getLessonPlans(): Promise<{
         tags: lessonPlans.tags,
       })
       .from(lessonPlans)
-      .where(eq(lessonPlans.created_by_id, user.id));
+      .leftJoin(users, eq(lessonPlans.created_by_id, users.id))
+      .where(inArray(lessonPlans.created_by_id, organizationUserIds));
 
     if (!userLessonPlans.length) {
       return {
         success: true,
         lessonPlans: [],
-        error: "No lesson plans found for user",
+        userRole:
+          userData.role === "EDUCATOR" || userData.role === "ASSISTANT"
+            ? userData.role
+            : null,
+        isOrganizationOwner: !!organization,
+        error: "No lesson plans found for organization",
       };
     }
 
@@ -106,14 +128,14 @@ export async function getLessonPlans(): Promise<{
           .from(schedules)
           .where(
             and(
-              eq(schedules.userId, user.id),
+              inArray(schedules.userId, organizationUserIds),
               inArray(schedules.lessonPlanId, lessonPlanIds)
             )
           )
       : [];
 
     const lessonPlansWithSchedules: LessonPlan[] = userLessonPlans.map(
-      (lp: LessonPlanDB) => {
+      (lp): LessonPlan => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
 
         let alternateActivities: Record<string, Activity[]> = {};
@@ -159,11 +181,21 @@ export async function getLessonPlans(): Promise<{
           scheduledDate: schedule
             ? schedule.startTime.toISOString()
             : undefined,
+          created_by_id: lp.created_by_id,
+          createdByName: lp.createdByName ?? "",
         };
       }
     );
 
-    return { success: true, lessonPlans: lessonPlansWithSchedules };
+    return {
+      success: true,
+      lessonPlans: lessonPlansWithSchedules,
+      userRole:
+        userData.role === "EDUCATOR" || userData.role === "ASSISTANT"
+          ? userData.role
+          : null,
+      isOrganizationOwner: !!organization,
+    };
   } catch (error: unknown) {
     console.error("Error fetching lesson plans:", error);
     let errorMessage = "Failed to fetch lesson plans";
@@ -171,7 +203,7 @@ export async function getLessonPlans(): Promise<{
       errorMessage = error.message;
       const pgError = error as PostgresError;
       if (pgError.code === "ENOTFOUND") {
-        errorMessage = `Database connection failed: Unable to resolve hostname ${parsedUrl.hostname}`;
+        errorMessage = `Database connection failed: Unable to resolve hostname`;
       } else if (pgError.code === "ETIMEDOUT") {
         errorMessage = "Database connection timed out";
       }
@@ -179,8 +211,3 @@ export async function getLessonPlans(): Promise<{
     return { success: false, error: errorMessage };
   }
 }
-
-process.on("SIGTERM", async () => {
-  console.log("Shutting down: Closing database pool");
-  await pool.end();
-});

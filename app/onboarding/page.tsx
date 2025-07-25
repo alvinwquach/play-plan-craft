@@ -11,7 +11,9 @@ import {
   createEducatorOrganization,
   requestAssistantRole,
 } from "../actions/createEducatorOrganization";
+
 gsap.registerPlugin(ScrollTrigger);
+
 export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<"EDUCATOR" | "ASSISTANT" | null>(null);
