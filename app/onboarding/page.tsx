@@ -182,10 +182,12 @@ export default function Onboarding() {
               <ul className="list-disc list-inside mt-2 text-gray-600 text-center">
                 <li>
                   <strong>Join an existing organization:</strong> Enter another
-                  educator&apos;`s email below to request to join their
-                  organization. Note that joining an organization restricts you
-                  from rescheduling or deleting lesson plans, but you can add
-                  lesson plans to the shared organization calendar.
+                  educator&apos;s email below to request to join their
+                  organization. Note that joining an organization limits some
+                  permissions: you can <strong>add</strong> lesson plans and{" "}
+                  <strong>request deletion</strong> of them, but only the
+                  organization owner can <strong>reschedule</strong> or
+                  <strong>delete</strong> lesson plans.
                 </li>
                 <li>
                   <strong>Create your own organization:</strong> Leave the email
@@ -194,6 +196,7 @@ export default function Onboarding() {
                   assistants to join your organization.
                 </li>
               </ul>
+
               <label
                 htmlFor="educatorEmail"
                 className="block text-gray-700 font-medium sr-only"
