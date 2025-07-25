@@ -7,7 +7,7 @@ import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { users } from "@/app/db/schema/table/users";
 import { organizations } from "@/app/db/schema/table/organizations";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 const pool = new Pool({
@@ -59,12 +59,7 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
     const [organization] = await db
       .select()
       .from(organizations)
-      .where(
-        and(
-          eq(organizations.id, userData.organizationId),
-          eq(organizations.user_id, user.id)
-        )
-      )
+      .where(eq(organizations.id, userData.organizationId))
       .limit(1);
 
     if (!organization) {

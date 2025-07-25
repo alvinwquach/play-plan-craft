@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { FaCheckCircle, FaTimesCircle, FaBell, FaTrash } from "react-icons/fa";
-import { gsap } from "gsap";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
+import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface Notification {
   id: number;
@@ -54,15 +55,10 @@ export default function NotificationsClient({
   const router = useRouter();
 
   useEffect(() => {
-    gsap.fromTo(
-      ".animate-on-load",
-      { opacity: 0, y: 50 },
-      { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
-    );
     if (subscribed) return;
 
-    const channel = supabase
-      .channel("notifications")
+    const channel: RealtimeChannel = supabase
+      .channel(`notifications-${userId}`)
       .on(
         "postgres_changes",
         {
@@ -72,8 +68,10 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         async (payload) => {
-          console.log("New notification received:", payload);
+          console.log("INSERT event received:", payload);
           const newNotification = payload.new as Omit<Notification, "user">;
+          if (!["PENDING", "INFO"].includes(newNotification.status)) return;
+
           const { data: sender, error } = await supabase
             .from("users")
             .select("email, name, image")
@@ -97,19 +95,89 @@ export default function NotificationsClient({
           ]);
         }
       )
-      .subscribe((status) => {
-        console.log("Notification subscription status:", status);
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `userId=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("UPDATE event received:", payload);
+          if (
+            ["PENDING", "INFO"].includes(payload.new.status) ||
+            ["PENDING", "INFO"].includes(payload.old.status)
+          ) {
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === payload.new.id ? { ...n, ...payload.new } : n
+              )
+            );
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `userId=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("DELETE event received:", payload);
+          if (["PENDING", "INFO"].includes(payload.old.status)) {
+            setNotifications((prev) =>
+              prev.filter((n) => n.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe((status, error) => {
+        console.log(
+          "Notification subscription status:",
+          status,
+          error ? `Error: ${error.message}` : ""
+        );
+        setSubscribed(status === "SUBSCRIBED");
+        if (error) {
+          console.error("Subscription error:", error.message);
+        }
       });
 
-    setSubscribed(true);
-
     return () => {
+      console.log("Cleaning up notification subscription");
       supabase.removeChannel(channel);
     };
-  }, [userId, subscribed, supabase]);
+  }, [userId, supabase, subscribed]);
 
-  const handleApprove = async (notificationId: number, senderId: string) => {
+  const handleApprove = async (
+    notificationId: number,
+    senderId: string,
+    type: string
+  ) => {
     setLoading(true);
+
+    if (type === "LESSON_DELETION_REQUEST") {
+      const response = await approveLessonDeletion(notificationId, true);
+      if (response.success) {
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        toast.success("Lesson deletion request approved successfully!", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      } else {
+        toast.error(response.error || "Failed to approve lesson deletion", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      }
+      setLoading(false);
+      return;
+    }
 
     const {
       data: { user },
@@ -198,8 +266,33 @@ export default function NotificationsClient({
     setLoading(false);
   };
 
-  const handleReject = async (notificationId: number, senderId: string) => {
+  const handleReject = async (
+    notificationId: number,
+    senderId: string,
+    type: string
+  ) => {
     setLoading(true);
+
+    if (type === "LESSON_DELETION_REQUEST") {
+      const response = await approveLessonDeletion(notificationId, false);
+      if (response.success) {
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        toast.success("Lesson deletion request rejected successfully!", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      } else {
+        toast.error(response.error || "Failed to reject lesson deletion", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      }
+      setLoading(false);
+      return;
+    }
+
     const { error: userError } = await supabase
       .from("users")
       .update({ organizationId: null, pendingApproval: false })
@@ -254,7 +347,7 @@ export default function NotificationsClient({
     setLoading(false);
   };
 
-  const hasApprovalNotification = notifications.some(
+  const hasApprovalNotification = notifications?.some(
     (notification) =>
       notification.type === "APPROVAL" && notification.status === "INFO"
   );
@@ -323,6 +416,11 @@ export default function NotificationsClient({
                     <div className="space-y-1">
                       <p className="text-gray-900 font-semibold text-lg">
                         {user.name || "Unknown Sender"}
+                        {notification.type === "LESSON_DELETION_REQUEST" && (
+                          <span className="ml-2 text-sm text-teal-600 font-medium">
+                            (Lesson Deletion Request)
+                          </span>
+                        )}
                       </p>
                       <p className="text-gray-700 text-sm">
                         {notification.message}
@@ -336,21 +434,37 @@ export default function NotificationsClient({
                     <div className="flex gap-3 shrink-0 mt-4 sm:mt-0">
                       <button
                         onClick={() =>
-                          handleApprove(notification.id, notification.senderId)
+                          handleApprove(
+                            notification.id,
+                            notification.senderId,
+                            notification.type
+                          )
                         }
                         disabled={loading}
                         className="flex items-center justify-center bg-teal-500 hover:bg-teal-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title="Approve"
+                        title={
+                          notification.type === "LESSON_DELETION_REQUEST"
+                            ? "Approve lesson deletion"
+                            : "Approve"
+                        }
                       >
                         <FaCheckCircle className="text-xl" />
                       </button>
                       <button
                         onClick={() =>
-                          handleReject(notification.id, notification.senderId)
+                          handleReject(
+                            notification.id,
+                            notification.senderId,
+                            notification.type
+                          )
                         }
                         disabled={loading}
                         className="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title="Reject"
+                        title={
+                          notification.type === "LESSON_DELETION_REQUEST"
+                            ? "Reject lesson deletion"
+                            : "Reject"
+                        }
                       >
                         <FaTimesCircle className="text-xl" />
                       </button>
