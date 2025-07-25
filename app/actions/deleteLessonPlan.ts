@@ -40,7 +40,6 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       return { success: false, error: "Invalid user ID format" };
     }
 
-    // Fetch user data
     const [userData] = await db
       .select({
         organizationId: users.organizationId,
@@ -85,8 +84,14 @@ export async function deleteLessonPlan(lessonPlanId: number): Promise<{
       return { success: false, error: "Lesson plan not found" };
     }
 
-    await db.delete(schedules).where(eq(schedules.lessonPlanId, lessonPlanId));
+    if (lessonPlan.created_by_id !== user.id) {
+      return {
+        success: false,
+        error: "Only the creator of the lesson plan can delete it",
+      };
+    }
 
+    await db.delete(schedules).where(eq(schedules.lessonPlanId, lessonPlanId));
     await db.delete(lessonPlans).where(eq(lessonPlans.id, lessonPlanId));
 
     revalidatePath("/calendar", "page");
