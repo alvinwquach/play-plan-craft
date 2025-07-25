@@ -135,7 +135,7 @@ export async function getLessonPlans(): Promise<{
       : [];
 
     const lessonPlansWithSchedules: LessonPlan[] = userLessonPlans.map(
-      (lp: any) => {
+      (lp): LessonPlan => {
         const schedule = userSchedules.find((s) => s.lessonPlanId === lp.id);
 
         let alternateActivities: Record<string, Activity[]> = {};
@@ -182,7 +182,7 @@ export async function getLessonPlans(): Promise<{
             ? schedule.startTime.toISOString()
             : undefined,
           created_by_id: lp.created_by_id,
-          createdByName: lp.createdByName,
+          createdByName: lp.createdByName ?? "",
         };
       }
     );

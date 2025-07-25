@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import Link from "next/link";
 import ical from "ical-generator";
 import {
   FaRegCalendarAlt,

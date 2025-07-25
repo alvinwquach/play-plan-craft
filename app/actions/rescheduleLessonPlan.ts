@@ -6,7 +6,7 @@ import { Pool } from "pg";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { users } from "@/app/db/schema/table/users";
-import { eq, and, inArray, or, lte, gt, lt, gte } from "drizzle-orm";
+import { eq, and, inArray, or, lte, gt, lt, gte, ne } from "drizzle-orm";
 import { LessonPlan } from "@/app/types/lessonPlan";
 import { revalidatePath } from "next/cache";
 
@@ -76,47 +76,6 @@ export async function rescheduleLessonPlan(
 
     const start = new Date(scheduledDate);
     const end = new Date(start.getTime() + lessonPlan.duration * 60 * 1000);
-    const scheduledDateOnly = start.toISOString().split("T")[0];
-
-    const conflictingSchedules = await db
-      .select()
-      .from(schedules)
-      .where(
-        and(
-          inArray(schedules.userId, organizationUserIds),
-          eq(schedules.date, start),
-          eq(schedules.lessonPlanId, Number(lessonPlanId)) 
-        )
-      );
-
-    if (conflictingSchedules.length > 0) {
-      return {
-        success: false,
-        error: `Schedule conflict detected: A lesson is already scheduled on ${start.toLocaleDateString()} by another organization member.`,
-      };
-    }
-
-    const timeConflicts = await db
-      .select()
-      .from(schedules)
-      .where(
-        and(
-          inArray(schedules.userId, organizationUserIds),
-          or(
-            and(lte(schedules.startTime, start), gt(schedules.endTime, start)),
-            and(lt(schedules.startTime, end), gte(schedules.endTime, end)),
-            and(gte(schedules.startTime, start), lte(schedules.endTime, end))
-          ),
-          eq(schedules.lessonPlanId, Number(lessonPlanId)) 
-        )
-      );
-
-    if (timeConflicts.length > 0) {
-      return {
-        success: false,
-        error: `Schedule conflict detected: A lesson is already scheduled between ${start.toLocaleTimeString()} and ${end.toLocaleTimeString()} on ${start.toLocaleDateString()} by another organization member.`,
-      };
-    }
 
     const [existingSchedule] = await db
       .select()
@@ -129,6 +88,28 @@ export async function rescheduleLessonPlan(
       )
       .limit(1);
 
+    const timeConflicts = await db
+      .select()
+      .from(schedules)
+      .where(
+        and(
+          inArray(schedules.userId, organizationUserIds),
+          or(
+            and(lte(schedules.startTime, start), gt(schedules.endTime, start)),
+            and(lt(schedules.startTime, end), gte(schedules.endTime, end)),
+            and(gte(schedules.startTime, start), lte(schedules.endTime, end))
+          ),
+          existingSchedule ? ne(schedules.id, existingSchedule.id) : undefined
+        )
+      );
+
+    if (timeConflicts.length > 0) {
+      return {
+        success: false,
+        error: `Schedule conflict detected: A lesson is already scheduled between ${start.toLocaleTimeString()} and ${end.toLocaleTimeString()} on ${start.toLocaleDateString()} by another organization member.`,
+      };
+    }
+
     if (existingSchedule) {
       await db
         .update(schedules)
@@ -137,12 +118,7 @@ export async function rescheduleLessonPlan(
           startTime: start,
           endTime: end,
         })
-        .where(
-          and(
-            eq(schedules.lessonPlanId, Number(lessonPlanId)),
-            eq(schedules.userId, user.id)
-          )
-        );
+        .where(eq(schedules.id, existingSchedule.id));
     } else {
       await db.insert(schedules).values({
         userId: user.id,
@@ -178,7 +154,7 @@ export async function rescheduleLessonPlan(
       citationScore: lessonPlan.citation_score,
       scheduledDate: start.toISOString(),
       created_by_id: lessonPlan.created_by_id,
-      createdByName: "", 
+      createdByName: "",
     };
 
     return { success: true, lessonPlan: updatedLesson };
