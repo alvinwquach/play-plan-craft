@@ -13,9 +13,9 @@ import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
-// import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import { approveUser } from "@/app/actions/approveUser";
+import { useMutation } from "@apollo/client";
+import { APPROVE_USER } from "@/app/graphql/mutations/approveUser";
 import { Notification } from "../../types/lessonPlan";
 
 type NotificationsClientProps = {
@@ -23,13 +23,43 @@ type NotificationsClientProps = {
   userId: string;
 };
 
+interface ApproveUserResponse {
+  approveUser: {
+    success?: boolean;
+    user?: {
+      id: string;
+      email: string;
+      name: string;
+      organizationId?: number | null;
+      pendingApproval: boolean;
+    };
+    notification?: {
+      id: string;
+      userId: string;
+      senderId: string;
+      type: string;
+      message: string;
+      organizationId?: number | null;
+      status: string;
+      createdAt: string;
+      user?: {
+        id: string;
+        email: string | null;
+        name: string | null;
+        image: string | null;
+      };
+    };
+    error?: { message: string; code: string };
+  };
+}
+
 const NotificationSkeleton = () => (
-  <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-pulse">
+  <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
     <div className="w-12 h-12 bg-gray-200 rounded-full" />
     <div className="flex-1 space-y-3 w-full">
-      <div className="h-4 bg-gray-200 rounded w-1/2" />
-      <div className="h-3 bg-gray-200 rounded w-3/4" />
-      <div className="h-3 bg-gray-100 rounded w-1/4" />
+      <div className="h-4 bg-gray-200 rounded-full w-1/2" />
+      <div className="h-3 bg-gray-200 rounded-full w-3/4" />
+      <div className="h-3 bg-gray-100 rounded-full w-1/4" />
     </div>
     <div className="flex gap-2 mt-4 sm:mt-0">
       <div className="w-10 h-10 bg-gray-200 rounded-full" />
@@ -48,6 +78,10 @@ export default function NotificationsClient({
   const [subscribed, setSubscribed] = useState(false);
   const supabase = createClient();
   const router = useRouter();
+  const [
+    approveUser,
+    { loading: approveUserLoading, error: approveUserError },
+  ] = useMutation<ApproveUserResponse>(APPROVE_USER);
 
   useEffect(() => {
     if (subscribed) return;
@@ -69,7 +103,7 @@ export default function NotificationsClient({
 
           const { data: sender, error } = await supabase
             .from("users")
-            .select("email, name, image")
+            .select("id, email, name, image")
             .eq("id", newNotification.senderId)
             .single();
 
@@ -87,12 +121,12 @@ export default function NotificationsClient({
               ...newNotification,
               createdAt: new Date(newNotification.createdAt).toISOString(),
               user: sender || {
-                email: "Unknown",
+                id: newNotification.senderId,
+                email: null,
                 name: "Unknown Sender",
                 image: null,
               },
-              organizationId:
-                newNotification.organizationId || "default_organization_id",
+              organizationId: newNotification.organizationId || null,
             },
             ...prev,
           ]);
@@ -107,7 +141,7 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          if (["PENDING", "APPROVED"].includes(payload.new.status)) {
+          if (["PENDING", "APPROVED", "INFO"].includes(payload.new.status)) {
             setNotifications((prev) =>
               prev.map((n) =>
                 n.id === payload.new.id
@@ -157,31 +191,10 @@ export default function NotificationsClient({
   const handleApprove = async (
     notificationId: string,
     senderId: string | null
-    // type: string
   ) => {
     setLoading(true);
-
-    // if (type === "LESSON_DELETION_REQUEST") {
-    //   const response = await approveLessonDeletion(notificationId, true);
-    //   if (response.success) {
-    //     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    //     toast.success("Lesson deletion request approved successfully!", {
-    //       position: "top-center",
-    //       autoClose: 3000,
-    //       theme: "colored",
-    //     });
-    //   } else {
-    //     toast.error(response.error || "Failed to approve lesson deletion", {
-    //       position: "top-center",
-    //       autoClose: 3000,
-    //       theme: "colored",
-    //     });
-    //   }
-    //   setLoading(false);
-    //   return;
-    // }
-
     if (!senderId) {
+      console.error("handleApprove: Sender ID is missing");
       toast.error("Sender ID is missing. Cannot approve request.", {
         position: "top-center",
         autoClose: 3000,
@@ -190,13 +203,17 @@ export default function NotificationsClient({
       setLoading(false);
       return;
     }
-
     const {
       data: { user: educator },
       error: authError,
     } = await supabase.auth.getUser();
-
     if (authError || !educator) {
+      console.error(
+        "handleApprove: Auth error:",
+        authError?.message,
+        "educator:",
+        educator
+      );
       toast.error("Failed to authenticate user. Please try again.", {
         position: "top-center",
         autoClose: 3000,
@@ -205,59 +222,92 @@ export default function NotificationsClient({
       setLoading(false);
       return;
     }
-
-    const response = await approveUser(senderId, educator.id);
-
-    if (response.data?.success) {
-      await supabase
-        .from("notifications")
-        .update({ status: "APPROVED" })
-        .eq("id", notificationId);
-
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      toast.success("User approved successfully!", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
+    try {
+      console.log("handleApprove: Input variables:", {
+        userId: senderId,
+        approverId: educator.id,
+        notificationId,
       });
-    } else {
-      toast.error(response.error?.message || "Failed to approve request.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
+      const { data, errors } = await approveUser({
+        variables: { input: { userId: senderId, approverId: educator.id } },
       });
+      console.log("handleApprove: GraphQL response:", { data, errors });
+      if (errors) {
+        console.error("handleApprove: GraphQL mutation errors:", errors);
+        toast.error(
+          `Failed to approve user: ${errors[0]?.message || "Unknown error"}`,
+          {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          }
+        );
+        setLoading(false);
+        return;
+      }
+      const response = data?.approveUser;
+      if (response?.error) {
+        console.error("handleApprove: Approve user error:", response.error);
+        toast.error(response.error.message || "Failed to approve request.", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+        setLoading(false);
+        return;
+      }
+      if (response?.success) {
+        const { error: updateError } = await supabase
+          .from("notifications")
+          .update({ status: "APPROVED" })
+          .eq("id", notificationId);
+        if (updateError) {
+          console.error(
+            "handleApprove: Supabase notification update error:",
+            updateError
+          );
+          toast.error("Failed to update notification status.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        toast.success("User approved successfully!", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      } else {
+        console.error("handleApprove: No success response:", response);
+        toast.error("Failed to approve user: No success response.", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      }
+    } catch (error: unknown) {
+      console.error("handleApprove: GraphQL mutation error (catch):", error);
+      toast.error(
+        `Failed to approve user: ${
+          (error as Error).message || "Unknown error"
+        }`,
+        {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        }
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleReject = async (
     notificationId: string,
     senderId: string | null
-    // type: string
   ) => {
     setLoading(true);
-
-    // if (type === "LESSON_DELETION_REQUEST") {
-    //   const response = await approveLessonDeletion(notificationId, false);
-    //   if (response.success) {
-    //     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    //     toast.success("Lesson deletion request rejected successfully!", {
-    //       position: "top-center",
-    //       autoClose: 3000,
-    //       theme: "colored",
-    //     });
-    //   } else {
-    //     toast.error(response.error || "Failed to reject lesson deletion", {
-    //       position: "top-center",
-    //       autoClose: 3000,
-    //       theme: "colored",
-    //     });
-    //   }
-    //   setLoading(false);
-    //   return;
-    // }
-
     if (!senderId) {
       toast.error("Sender ID is missing. Cannot reject request.", {
         position: "top-center",
@@ -267,39 +317,53 @@ export default function NotificationsClient({
       setLoading(false);
       return;
     }
-
-    await supabase
-      .from("users")
-      .update({ organizationId: null, pendingApproval: false })
-      .eq("id", senderId);
-
-    await supabase
-      .from("notifications")
-      .update({ status: "REJECTED" })
-      .eq("id", notificationId);
-
-    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    toast.success("Request rejected successfully.", {
-      position: "top-center",
-      autoClose: 3000,
-      theme: "colored",
-    });
-
-    setLoading(false);
+    try {
+      await supabase
+        .from("users")
+        .update({ organizationId: null, pendingApproval: false })
+        .eq("id", senderId);
+      await supabase
+        .from("notifications")
+        .update({ status: "REJECTED" })
+        .eq("id", notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("Request rejected successfully.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
+    } catch (error: unknown) {
+      console.error("Error rejecting request:", error);
+      toast.error("Failed to reject request.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDismiss = async (notificationId: string) => {
     setLoading(true);
-    await supabase.from("notifications").delete().eq("id", notificationId);
-
-    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    toast.success("Notification dismissed.", {
-      position: "top-center",
-      autoClose: 3000,
-      theme: "colored",
-    });
-
-    setLoading(false);
+    try {
+      await supabase.from("notifications").delete().eq("id", notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("Notification dismissed.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
+    } catch (error: unknown) {
+      console.error("Error dismissing notification:", error);
+      toast.error("Failed to dismiss notification.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const skeletonCount = Math.max(initialNotifications.length, 1);
@@ -317,7 +381,7 @@ export default function NotificationsClient({
             and organization.
           </p>
         </div>
-        {loading ? (
+        {loading || approveUserLoading ? (
           <div className="space-y-4">
             {[...Array(skeletonCount)].map((_, i) => (
               <NotificationSkeleton key={i} />
@@ -343,6 +407,7 @@ export default function NotificationsClient({
           <div className="space-y-4">
             {notifications.map((notification) => {
               const user = notification.user || {
+                id: notification.senderId,
                 email: null,
                 name: null,
                 image: null,
@@ -367,7 +432,7 @@ export default function NotificationsClient({
                 >
                   <div className="flex-shrink-0">
                     <Image
-                      src={user.image || "Fallback Image"}
+                      src={user.image || "/images/fallback-avatar.png"}
                       alt={user.name || "User Avatar"}
                       width={48}
                       height={48}
@@ -390,12 +455,41 @@ export default function NotificationsClient({
                             Assistant Request
                           </span>
                         )}
+                        {notification.type === "EDUCATOR_REQUEST" && (
+                          <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                            Educator Request
+                          </span>
+                        )}
+                        {notification.type === "APPROVAL" && (
+                          <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                            Approval
+                          </span>
+                        )}
+                        {notification.type === "MESSAGE" && (
+                          <span className="text-xs text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded-full">
+                            Message
+                          </span>
+                        )}
+                        {notification.type === "ALERT" && (
+                          <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full">
+                            Alert
+                          </span>
+                        )}
+                        {notification.type === "REMINDER" && (
+                          <span className="text-xs text-yellow-600 font-medium bg-yellow-50 px-2 py-1 rounded-full">
+                            Reminder
+                          </span>
+                        )}
                       </div>
                       <span
                         className={`text-xs font-medium px-2 py-1 rounded-full ${
                           notification.status === "PENDING"
                             ? "bg-yellow-100 text-yellow-800"
-                            : "bg-green-100 text-green-800"
+                            : notification.status === "APPROVED"
+                            ? "bg-green-100 text-green-800"
+                            : notification.status === "INFO"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-red-100 text-red-800"
                         }`}
                       >
                         {notification.status}
@@ -411,32 +505,30 @@ export default function NotificationsClient({
                     </div>
                   </div>
                   <div className="flex gap-3 mt-4 sm:mt-0 sm:ml-4">
-                    {notification.status === "PENDING" ? (
+                    {notification.status === "PENDING" &&
+                    ["ASSISTANT_REQUEST", "EDUCATOR_REQUEST"].includes(
+                      notification.type
+                    ) ? (
                       <>
                         <button
                           onClick={() =>
                             handleApprove(
                               notification.id,
                               notification.senderId
-                              // notification.type
                             )
                           }
-                          disabled={loading}
-                          className="w-10 h-10 rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
+                          disabled={loading || approveUserLoading}
+                          className="w-10 h-10 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                           title="Approve"
                         >
                           <FaCheckCircle />
                         </button>
                         <button
                           onClick={() =>
-                            handleReject(
-                              notification.id,
-                              notification.senderId
-                              // notification.type
-                            )
+                            handleReject(notification.id, notification.senderId)
                           }
-                          disabled={loading}
-                          className="w-10 h-10 rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
+                          disabled={loading || approveUserLoading}
+                          className="w-10 h-10 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                           title="Reject"
                         >
                           <FaTimesCircle />
@@ -445,8 +537,8 @@ export default function NotificationsClient({
                     ) : (
                       <button
                         onClick={() => handleDismiss(notification.id)}
-                        disabled={loading}
-                        className="w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
+                        disabled={loading || approveUserLoading}
+                        className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                         title="Dismiss"
                       >
                         <FaTrash />

@@ -1,3 +1,5 @@
+"use server";
+
 import { getLessonPlans } from "@/app/actions/getLessonPlans";
 import { getNotifications } from "@/app/actions/getNotifications";
 import { createSchema, createYoga } from "graphql-yoga";
@@ -193,7 +195,7 @@ const { handleRequest } = createYoga<NextContext>({
         SERVICE_LEARNING
         ENTREPRENEURSHIP
         ART_EXHIBITION
-        MUSIC_RECRITAL
+        MUSIC_RECITAL
         STUDY_GROUP
         PRACTICE_EXERCISES
         REVIEW_SESSION
@@ -223,6 +225,7 @@ const { handleRequest } = createYoga<NextContext>({
         PENDING
         APPROVED
         REJECTED
+        INFO
       }
 
       enum NotificationType {
@@ -232,6 +235,7 @@ const { handleRequest } = createYoga<NextContext>({
         ASSISTANT_REQUEST
         LESSON_DELETION_REQUEST
         EDUCATOR_REQUEST
+        APPROVAL
       }
 
       type User {
@@ -404,6 +408,23 @@ const { handleRequest } = createYoga<NextContext>({
         educatorEmail: String!
       }
 
+      type ApproveUserResponse {
+        success: Boolean
+        user: User
+        notification: Notification
+        error: ApproveUserError
+      }
+
+      type ApproveUserError {
+        message: String!
+        code: String!
+      }
+
+      input ApproveUserInput {
+        userId: ID!
+        approverId: ID!
+      }
+
       type Notification {
         id: ID!
         senderId: String!
@@ -413,6 +434,7 @@ const { handleRequest } = createYoga<NextContext>({
         createdAt: String!
         user: User!
         organizationId: Int
+        userId: String!
       }
 
       type Query {
@@ -428,6 +450,7 @@ const { handleRequest } = createYoga<NextContext>({
         requestAssistantRole(
           input: RequestAssistantRoleInput!
         ): RequestAssistantRoleResponse!
+        approveUser(input: ApproveUserInput!): ApproveUserResponse!
       }
     `,
     resolvers: {
@@ -720,6 +743,177 @@ const { handleRequest } = createYoga<NextContext>({
               error: {
                 message: errorMessage,
                 code: errorCode,
+              },
+            };
+          }
+        },
+        approveUser: async (
+          _: unknown,
+          { input }: { input: { userId: string; approverId: string } }
+        ): Promise<
+          ActionResponse<{
+            success: boolean;
+            user: {
+              id: string;
+              email: string;
+              name: string;
+              organizationId: number | null;
+              pendingApproval: boolean;
+            };
+            notification: {
+              id: string;
+              userId: string;
+              senderId: string;
+              type: string;
+              message: string;
+              organizationId: number | null;
+              status: string;
+              createdAt: string;
+              user: {
+                id: string;
+                email: string | null;
+                name: string | null;
+                image: string | null;
+              };
+            } | null;
+          }>
+        > => {
+          console.log("approveUser: input:", input);
+          try {
+            const supabase = await createClient();
+            const { data: authUser, error: authError } =
+              await supabase.auth.getUser();
+            console.log(
+              "approveUser: authUser:",
+              authUser?.user,
+              "authError:",
+              authError?.message
+            );
+            if (
+              authError ||
+              !authUser ||
+              authUser.user.id !== input.approverId
+            ) {
+              console.error(
+                "approveUser: Auth error - userId:",
+                authUser?.user?.id,
+                "approverId:",
+                input.approverId,
+                "error:",
+                authError?.message || "User not found"
+              );
+              return { error: { message: "Unauthorized", code: "401" } };
+            }
+            return await db.transaction(async (tx) => {
+              try {
+                const [approver] = await tx
+                  .select({
+                    role: users.role,
+                    organizationId: users.organizationId,
+                  })
+                  .from(users)
+                  .where(eq(users.id, input.approverId))
+                  .limit(1);
+                console.log("approveUser: approver:", approver);
+                if (!approver) {
+                  console.error(
+                    "approveUser: Approver not found - approverId:",
+                    input.approverId
+                  );
+                  return {
+                    error: { message: "Approver not found", code: "404" },
+                  };
+                }
+                if (!["ADMIN", "EDUCATOR"].includes(approver.role || "")) {
+                  console.error(
+                    "approveUser: Unauthorized - approver role:",
+                    approver.role
+                  );
+                  return {
+                    error: {
+                      message: "Unauthorized to approve users",
+                      code: "403",
+                    },
+                  };
+                }
+                if (!approver.organizationId) {
+                  console.error(
+                    "approveUser: Approver has no organizationId:",
+                    approver
+                  );
+                  return {
+                    error: {
+                      message:
+                        "Approver is not associated with an organization",
+                      code: "403",
+                    },
+                  };
+                }
+                const [updatedUser] = await tx
+                  .update(users)
+                  .set({ pendingApproval: false })
+                  .where(eq(users.id, input.userId))
+                  .returning({
+                    id: users.id,
+                    email: users.email,
+                    name: users.name,
+                    organizationId: users.organizationId,
+                    pendingApproval: users.pendingApproval,
+                  });
+                console.log("approveUser: updatedUser:", updatedUser);
+                if (!updatedUser) {
+                  console.error(
+                    "approveUser: User not found - userId:",
+                    input.userId
+                  );
+                  return { error: { message: "User not found", code: "404" } };
+                }
+                if (updatedUser.organizationId !== approver.organizationId) {
+                  console.error(
+                    "approveUser: Organization mismatch - user orgId:",
+                    updatedUser.organizationId,
+                    "approver orgId:",
+                    approver.organizationId
+                  );
+                  return {
+                    error: {
+                      message:
+                        "User is not associated with the approver’s organization",
+                      code: "403",
+                    },
+                  };
+                }
+                const userData = {
+                  ...updatedUser,
+                  pendingApproval: updatedUser.pendingApproval ?? false,
+                };
+                await tx.insert(notifications).values({
+                  userId: input.userId,
+                  senderId: input.approverId,
+                  type: "APPROVAL",
+                  message: `Your request to join the organization has been approved by ${updatedUser.name}.`,
+                  organizationId: approver.organizationId,
+                  status: "INFO",
+                  createdAt: new Date(),
+                });
+                revalidatePath("/notifications");
+                const result = {
+                  data: { success: true, user: userData, notification: null },
+                };
+                console.log("approveUser: final return value:", result);
+                return result;
+              } catch (innerError) {
+                console.error("approveUser: Transaction error:", innerError);
+                throw innerError;
+              }
+            });
+          } catch (error: unknown) {
+            console.error("approveUser: Error approving user:", error);
+            const pgError = error as PostgresError;
+            return {
+              error: {
+                message: pgError.message || "Failed to approve user",
+                code: pgError.code || "500",
               },
             };
           }
