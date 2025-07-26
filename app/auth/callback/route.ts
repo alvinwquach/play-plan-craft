@@ -19,10 +19,10 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient();
-
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(
       code
     );
+
     if (sessionError) {
       console.error("Error exchanging code for session:", sessionError.message);
       return NextResponse.redirect(
@@ -34,6 +34,7 @@ export async function GET(request: Request) {
 
     const { data: sessionData, error: sessionCheckError } =
       await supabase.auth.getSession();
+
     if (sessionCheckError || !sessionData.session) {
       console.error("User session not found or invalid");
       return NextResponse.redirect(`${origin}/login`);
@@ -76,9 +77,11 @@ export async function GET(request: Request) {
         organizationId: null,
         pendingApproval: false,
       };
+
       const { error: insertError } = await supabase
         .from("users")
         .insert(userData);
+
       if (insertError) {
         console.error(
           "Error inserting first user as admin:",
@@ -118,9 +121,11 @@ export async function GET(request: Request) {
           organizationId: null,
           pendingApproval: false,
         };
+
         const { error: insertError } = await supabase
           .from("users")
           .insert(newUserData);
+
         if (insertError) {
           console.error("Error inserting new user:", insertError.message);
           return NextResponse.redirect(
