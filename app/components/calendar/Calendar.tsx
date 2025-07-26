@@ -1506,626 +1506,614 @@ ${
           }
         }
       `}</style>
- 
-          <div className="flex flex-col sm:flex-row justify-end sm:items-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
-              Lesson Plan Calendar
-            </h1>
-            <div className="flex flex-wrap gap-3 sm:gap-4 sm:items-center sm:justify-center justify-end">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={exportToICal}
-                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
-                  >
-                    <FaRegCalendarAlt className="text-lg sm:text-xl" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="center">
-                  Export to iCal
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => exportToGoogleCalendar()}
-                    className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
-                  >
-                    <SiGooglecalendar className="text-lg sm:text-xl" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="center">
-                  Add to Google Calendar
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-            <FullCalendar
-              ref={calendarRef}
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={headerToolbar}
-              events={events}
-              eventClick={handleEventClick}
-              eventDrop={handleEventDrop}
-              editable={userRole === "EDUCATOR"}
-              selectable={false}
-              datesSet={(dateInfo) =>
-                updateHeaderToolbar(dateInfo.view.currentStart)
-              }
-              slotMinTime="08:00:00"
-              slotMaxTime="17:00:00"
-              allDaySlot={false}
-              height="auto"
-              themeSystem="bootstrap5"
-              eventTimeFormat={{
+
+      <div className="flex flex-col sm:flex-row justify-end sm:items-center">
+        <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
+          Lesson Plan Calendar
+        </h1>
+        <div className="flex flex-wrap gap-3 sm:gap-4 sm:items-center sm:justify-center justify-end">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={exportToICal}
+                className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
+              >
+                <FaRegCalendarAlt className="text-lg sm:text-xl" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="center">
+              Export to iCal
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => exportToGoogleCalendar()}
+                className="bg-teal-600 text-white p-3 rounded-lg hover:bg-teal-700 transition shadow-sm hover:shadow-md"
+              >
+                <SiGooglecalendar className="text-lg sm:text-xl" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="center">
+              Add to Google Calendar
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          headerToolbar={headerToolbar}
+          events={events}
+          eventClick={handleEventClick}
+          eventDrop={handleEventDrop}
+          editable={userRole === "EDUCATOR"}
+          selectable={false}
+          datesSet={(dateInfo) =>
+            updateHeaderToolbar(dateInfo.view.currentStart)
+          }
+          slotMinTime="08:00:00"
+          slotMaxTime="17:00:00"
+          allDaySlot={false}
+          height="auto"
+          themeSystem="bootstrap5"
+          eventTimeFormat={{
+            hour: "numeric",
+            minute: "2-digit",
+            meridiem: "short",
+            hour12: true,
+          }}
+          slotLabelFormat={{
+            hour: "numeric",
+            minute: "2-digit",
+            meridiem: "short",
+            hour12: true,
+          }}
+          views={{
+            dayGridMonth: {
+              dayHeaderFormat: { weekday: "long" },
+              eventMaxHeight: 80,
+            },
+            timeGridWeek: {
+              dayHeaderFormat: {
+                weekday: "long",
+                month: "numeric",
+                day: "numeric",
+                omitCommas: true,
+              },
+              slotLabelInterval: "00:30",
+            },
+            timeGridDay: {
+              dayHeaderFormat: {
+                weekday: "long",
+                month: "numeric",
+                day: "numeric",
+                omitCommas: true,
+              },
+              slotLabelInterval: "00:30",
+            },
+          }}
+          eventDisplay="block"
+          eventMinHeight={40}
+          slotDuration="00:10:00"
+          slotLabelInterval="01:00"
+          eventOverlap={false}
+          eventConstraint={{
+            startTime: "08:00",
+            endTime: "16:00",
+          }}
+          eventContent={(eventInfo) => {
+            const isMonthView = eventInfo.view.type === "dayGridMonth";
+            const start = eventInfo.event.start;
+            const end = eventInfo.event.end;
+            let timeText = "";
+
+            if (start && end) {
+              const startTime = start.toLocaleTimeString("en-US", {
                 hour: "numeric",
                 minute: "2-digit",
-                meridiem: "short",
                 hour12: true,
-              }}
-              slotLabelFormat={{
+              });
+              const endTime = end.toLocaleTimeString("en-US", {
                 hour: "numeric",
                 minute: "2-digit",
-                meridiem: "short",
                 hour12: true,
-              }}
-              views={{
-                dayGridMonth: {
-                  dayHeaderFormat: { weekday: "long" },
-                  eventMaxHeight: 80,
-                },
-                timeGridWeek: {
-                  dayHeaderFormat: {
-                    weekday: "long",
-                    month: "numeric",
-                    day: "numeric",
-                    omitCommas: true,
-                  },
-                  slotLabelInterval: "00:30",
-                },
-                timeGridDay: {
-                  dayHeaderFormat: {
-                    weekday: "long",
-                    month: "numeric",
-                    day: "numeric",
-                    omitCommas: true,
-                  },
-                  slotLabelInterval: "00:30",
-                },
-              }}
-              eventDisplay="block"
-              eventMinHeight={40}
-              slotDuration="00:10:00"
-              slotLabelInterval="01:00"
-              eventOverlap={false}
-              eventConstraint={{
-                startTime: "08:00",
-                endTime: "16:00",
-              }}
-              eventContent={(eventInfo) => {
-                const isMonthView = eventInfo.view.type === "dayGridMonth";
-                const start = eventInfo.event.start;
-                const end = eventInfo.event.end;
-                let timeText = "";
+              });
+              timeText = `${startTime}–${endTime}`;
+            } else if (start) {
+              timeText = start.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              });
+            }
 
-                if (start && end) {
-                  const startTime = start.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  });
-                  const endTime = end.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  });
-                  timeText = `${startTime}–${endTime}`;
-                } else if (start) {
-                  timeText = start.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true,
-                  });
-                }
-
-                return (
-                  <div className="flex flex-col p-1 overflow-hidden">
-                    <b
-                      className={`${
-                        isMonthView ? "text-sm sm:text-base" : "text-sm"
-                      } font-semibold truncate`}
-                    >
-                      {eventInfo.event.title}
-                    </b>
-                    <p
-                      className={`${
-                        isMonthView ? "text-xs" : "text-xs"
-                      } text-white opacity-90 truncate`}
-                    >
-                      {timeText}
-                    </p>
-                  </div>
-                );
-              }}
-            />
-          </div>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent className="max-h-[80vh] overflow-y-auto max-w-3xl bg-white rounded-lg">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-teal-800">
-                  {selectedLesson?.title}
-                </DialogTitle>
-              </DialogHeader>
-              {selectedLesson && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Created By
-                    </h2>
-                    <p className="text-gray-600">
-                      {selectedLesson.createdByName || "Unknown"}
-                    </p>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Learning Intention
-                    </h2>
-                    <p className="text-gray-600">
-                      {selectedLesson.learningIntention || "None"}
-                    </p>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Success Criteria
-                    </h2>
-                    {selectedLesson.successCriteria.length > 0 ? (
-                      <ul className="text-gray-600 list-inside list-disc space-y-2">
-                        {selectedLesson.successCriteria.map(
-                          (criterion, index) => (
-                            <li key={index}>{criterion}</li>
-                          )
+            return (
+              <div className="flex flex-col p-1 overflow-hidden">
+                <b
+                  className={`${
+                    isMonthView ? "text-sm sm:text-base" : "text-sm"
+                  } font-semibold truncate`}
+                >
+                  {eventInfo.event.title}
+                </b>
+                <p
+                  className={`${
+                    isMonthView ? "text-xs" : "text-xs"
+                  } text-white opacity-90 truncate`}
+                >
+                  {timeText}
+                </p>
+              </div>
+            );
+          }}
+        />
+      </div>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto max-w-3xl bg-white rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-teal-800">
+              {selectedLesson?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLesson && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Created By
+                </h2>
+                <p className="text-gray-600">
+                  {selectedLesson.createdByName || "Unknown"}
+                </p>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Learning Intention
+                </h2>
+                <p className="text-gray-600">
+                  {selectedLesson.learningIntention || "None"}
+                </p>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Success Criteria
+                </h2>
+                {selectedLesson.successCriteria.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-2">
+                    {selectedLesson.successCriteria.map((criterion, index) => (
+                      <li key={index}>{criterion}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">
+                    No success criteria specified.
+                  </p>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Details
+                </h2>
+                <ul className="text-gray-600 list-inside list-disc space-y-2">
+                  <li>
+                    <strong>Grade Level:</strong>{" "}
+                    {selectedLesson.gradeLevel.replace("_", " ")}
+                  </li>
+                  <li>
+                    <strong>Subject:</strong>{" "}
+                    {selectedLesson.subject.replace("_", " ")}
+                  </li>
+                  <li>
+                    <strong>Theme:</strong>{" "}
+                    {selectedLesson.theme
+                      ? selectedLesson.theme.replace("_", " ")
+                      : "None"}
+                  </li>
+                  <li>
+                    <strong>Status:</strong> {selectedLesson.status}
+                  </li>
+                  <li>
+                    <strong>Duration:</strong> {selectedLesson.duration} minutes
+                  </li>
+                  <li>
+                    <strong>Classroom Size:</strong>{" "}
+                    {selectedLesson.classroomSize} students
+                  </li>
+                  <li>
+                    <strong>Curriculum:</strong> {selectedLesson.curriculum}
+                  </li>
+                  {selectedLesson.scheduledDate && (
+                    <li>
+                      <strong>Scheduled:</strong>{" "}
+                      {new Date(selectedLesson.scheduledDate).toLocaleString()}
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Activities
+                </h2>
+                {selectedLesson.activities?.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-4">
+                    {selectedLesson.activities.map((activity, index) => (
+                      <li key={index}>
+                        <strong className="text-teal-800">
+                          {activity.title} (
+                          {activity.activityType.replace("_", " ")})
+                        </strong>
+                        <p>{activity.description}</p>
+                        <p className="text-sm">
+                          <strong>Duration:</strong> {activity.durationMins}{" "}
+                          minutes
+                        </p>
+                        <p className="text-sm">
+                          <strong>Scores:</strong> Engagement (
+                          {activity.engagementScore}%), Alignment (
+                          {activity.alignmentScore}%), Feasibility (
+                          {activity.feasibilityScore}%)
+                        </p>
+                        {activity.source ? (
+                          <p className="text-sm">
+                            <strong>Source:</strong>{" "}
+                            <a
+                              href={activity.source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-500 hover:underline"
+                            >
+                              {activity.source.name}
+                            </a>
+                            <br />
+                            {activity.source.description}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            No source provided.
+                          </p>
                         )}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-600">
-                        No success criteria specified.
-                      </p>
-                    )}
-                  </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">No activities available.</p>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Supplies
+                </h2>
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-teal-800 mb-2">
+                    Select Retailer
+                  </label>
+                  <select
+                    value={selectedRetailer}
+                    onChange={(e) =>
+                      setSelectedRetailer(e.target.value as Retailer)
+                    }
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  >
+                    {retailers.map((retailer) => (
+                      <option key={retailer.value} value={retailer.value}>
+                        {retailer.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedLesson.supplies.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-2">
+                    {selectedLesson.supplies.map((supply, index) => (
+                      <li key={index}>
+                        <strong className="text-teal-800">
+                          {supply.name} ({supply.quantity} {supply.unit})
+                        </strong>
+                        {supply.note && (
+                          <p className="text-sm">
+                            <strong>Note:</strong> {supply.note}
+                          </p>
+                        )}
+                        <p className="text-sm">
+                          <a
+                            href={generateShoppingLink(
+                              supply,
+                              selectedRetailer
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-500 hover:underline"
+                          >
+                            Find {supply.name} on{" "}
+                            {retailers.find((r) => r.value === selectedRetailer)
+                              ?.label || "Retailer"}
+                          </a>
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">No supplies required.</p>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Tags
+                </h2>
+                {selectedLesson.tags.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-2">
+                    {selectedLesson.tags.map((tag, index) => (
+                      <li key={index}>{tag}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">No tags specified.</p>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                  Developmental Goals
+                </h2>
+                {selectedLesson.developmentGoals?.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-4">
+                    {selectedLesson.developmentGoals.map((goal, index) => (
+                      <li key={index}>
+                        <strong className="text-teal-800">{goal.name}</strong>
+                        <p>{goal.description}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-600">
+                    No developmental goals specified.
+                  </p>
+                )}
+              </div>
+              {selectedLesson.gradeLevel === "PRESCHOOL" &&
+                selectedLesson.drdpDomains && (
                   <div>
                     <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Details
+                      DRDP Domains
                     </h2>
-                    <ul className="text-gray-600 list-inside list-disc space-y-2">
-                      <li>
-                        <strong>Grade Level:</strong>{" "}
-                        {selectedLesson.gradeLevel.replace("_", " ")}
-                      </li>
-                      <li>
-                        <strong>Subject:</strong>{" "}
-                        {selectedLesson.subject.replace("_", " ")}
-                      </li>
-                      <li>
-                        <strong>Theme:</strong>{" "}
-                        {selectedLesson.theme
-                          ? selectedLesson.theme.replace("_", " ")
-                          : "None"}
-                      </li>
-                      <li>
-                        <strong>Status:</strong> {selectedLesson.status}
-                      </li>
-                      <li>
-                        <strong>Duration:</strong> {selectedLesson.duration}{" "}
-                        minutes
-                      </li>
-                      <li>
-                        <strong>Classroom Size:</strong>{" "}
-                        {selectedLesson.classroomSize} students
-                      </li>
-                      <li>
-                        <strong>Curriculum:</strong> {selectedLesson.curriculum}
-                      </li>
-                      {selectedLesson.scheduledDate && (
-                        <li>
-                          <strong>Scheduled:</strong>{" "}
-                          {new Date(
-                            selectedLesson.scheduledDate
-                          ).toLocaleString()}
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Activities
-                    </h2>
-                    {selectedLesson.activities.length > 0 ? (
+                    {selectedLesson.drdpDomains?.length > 0 ? (
                       <ul className="text-gray-600 list-inside list-disc space-y-4">
-                        {selectedLesson.activities.map((activity, index) => (
+                        {selectedLesson.drdpDomains.map((domain, index) => (
                           <li key={index}>
                             <strong className="text-teal-800">
-                              {activity.title} (
-                              {activity.activityType.replace("_", " ")})
+                              {domain.code} - {domain.name}
                             </strong>
-                            <p>{activity.description}</p>
-                            <p className="text-sm">
-                              <strong>Duration:</strong> {activity.durationMins}{" "}
-                              minutes
-                            </p>
-                            <p className="text-sm">
-                              <strong>Scores:</strong> Engagement (
-                              {activity.engagementScore}%), Alignment (
-                              {activity.alignmentScore}%), Feasibility (
-                              {activity.feasibilityScore}%)
-                            </p>
-                            {activity.source ? (
-                              <p className="text-sm">
-                                <strong>Source:</strong>{" "}
-                                <a
-                                  href={activity.source.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-teal-500 hover:underline"
-                                >
-                                  {activity.source.name}
-                                </a>
-                                <br />
-                                {activity.source.description}
-                              </p>
-                            ) : (
-                              <p className="text-sm text-gray-500">
-                                No source provided.
-                              </p>
-                            )}
+                            <p>{domain.description}</p>
+                            <ul className="list-inside list-disc ml-4 space-y-2">
+                              {domain.strategies.map((strategy, sIndex) => (
+                                <li key={sIndex}>{strategy}</li>
+                              ))}
+                            </ul>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-gray-600">No activities available.</p>
+                      <p className="text-gray-600">
+                        No DRDP domains generated for this plan.
+                      </p>
                     )}
                   </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Supplies
-                    </h2>
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-teal-800 mb-2">
-                        Select Retailer
-                      </label>
-                      <select
-                        value={selectedRetailer}
-                        onChange={(e) =>
-                          setSelectedRetailer(e.target.value as Retailer)
-                        }
-                        className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                      >
-                        {retailers.map((retailer) => (
-                          <option key={retailer.value} value={retailer.value}>
-                            {retailer.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {selectedLesson.supplies.length > 0 ? (
-                      <ul className="text-gray-600 list-inside list-disc space-y-2">
-                        {selectedLesson.supplies.map((supply, index) => (
-                          <li key={index}>
-                            <strong className="text-teal-800">
-                              {supply.name} ({supply.quantity} {supply.unit})
-                            </strong>
-                            {supply.note && (
-                              <p className="text-sm">
-                                <strong>Note:</strong> {supply.note}
-                              </p>
-                            )}
+                )}
+              {selectedLesson.standards && (
+                <div>
+                  <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                    Standards Alignment
+                  </h2>
+                  {selectedLesson.standards?.length > 0 ? (
+                    <ul className="text-gray-600 list-inside list-disc space-y-4">
+                      {selectedLesson.standards.map((standard, index) => (
+                        <li key={index}>
+                          <strong className="text-teal-800">
+                            {standard.code}
+                          </strong>
+                          <p>{standard.description}</p>
+                          {standard.source && (
                             <p className="text-sm">
                               <a
-                                href={generateShoppingLink(
-                                  supply,
-                                  selectedRetailer
-                                )}
+                                href={standard.source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-teal-500 hover:underline"
                               >
-                                Find {supply.name} on{" "}
-                                {retailers.find(
-                                  (r) => r.value === selectedRetailer
-                                )?.label || "Retailer"}
+                                Source: {standard.source.name}
                               </a>
                             </p>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-600">No supplies required.</p>
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Tags
-                    </h2>
-                    {selectedLesson.tags.length > 0 ? (
-                      <ul className="text-gray-600 list-inside list-disc space-y-2">
-                        {selectedLesson.tags.map((tag, index) => (
-                          <li key={index}>{tag}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-600">No tags specified.</p>
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                      Developmental Goals
-                    </h2>
-                    {selectedLesson.developmentGoals.length > 0 ? (
-                      <ul className="text-gray-600 list-inside list-disc space-y-4">
-                        {selectedLesson.developmentGoals.map((goal, index) => (
-                          <li key={index}>
-                            <strong className="text-teal-800">
-                              {goal.name}
-                            </strong>
-                            <p>{goal.description}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-600">
-                        No developmental goals specified.
-                      </p>
-                    )}
-                  </div>
-                  {selectedLesson.gradeLevel === "PRESCHOOL" &&
-                    selectedLesson.drdpDomains && (
-                      <div>
-                        <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                          DRDP Domains
-                        </h2>
-                        {selectedLesson.drdpDomains.length > 0 ? (
-                          <ul className="text-gray-600 list-inside list-disc space-y-4">
-                            {selectedLesson.drdpDomains.map((domain, index) => (
-                              <li key={index}>
-                                <strong className="text-teal-800">
-                                  {domain.code} - {domain.name}
-                                </strong>
-                                <p>{domain.description}</p>
-                                <ul className="list-inside list-disc ml-4 space-y-2">
-                                  {domain.strategies.map((strategy, sIndex) => (
-                                    <li key={sIndex}>{strategy}</li>
-                                  ))}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-gray-600">
-                            No DRDP domains generated for this plan.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  {selectedLesson.standards && (
-                    <div>
-                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                        Standards Alignment
-                      </h2>
-                      {selectedLesson.standards.length > 0 ? (
-                        <ul className="text-gray-600 list-inside list-disc space-y-4">
-                          {selectedLesson.standards.map((standard, index) => (
-                            <li key={index}>
-                              <strong className="text-teal-800">
-                                {standard.code}
-                              </strong>
-                              <p>{standard.description}</p>
-                              {standard.source && (
-                                <p className="text-sm">
-                                  <a
-                                    href={standard.source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-teal-500 hover:underline"
-                                  >
-                                    Source: {standard.source.name}
-                                  </a>
-                                </p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-gray-600">No standards specified.</p>
-                      )}
-                    </div>
-                  )}
-                  {selectedLesson.sourceMetadata &&
-                    selectedLesson.sourceMetadata.length > 0 && (
-                      <div>
-                        <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                          General Source Metadata
-                        </h2>
-                        <ul className="text-gray-600 list-inside list-disc space-y-4">
-                          {selectedLesson.sourceMetadata.map(
-                            (source, index) => (
-                              <li key={index}>
-                                <strong className="text-teal-800">
-                                  {source.name}
-                                </strong>
-                                <p>
-                                  <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-teal-500 hover:underline"
-                                  >
-                                    {source.url}
-                                  </a>
-                                </p>
-                                <p>{source.description}</p>
-                              </li>
-                            )
                           )}
-                        </ul>
-                      </div>
-                    )}
-                  {selectedLesson.citationScore !== undefined && (
-                    <div>
-                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                        Citation Score
-                      </h2>
-                      <p className="text-gray-600">
-                        {selectedLesson.citationScore}% (indicates reliability
-                        of sources used)
-                      </p>
-                    </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600">No standards specified.</p>
                   )}
-                  {userRole === "EDUCATOR" && (
-                    <div>
-                      <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                        Update Schedule
-                      </h2>
-                      <input
-                        type="datetime-local"
-                        value={selectedLesson.scheduledDate?.slice(0, 16) || ""}
-                        onChange={handleDateTimeChange}
-                        className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                      />
-                    </div>
-                  )}
-                  <div className="flex justify-between items-end w-full mt-6 flex-wrap gap-4">
-                    <div className="flex gap-3 flex-wrap">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => printPDF(selectedLesson)}
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              printLoading || pdfLoading
-                                ? "bg-gray-200 text-gray-400"
-                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                            }`}
-                          >
-                            <FaPrint className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          {printLoading ? "Preparing to print..." : "Print PDF"}
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => exportToPDF(selectedLesson)}
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              pdfLoading || printLoading
-                                ? "bg-gray-200 text-gray-400"
-                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                            }`}
-                          >
-                            <FaFilePdf className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          {pdfLoading ? "Generating PDF..." : "Export to PDF"}
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => exportToWord(selectedLesson)}
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              pdfLoading || printLoading
-                                ? "bg-gray-200 text-gray-400"
-                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                            }`}
-                          >
-                            <FaRegFileWord className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          Export to Word
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() => shareLessonPlan(selectedLesson)}
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              pdfLoading || printLoading
-                                ? "bg-gray-200 text-gray-400"
-                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                            }`}
-                          >
-                            <CiShare2 className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          Share Lesson Plan
-                        </TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={() =>
-                              exportToGoogleCalendar(selectedLesson)
-                            }
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              pdfLoading || printLoading
-                                ? "bg-gray-200 text-gray-400"
-                                : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                            }`}
-                          >
-                            <SiGooglecalendar className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          Add to Google Calendar
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className="mt-4 sm:mt-0">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={handleDeleteLesson}
-                            disabled={pdfLoading || printLoading}
-                            className={`p-3 rounded-lg transition shadow-sm ${
-                              pdfLoading || printLoading
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-white text-red-500 hover:bg-gray-100"
-                            }`}
-                          >
-                            <FaTrash className="text-lg sm:text-xl" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="center">
-                          {isOrganizationOwner &&
-                          selectedLesson?.created_by_id === userId
-                            ? "Delete Lesson Plan"
-                            : "Request Lesson Plan Deletion"}
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
                 </div>
               )}
-            </DialogContent>
-          </Dialog>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          closeOnClick
-          pauseOnHover
-          draggable
-          theme="light"
-        />
+              {selectedLesson.sourceMetadata &&
+                selectedLesson.sourceMetadata.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                      General Source Metadata
+                    </h2>
+                    <ul className="text-gray-600 list-inside list-disc space-y-4">
+                      {selectedLesson.sourceMetadata.map((source, index) => (
+                        <li key={index}>
+                          <strong className="text-teal-800">
+                            {source.name}
+                          </strong>
+                          <p>
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-500 hover:underline"
+                            >
+                              {source.url}
+                            </a>
+                          </p>
+                          <p>{source.description}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              {selectedLesson.citationScore !== undefined && (
+                <div>
+                  <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                    Citation Score
+                  </h2>
+                  <p className="text-gray-600">
+                    {selectedLesson.citationScore}% (indicates reliability of
+                    sources used)
+                  </p>
+                </div>
+              )}
+              {userRole === "EDUCATOR" && (
+                <div>
+                  <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                    Update Schedule
+                  </h2>
+                  <input
+                    type="datetime-local"
+                    value={selectedLesson.scheduledDate?.slice(0, 16) || ""}
+                    onChange={handleDateTimeChange}
+                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  />
+                </div>
+              )}
+              <div className="flex justify-between items-end w-full mt-6 flex-wrap gap-4">
+                <div className="flex gap-3 flex-wrap">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => printPDF(selectedLesson)}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          printLoading || pdfLoading
+                            ? "bg-gray-200 text-gray-400"
+                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaPrint className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      {printLoading ? "Preparing to print..." : "Print PDF"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => exportToPDF(selectedLesson)}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading
+                            ? "bg-gray-200 text-gray-400"
+                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaFilePdf className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      {pdfLoading ? "Generating PDF..." : "Export to PDF"}
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => exportToWord(selectedLesson)}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading
+                            ? "bg-gray-200 text-gray-400"
+                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaRegFileWord className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Export to Word
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => shareLessonPlan(selectedLesson)}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading
+                            ? "bg-gray-200 text-gray-400"
+                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        <CiShare2 className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Share Lesson Plan
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => exportToGoogleCalendar(selectedLesson)}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading
+                            ? "bg-gray-200 text-gray-400"
+                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                        }`}
+                      >
+                        <SiGooglecalendar className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Add to Google Calendar
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="mt-4 sm:mt-0">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleDeleteLesson}
+                        disabled={pdfLoading || printLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-red-500 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaTrash className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      {isOrganizationOwner &&
+                      selectedLesson?.created_by_id === userId
+                        ? "Delete Lesson Plan"
+                        : "Request Lesson Plan Deletion"}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="light"
+      />
     </TooltipProvider>
   );
 }
