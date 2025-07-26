@@ -78,10 +78,8 @@ export default function NotificationsClient({
   const [subscribed, setSubscribed] = useState(false);
   const supabase = createClient();
   const router = useRouter();
-  const [
-    approveUser,
-    { loading: approveUserLoading, error: approveUserError },
-  ] = useMutation<ApproveUserResponse>(APPROVE_USER);
+  const [approveUser, { loading: approveUserLoading }] =
+    useMutation<ApproveUserResponse>(APPROVE_USER);
 
   useEffect(() => {
     if (subscribed) return;
