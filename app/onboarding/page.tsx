@@ -8,17 +8,25 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { requestAssistantRole } from "../actions/requestAssistantRole";
 import { useMutation } from "@apollo/client";
 import { CREATE_EDUCATOR_ORGANIZATION } from "../graphql/mutations/createEducatorOrganization";
+import { REQUEST_ASSISTANT_ROLE } from "../graphql/mutations/requestAssistantRole";
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface CreateEducatorOrganizationResponse {
   createEducatorOrganization: {
-    error?: {
-      message: string;
-    };
+    success?: boolean;
+    joined?: boolean;
+    organization?: { id: string; name: string };
+    error?: { message: string; code: string };
+  };
+}
+
+interface RequestAssistantRoleResponse {
+  requestAssistantRole: {
+    success?: boolean;
+    error?: { message: string; code: string };
   };
 }
 
@@ -30,10 +38,14 @@ export default function Onboarding() {
   const router = useRouter();
   const [
     createEducatorOrganization,
-    { loading: mutationLoading, error: mutationError },
+    { loading: createOrgLoading, error: createOrgError },
   ] = useMutation<CreateEducatorOrganizationResponse>(
     CREATE_EDUCATOR_ORGANIZATION
   );
+  const [
+    requestAssistantRole,
+    { loading: requestAssistantLoading, error: requestAssistantError },
+  ] = useMutation<RequestAssistantRoleResponse>(REQUEST_ASSISTANT_ROLE);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -105,10 +117,12 @@ export default function Onboarding() {
         },
       });
 
-      if (mutationError) {
-        console.error("GraphQL mutation error:", mutationError);
+      const response = data?.createEducatorOrganization;
+
+      if (createOrgError) {
+        console.error("GraphQL mutation error:", createOrgError);
         toast.error(
-          `Failed to process organization: ${mutationError.message}`,
+          `Failed to process organization: ${createOrgError.message}`,
           {
             position: "top-right",
           }
@@ -116,8 +130,6 @@ export default function Onboarding() {
         setLoading(false);
         return;
       }
-
-      const response = data?.createEducatorOrganization;
 
       if (response?.error) {
         console.error("Organization creation/join error:", response.error);
@@ -169,21 +181,56 @@ export default function Onboarding() {
       return;
     }
 
-    const { error } = await requestAssistantRole(user.user.id, educatorEmail);
-    if (error) {
-      console.error("Assistant role request error:", error);
-      toast.error(`${error.message}`, {
+    try {
+      const { data } = await requestAssistantRole({
+        variables: {
+          input: {
+            userId: user.user.id,
+            educatorEmail,
+          },
+        },
+      });
+
+      const response = data?.requestAssistantRole;
+
+      if (requestAssistantError) {
+        console.error("GraphQL mutation error:", requestAssistantError);
+        toast.error(
+          `Failed to request assistant role: ${requestAssistantError.message}`,
+          {
+            position: "top-right",
+          }
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (response?.error) {
+        console.error("Assistant role request error:", response.error);
+        toast.error(`${response.error.message}`, {
+          position: "top-right",
+        });
+        setLoading(false);
+        return;
+      }
+
+      toast.success("Assistant role request sent successfully!", {
         position: "top-right",
       });
+      router.push("/pending-approval");
+    } catch (error: unknown) {
+      console.error("GraphQL mutation error (catch):", error);
+      toast.error(
+        `Failed to request assistant role: ${
+          (error as Error).message || "Unknown error"
+        }`,
+        {
+          position: "top-right",
+        }
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success("Assistant role request sent successfully!", {
-      position: "top-right",
-    });
-    router.push("/pending-approval");
-    setLoading(false);
   };
 
   return (
@@ -199,7 +246,7 @@ export default function Onboarding() {
             </p>
             <button
               onClick={() => setRole("EDUCATOR")}
-              disabled={loading || mutationLoading}
+              disabled={loading || createOrgLoading || requestAssistantLoading}
               className="w-full bg-teal-500 text-white py-3 px-4 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-teal-600 transition-all duration-300 hover:scale-105 disabled:bg-teal-300"
             >
               <FaChalkboardTeacher className="text-xl" />
@@ -207,7 +254,7 @@ export default function Onboarding() {
             </button>
             <button
               onClick={() => setRole("ASSISTANT")}
-              disabled={loading || mutationLoading}
+              disabled={loading || createOrgLoading || requestAssistantLoading}
               className="w-full bg-yellow-400 text-teal-900 py-3 px-4 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-yellow-300 transition-all duration-300 hover:scale-105 disabled:bg-yellow-200"
             >
               <FaUserFriends className="text-xl" />
@@ -258,14 +305,18 @@ export default function Onboarding() {
             <div className="flex gap-4">
               <button
                 onClick={() => setRole(null)}
-                disabled={loading || mutationLoading}
+                disabled={
+                  loading || createOrgLoading || requestAssistantLoading
+                }
                 className="w-1/2 bg-gray-300 text-gray-800 py-3 px-4 rounded-full font-semibold hover:bg-gray-400 transition-all duration-300"
               >
                 Back
               </button>
               <button
                 onClick={handleEducatorSubmit}
-                disabled={loading || mutationLoading}
+                disabled={
+                  loading || createOrgLoading || requestAssistantLoading
+                }
                 className="w-1/2 bg-teal-500 text-white py-3 px-4 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300 disabled:bg-teal-300"
               >
                 Submit
@@ -292,14 +343,21 @@ export default function Onboarding() {
             <div className="flex gap-4">
               <button
                 onClick={() => setRole(null)}
-                disabled={loading || mutationLoading}
+                disabled={
+                  loading || createOrgLoading || requestAssistantLoading
+                }
                 className="w-1/2 bg-gray-300 text-gray-800 py-3 px-4 rounded-full font-semibold hover:bg-gray-400 transition-all duration-300"
               >
                 Back
               </button>
               <button
                 onClick={handleAssistantSubmit}
-                disabled={loading || !educatorEmail || mutationLoading}
+                disabled={
+                  loading ||
+                  !educatorEmail ||
+                  createOrgLoading ||
+                  requestAssistantLoading
+                }
                 className="w-1/2 bg-teal-500 text-white py-3 px-4 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300 disabled:bg-teal-300"
               >
                 Submit

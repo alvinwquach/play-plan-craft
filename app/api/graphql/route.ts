@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { users } from "@/app/db/schema/table/users";
 import { notifications } from "@/app/db/schema/table/notifications";
 import { organizations } from "@/app/db/schema/table/organizations";
+
 interface NextContext {
   params: Promise<Record<string, string>>;
 }
@@ -388,6 +389,21 @@ const { handleRequest } = createYoga<NextContext>({
         educatorEmail: String
       }
 
+      type RequestAssistantRoleResponse {
+        success: Boolean
+        error: RequestAssistantRoleError
+      }
+
+      type RequestAssistantRoleError {
+        message: String!
+        code: String!
+      }
+
+      input RequestAssistantRoleInput {
+        userId: ID!
+        educatorEmail: String!
+      }
+
       type Notification {
         id: ID!
         senderId: String!
@@ -409,6 +425,9 @@ const { handleRequest } = createYoga<NextContext>({
         createEducatorOrganization(
           input: CreateEducatorOrganizationInput!
         ): CreateEducatorOrganizationResponse!
+        requestAssistantRole(
+          input: RequestAssistantRoleInput!
+        ): RequestAssistantRoleResponse!
       }
     `,
     resolvers: {
@@ -622,11 +641,93 @@ const { handleRequest } = createYoga<NextContext>({
             };
           }
         },
+        requestAssistantRole: async (
+          _: unknown,
+          {
+            input,
+          }: {
+            input: {
+              userId: string;
+              educatorEmail: string;
+            };
+          }
+        ): Promise<ActionResponse<{ success: boolean }>> => {
+          try {
+            const supabase = await createClient();
+
+            const { data: authUser, error: userError } =
+              await supabase.auth.getUser();
+            if (userError || !authUser || authUser.user.id !== input.userId) {
+              return {
+                error: {
+                  message: "User not found or unauthorized",
+                  code: "401",
+                },
+              };
+            }
+
+            const userEmail = authUser.user.email;
+            const userName =
+              authUser.user.user_metadata?.full_name ?? "New User";
+
+            const [educatorData] = await db
+              .select({ id: users.id, organizationId: users.organizationId })
+              .from(users)
+              .where(eq(users.email, input.educatorEmail))
+              .limit(1);
+
+            if (!educatorData || !educatorData.organizationId) {
+              return {
+                error: {
+                  message:
+                    "Educator email not found or not associated with an organization",
+                  code: "404",
+                },
+              };
+            }
+
+            await db
+              .update(users)
+              .set({
+                role: "ASSISTANT",
+                organizationId: educatorData.organizationId,
+                pendingApproval: true,
+              })
+              .where(eq(users.id, input.userId));
+
+            await db.insert(notifications).values({
+              userId: educatorData.id,
+              senderId: input.userId,
+              type: "ASSISTANT_REQUEST",
+              message: `${userName} - ${userEmail} has requested to join your organization as an assistant.`,
+              organizationId: educatorData.organizationId,
+              status: "PENDING",
+              createdAt: new Date(),
+            });
+
+            revalidatePath("/pending-approval");
+            return { data: { success: true } };
+          } catch (error: unknown) {
+            console.error("Error requesting assistant role:", error);
+            const pgError = error as PostgresError;
+            const errorMessage =
+              pgError instanceof Error
+                ? pgError.message
+                : "Failed to request assistant role";
+            const errorCode = pgError.code || "500";
+
+            return {
+              error: {
+                message: errorMessage,
+                code: errorCode,
+              },
+            };
+          }
+        },
       },
     },
   }),
 
-  // While using Next.js file convention for routing, we need to configure Yoga to use the correct endpoint
   graphqlEndpoint: "/api/graphql",
 
   fetchAPI: {
