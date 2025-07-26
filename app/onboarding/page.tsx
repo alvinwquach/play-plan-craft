@@ -8,17 +8,32 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { createEducatorOrganization } from "../actions/createEducatorOrganization";
 import { requestAssistantRole } from "../actions/requestAssistantRole";
+import { useMutation } from "@apollo/client";
+import { CREATE_EDUCATOR_ORGANIZATION } from "../graphql/mutations/createEducatorOrganization";
 
 gsap.registerPlugin(ScrollTrigger);
+
+interface CreateEducatorOrganizationResponse {
+  createEducatorOrganization: {
+    error?: {
+      message: string;
+    };
+  };
+}
 
 export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<"EDUCATOR" | "ASSISTANT" | null>(null);
-  const [educatorEmail, setEducatorEmail] = useState("");
+  const [educatorEmail, setEducatorEmail] = useState<string>("");
   const supabase = createClient();
   const router = useRouter();
+  const [
+    createEducatorOrganization,
+    { loading: mutationLoading, error: mutationError },
+  ] = useMutation<CreateEducatorOrganizationResponse>(
+    CREATE_EDUCATOR_ORGANIZATION
+  );
 
   useEffect(() => {
     const checkSession = async () => {
@@ -26,7 +41,6 @@ export default function Onboarding() {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
-      console.log("Session:", session);
       if (sessionError) {
         console.error("Error checking session:", sessionError);
         toast.error(`Failed to check session: ${sessionError.message}`, {
@@ -55,6 +69,7 @@ export default function Onboarding() {
       }
     };
     checkSession();
+
     gsap.fromTo(
       ".animate-on-load",
       { opacity: 0, y: 50, scale: 0.95 },
@@ -65,46 +80,76 @@ export default function Onboarding() {
   const handleEducatorSubmit = async () => {
     setLoading(true);
     const { data: user, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      if (userError.code !== "EDUCATOR_NOT_FOUND") {
-        console.error("Organization creation/join error:", userError);
-      }
-      toast.error(userError.message ?? "Something went wrong.", {
-        position: "top-right",
-      });
+    if (userError || !user) {
+      console.error("User fetch error:", userError);
+      toast.error(
+        `Failed to fetch user: ${
+          userError?.message ?? "Unknown error"
+        } (Code: ${userError?.code ?? "N/A"})`,
+        {
+          position: "top-right",
+        }
+      );
       setLoading(false);
       return;
     }
 
-    const { error } = await createEducatorOrganization(
-      user.user.id,
-      user.user.email!,
-      educatorEmail
-    );
-    if (error) {
-      console.error("Organization creation/join error:", error);
-      toast.error(`${error.message}`, {
-        position: "top-right",
+    try {
+      const { data } = await createEducatorOrganization({
+        variables: {
+          input: {
+            userId: user.user.id,
+            userEmail: user.user.email!,
+            educatorEmail: educatorEmail || undefined,
+          },
+        },
       });
-      setLoading(false);
-      return;
-    }
 
-    console.log(
-      educatorEmail
-        ? "Requested to join educator's organization. Redirecting to /pending-approval"
-        : "Organization successfully created. Redirecting to /lesson-plan"
-    );
-    toast.success(
-      educatorEmail
-        ? "Request to join organization sent successfully!"
-        : "Organization created successfully!",
-      {
-        position: "top-right",
+      if (mutationError) {
+        console.error("GraphQL mutation error:", mutationError);
+        toast.error(
+          `Failed to process organization: ${mutationError.message}`,
+          {
+            position: "top-right",
+          }
+        );
+        setLoading(false);
+        return;
       }
-    );
-    router.push(educatorEmail ? "/pending-approval" : "/lesson-plan");
-    setLoading(false);
+
+      const response = data?.createEducatorOrganization;
+
+      if (response?.error) {
+        console.error("Organization creation/join error:", response.error);
+        toast.error(`${response.error.message}`, {
+          position: "top-right",
+        });
+        setLoading(false);
+        return;
+      }
+
+      toast.success(
+        educatorEmail
+          ? "Request to join organization sent successfully!"
+          : "Organization created successfully!",
+        {
+          position: "top-right",
+        }
+      );
+      router.push(educatorEmail ? "/pending-approval" : "/lesson-plan");
+    } catch (error: unknown) {
+      console.error("GraphQL mutation error (catch):", error);
+      toast.error(
+        `Failed to process organization: ${
+          (error as Error).message || "Unknown error"
+        }`,
+        {
+          position: "top-right",
+        }
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAssistantSubmit = async () => {
@@ -134,7 +179,6 @@ export default function Onboarding() {
       return;
     }
 
-    console.log("Assistant role requested. Redirecting to /pending-approval");
     toast.success("Assistant role request sent successfully!", {
       position: "top-right",
     });
@@ -155,7 +199,7 @@ export default function Onboarding() {
             </p>
             <button
               onClick={() => setRole("EDUCATOR")}
-              disabled={loading}
+              disabled={loading || mutationLoading}
               className="w-full bg-teal-500 text-white py-3 px-4 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-teal-600 transition-all duration-300 hover:scale-105 disabled:bg-teal-300"
             >
               <FaChalkboardTeacher className="text-xl" />
@@ -163,7 +207,7 @@ export default function Onboarding() {
             </button>
             <button
               onClick={() => setRole("ASSISTANT")}
-              disabled={loading}
+              disabled={loading || mutationLoading}
               className="w-full bg-yellow-400 text-teal-900 py-3 px-4 rounded-full font-semibold flex items-center justify-center gap-2 hover:bg-yellow-300 transition-all duration-300 hover:scale-105 disabled:bg-yellow-200"
             >
               <FaUserFriends className="text-xl" />
@@ -199,7 +243,7 @@ export default function Onboarding() {
                 htmlFor="educatorEmail"
                 className="block text-gray-700 font-medium sr-only"
               >
-                Enter another educator&apos;`s email to join their organization
+                Enter another educator&apos;s email to join their organization
                 (optional)
               </label>
               <input
@@ -214,14 +258,14 @@ export default function Onboarding() {
             <div className="flex gap-4">
               <button
                 onClick={() => setRole(null)}
-                disabled={loading}
+                disabled={loading || mutationLoading}
                 className="w-1/2 bg-gray-300 text-gray-800 py-3 px-4 rounded-full font-semibold hover:bg-gray-400 transition-all duration-300"
               >
                 Back
               </button>
               <button
                 onClick={handleEducatorSubmit}
-                disabled={loading}
+                disabled={loading || mutationLoading}
                 className="w-1/2 bg-teal-500 text-white py-3 px-4 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300 disabled:bg-teal-300"
               >
                 Submit
@@ -235,7 +279,7 @@ export default function Onboarding() {
               htmlFor="educatorEmail"
               className="block text-gray-700 font-medium"
             >
-              Enter your educator&apos;`s email
+              Enter your educator&apos;s email
             </label>
             <input
               id="educatorEmail"
@@ -248,14 +292,14 @@ export default function Onboarding() {
             <div className="flex gap-4">
               <button
                 onClick={() => setRole(null)}
-                disabled={loading}
+                disabled={loading || mutationLoading}
                 className="w-1/2 bg-gray-300 text-gray-800 py-3 px-4 rounded-full font-semibold hover:bg-gray-400 transition-all duration-300"
               >
                 Back
               </button>
               <button
                 onClick={handleAssistantSubmit}
-                disabled={loading || !educatorEmail}
+                disabled={loading || !educatorEmail || mutationLoading}
                 className="w-1/2 bg-teal-500 text-white py-3 px-4 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300 disabled:bg-teal-300"
               >
                 Submit
