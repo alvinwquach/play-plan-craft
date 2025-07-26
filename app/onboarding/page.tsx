@@ -12,18 +12,37 @@ import { requestAssistantRole } from "../actions/requestAssistantRole";
 import { useMutation } from "@apollo/client";
 import { CREATE_EDUCATOR_ORGANIZATION } from "../graphql/mutations/createEducatorOrganization";
 
+// Register GSAP plugin
 gsap.registerPlugin(ScrollTrigger);
+
+interface User {
+  id: string;
+  email: string;
+  role: "EDUCATOR" | "ASSISTANT" | null;
+  organizationId: string | null;
+  pendingApproval: boolean;
+}
+
+interface CreateEducatorOrganizationResponse {
+  createEducatorOrganization: {
+    error?: {
+      message: string;
+    };
+  };
+}
 
 export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<"EDUCATOR" | "ASSISTANT" | null>(null);
-  const [educatorEmail, setEducatorEmail] = useState("");
+  const [educatorEmail, setEducatorEmail] = useState<string>("");
   const supabase = createClient();
   const router = useRouter();
   const [
     createEducatorOrganization,
     { loading: mutationLoading, error: mutationError },
-  ] = useMutation(CREATE_EDUCATOR_ORGANIZATION);
+  ] = useMutation<CreateEducatorOrganizationResponse>(
+    CREATE_EDUCATOR_ORGANIZATION
+  );
 
   useEffect(() => {
     const checkSession = async () => {
@@ -59,6 +78,7 @@ export default function Onboarding() {
       }
     };
     checkSession();
+
     gsap.fromTo(
       ".animate-on-load",
       { opacity: 0, y: 50, scale: 0.95 },
@@ -126,10 +146,12 @@ export default function Onboarding() {
         }
       );
       router.push(educatorEmail ? "/pending-approval" : "/lesson-plan");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("GraphQL mutation error (catch):", error);
       toast.error(
-        `Failed to process organization: ${error.message || "Unknown error"}`,
+        `Failed to process organization: ${
+          (error as Error).message || "Unknown error"
+        }`,
         {
           position: "top-right",
         }
