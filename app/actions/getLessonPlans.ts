@@ -1,19 +1,16 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { eq, and, inArray } from "drizzle-orm";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { users } from "@/app/db/schema/table/users";
 import { organizations } from "@/app/db/schema/table/organizations";
-import { eq, and, inArray } from "drizzle-orm";
-import { LessonPlan } from "@/app/types/lessonPlan";
-import { AlternateActivityGroup } from "@/app/types/lessonPlan";
+import { LessonPlan, AlternateActivityGroup } from "@/app/types/lessonPlan";
+import { createClient } from "@/utils/supabase/server";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
 
 interface PostgresError extends Error {
@@ -55,7 +52,7 @@ export async function getLessonPlans(): Promise<{
       .where(eq(users.id, user.id))
       .limit(1);
 
-    if (!userData || !userData.organizationId) {
+    if (!userData?.organizationId) {
       return {
         success: false,
         error: "User is not associated with an organization",

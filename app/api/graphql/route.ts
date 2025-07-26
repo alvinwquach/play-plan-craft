@@ -366,18 +366,34 @@ const { handleRequest } = createYoga<NextContext>({
     resolvers: {
       Query: {
         lessonPlans: async () => {
-          const { success, lessonPlans, userRole, isOrganizationOwner, error } =
-            await getLessonPlans();
+          console.log("lessonPlans resolver hit");
 
-          if (!success || !lessonPlans) {
-            throw new Error(error || "Failed to fetch lesson plans");
+          try {
+            const result = await getLessonPlans();
+            console.log("lessonPlans result:", result);
+
+            const {
+              success,
+              lessonPlans,
+              userRole,
+              isOrganizationOwner,
+              error,
+            } = result;
+
+            if (!success || !lessonPlans) {
+              console.error("Lesson plans error:", error);
+              throw new Error(error || "Failed to fetch lesson plans");
+            }
+
+            return {
+              lessonPlans,
+              userRole,
+              isOrganizationOwner,
+            };
+          } catch (err) {
+            console.error("lessonPlans resolver failed:", err);
+            throw err;
           }
-
-          return {
-            lessonPlans,
-            userRole,
-            isOrganizationOwner,
-          };
         },
         notifications: async () => {
           const { userId, notifications } = await getNotifications();
