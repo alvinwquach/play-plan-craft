@@ -1,13 +1,22 @@
+"use client";
+
+import { useQuery } from "@apollo/client";
 import { redirect } from "next/navigation";
-import { getNotifications } from "../actions/getNotifications";
 import NotificationsClient from "../components/notifications/NotifcationsClient";
+import { GET_NOTIFICATIONS } from "../graphql/queries/getNotifications";
 
-export default async function NotificationsPage() {
-  const { userId, notifications } = await getNotifications();
+export default function NotificationsPage() {
+  const { data, loading, error } = useQuery(GET_NOTIFICATIONS);
 
-  if (!userId) {
+  if (loading) {
+    return <div>Loading notifications...</div>;
+  }
+
+  if (error || !data?.notifications?.userId) {
     redirect("/login");
   }
+
+  const { userId, notifications } = data.notifications;
 
   return (
     <NotificationsClient initialNotifications={notifications} userId={userId} />

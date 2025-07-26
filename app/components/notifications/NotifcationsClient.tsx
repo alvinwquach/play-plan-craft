@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { FaCheckCircle, FaTimesCircle, FaBell, FaTrash } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaTimesCircle,
+  FaBell,
+  FaTrash,
+  FaInbox,
+} from "react-icons/fa";
 import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -18,14 +24,14 @@ interface NotificationsClientProps {
 }
 
 const NotificationSkeleton = () => (
-  <div className="bg-white border border-teal-100 p-6 rounded-2xl shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-5 animate-pulse">
-    <div className="w-14 h-14 bg-gray-200 rounded-full" />
-    <div className="flex-1 space-y-2 w-full">
+  <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-pulse">
+    <div className="w-12 h-12 bg-gray-200 rounded-full" />
+    <div className="flex-1 space-y-3 w-full">
       <div className="h-4 bg-gray-200 rounded w-1/2" />
       <div className="h-3 bg-gray-200 rounded w-3/4" />
       <div className="h-3 bg-gray-100 rounded w-1/4" />
     </div>
-    <div className="flex gap-3 mt-4 sm:mt-0">
+    <div className="flex gap-2 mt-4 sm:mt-0">
       <div className="w-10 h-10 bg-gray-200 rounded-full" />
       <div className="w-10 h-10 bg-gray-200 rounded-full" />
     </div>
@@ -58,7 +64,8 @@ export default function NotificationsClient({
         },
         async (payload) => {
           const newNotification = payload.new as Omit<Notification, "user">;
-          if (!["PENDING", "INFO"].includes(newNotification.status)) return;
+          if (!["PENDING", "INFO", "APPROVED"].includes(newNotification.status))
+            return;
 
           const { data: sender, error } = await supabase
             .from("users")
@@ -76,9 +83,15 @@ export default function NotificationsClient({
           }
 
           setNotifications((prev) => [
-            ...prev,
             {
               ...newNotification,
+              createdAt: newNotification.createdAt
+                ? new Date(
+                    isNaN(Number(newNotification.createdAt))
+                      ? newNotification.createdAt
+                      : Number(newNotification.createdAt)
+                  ).toISOString()
+                : new Date().toISOString(),
               user: sender || {
                 email: "Unknown",
                 name: "Unknown Sender",
@@ -87,15 +100,8 @@ export default function NotificationsClient({
               organizationId:
                 newNotification.organizationId || "default_organization_id",
             },
+            ...prev,
           ]);
-
-          if (newNotification.type === "APPROVAL") {
-            toast.info(newNotification.message, {
-              position: "top-center",
-              autoClose: 5000,
-              theme: "colored",
-            });
-          }
         }
       )
       .on(
@@ -107,13 +113,22 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          if (
-            ["PENDING", "INFO"].includes(payload.new.status) ||
-            ["PENDING", "INFO"].includes(payload.old.status)
-          ) {
+          if (["PENDING", "APPROVED"].includes(payload.new.status)) {
             setNotifications((prev) =>
               prev.map((n) =>
-                n.id === payload.new.id ? { ...n, ...payload.new } : n
+                n.id === payload.new.id
+                  ? {
+                      ...n,
+                      ...payload.new,
+                      createdAt: payload.new.createdAt
+                        ? new Date(
+                            isNaN(Number(payload.new.createdAt))
+                              ? payload.new.createdAt
+                              : Number(payload.new.createdAt)
+                          ).toISOString()
+                        : n.createdAt,
+                    }
+                  : n
               )
             );
           }
@@ -128,11 +143,9 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          if (["PENDING", "INFO"].includes(payload.old.status)) {
-            setNotifications((prev) =>
-              prev.filter((n) => n.id !== payload.old.id)
-            );
-          }
+          setNotifications((prev) =>
+            prev.filter((n) => n.id !== payload.old.id)
+          );
         }
       )
       .subscribe((status, error) => {
@@ -186,7 +199,6 @@ export default function NotificationsClient({
     } = await supabase.auth.getUser();
 
     if (authError || !educator) {
-      console.error("Error fetching current user:", authError?.message);
       toast.error("Failed to authenticate user. Please try again.", {
         position: "top-center",
         autoClose: 3000,
@@ -199,45 +211,10 @@ export default function NotificationsClient({
     const response = await approveUser(senderId, educator.id);
 
     if (response.data?.success) {
-      const originalNotification = notifications.find(
-        (n) => n.id === notificationId
-      );
-
-      const { error: notificationUpdateError } = await supabase
+      await supabase
         .from("notifications")
         .update({ status: "APPROVED" })
         .eq("id", notificationId);
-
-      if (notificationUpdateError) {
-        console.error("Error updating notification:", notificationUpdateError);
-        toast.error("Failed to update notification.", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-      }
-
-      if (originalNotification?.user) {
-        const { error: notifyApprovedUserError } = await supabase
-          .from("notifications")
-          .insert([
-            {
-              userId: senderId,
-              senderId: educator.id,
-              type: "APPROVAL",
-              message: "🎉 You have been approved to join the organization!",
-              status: "INFO",
-              organizationId: originalNotification.organizationId,
-            },
-          ]);
-
-        if (notifyApprovedUserError) {
-          console.error(
-            "Failed to notify approved user:",
-            notifyApprovedUserError
-          );
-        }
-      }
 
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       toast.success("User approved successfully!", {
@@ -246,7 +223,6 @@ export default function NotificationsClient({
         theme: "colored",
       });
     } else {
-      console.error("Error approving user:", response.error);
       toast.error(response.error?.message || "Failed to approve request.", {
         position: "top-center",
         autoClose: 3000,
@@ -284,100 +260,79 @@ export default function NotificationsClient({
       return;
     }
 
-    const { error: userError } = await supabase
+    await supabase
       .from("users")
       .update({ organizationId: null, pendingApproval: false })
       .eq("id", senderId);
 
-    const { error: notificationError } = await supabase
+    await supabase
       .from("notifications")
       .update({ status: "REJECTED" })
       .eq("id", notificationId);
 
-    if (userError || notificationError) {
-      toast.error("Failed to reject request. Please try again.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
-    } else {
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      toast.success("Request rejected successfully.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
-    }
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    toast.success("Request rejected successfully.", {
+      position: "top-center",
+      autoClose: 3000,
+      theme: "colored",
+    });
 
     setLoading(false);
   };
 
   const handleDismiss = async (notificationId: number) => {
     setLoading(true);
-    const { error } = await supabase
-      .from("notifications")
-      .delete()
-      .eq("id", notificationId);
+    await supabase.from("notifications").delete().eq("id", notificationId);
 
-    if (error) {
-      toast.error("Failed to dismiss notification.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
-    } else {
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      toast.success("Notification dismissed.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
-    }
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    toast.success("Notification dismissed.", {
+      position: "top-center",
+      autoClose: 3000,
+      theme: "colored",
+    });
 
     setLoading(false);
   };
 
-  const hasApprovalNotification = notifications?.some(
-    (n) => n.type === "APPROVAL" && n.status === "INFO"
-  );
-
   const skeletonCount = Math.max(initialNotifications.length, 1);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white pt-24 pb-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center animate-on-load mb-12">
-          <FaBell className="text-6xl text-teal-600 mx-auto mb-4" />
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-teal-800">
-            Notifications
+    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white pt-24 pb-32 sm:pb-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12 animate-fade-in">
+          <FaBell className="text-5xl text-teal-600 mx-auto mb-4" />
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+            Your Notifications
           </h1>
-          <p className="text-gray-600 text-lg mt-2">
-            Review and manage requests sent to you
+          <p className="text-gray-500 text-md mt-2 max-w-md mx-auto">
+            Stay updated with requests and actions related to your lesson plans
+            and organization.
           </p>
         </div>
-
         {loading ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {[...Array(skeletonCount)].map((_, i) => (
               <NotificationSkeleton key={i} />
             ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center">
-            <p className="text-gray-500 text-xl mt-12">
-              No notifications available!
+          <div className="text-center py-16 animate-fade-in">
+            <FaInbox className="text-6xl text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium mb-4">
+              No notifications yet!
             </p>
-            {hasApprovalNotification && (
-              <button
-                onClick={() => router.push("/lesson-plan")}
-                className="mt-4 bg-teal-500 text-white py-3 px-6 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300"
-              >
-                Proceed to Lesson Plan
-              </button>
-            )}
+            <p className="text-gray-400 text-sm max-w-sm mx-auto">
+              When you receive requests or updates, they’ll appear here.
+            </p>
+            <button
+              onClick={() => router.push("/lesson-plan")}
+              className="mt-6 bg-teal-600 text-white py-2 px-6 rounded-lg font-medium hover:bg-teal-700 transition-all duration-300 shadow-sm"
+            >
+              Go to Lesson Plans
+            </button>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {notifications.map((notification) => {
               const user = notification.user || {
                 email: null,
@@ -389,92 +344,118 @@ export default function NotificationsClient({
                 user.name || "User"
               )}&background=0D8ABC&color=fff`;
 
+              const createdAtDate = new Date(
+                isNaN(Number(notification.createdAt))
+                  ? notification.createdAt
+                  : Number(notification.createdAt)
+              );
+              const formattedDate = isNaN(createdAtDate.getTime())
+                ? "Invalid Date"
+                : createdAtDate.toLocaleString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "numeric",
+                    hour12: true,
+                  });
+
               return (
                 <div
                   key={notification.id}
-                  className="bg-white border border-teal-100 p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 animate-on-load hover:shadow-xl transition-shadow duration-300"
+                  className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 flex flex-col sm:flex-row items-start gap-4 animate-fade-in"
                 >
-                  <div className="flex items-start gap-4 flex-1">
+                  <div className="flex-shrink-0">
                     <Image
                       src={user.image || fallbackImage}
                       alt={user.name || "User Avatar"}
-                      width={56}
-                      height={56}
-                      className="rounded-full object-cover border border-gray-200 w-14 h-14"
+                      width={48}
+                      height={48}
+                      className="rounded-full object-cover border-2 border-teal-100 shadow-sm w-12 h-12"
                     />
-                    <div className="space-y-1">
-                      <p className="text-gray-900 font-semibold text-lg">
-                        {user.name || "Unknown Sender"}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <p className="text-gray-800 font-semibold text-lg">
+                          {user.name || "Unknown Sender"}
+                        </p>
                         {notification.type === "LESSON_DELETION_REQUEST" && (
-                          <span className="ml-2 text-sm text-teal-600 font-medium">
-                            (Lesson Deletion Request)
+                          <span className="text-xs text-teal-600 font-medium bg-teal-50 px-2 py-1 rounded-full">
+                            Lesson Deletion
                           </span>
                         )}
-                      </p>
-                      <p className="text-gray-700 text-sm">
-                        {notification.message}
-                      </p>
-                      <p className="text-gray-400 text-xs">
-                        {user.email || "No email"}
-                      </p>
+                        {notification.type === "ASSISTANT_REQUEST" && (
+                          <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                            Assistant Request
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          notification.status === "PENDING"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {notification.status}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 text-sm">
+                      {notification.message}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>{formattedDate}</span>
+                      <span>•</span>
+                      <span>{user.email || "No email"}</span>
                     </div>
                   </div>
-                  {notification.status === "PENDING" ? (
-                    <div className="flex gap-3 shrink-0 mt-4 sm:mt-0">
-                      <button
-                        onClick={() =>
-                          handleApprove(
-                            notification.id,
-                            notification.senderId,
-                            notification.type
-                          )
-                        }
-                        disabled={loading}
-                        className="flex items-center justify-center bg-teal-500 hover:bg-teal-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title="Approve"
-                      >
-                        <FaCheckCircle className="text-xl" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleReject(
-                            notification.id,
-                            notification.senderId,
-                            notification.type
-                          )
-                        }
-                        disabled={loading}
-                        className="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
-                        title="Reject"
-                      >
-                        <FaTimesCircle className="text-xl" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-3 shrink-0 mt-4 sm:mt-0">
+                  <div className="flex gap-3 mt-4 sm:mt-0 sm:ml-4">
+                    {notification.status === "PENDING" ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleApprove(
+                              notification.id,
+                              notification.senderId,
+                              notification.type
+                            )
+                          }
+                          disabled={loading}
+                          className="w-10 h-10 rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
+                          title="Approve"
+                        >
+                          <FaCheckCircle />
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleReject(
+                              notification.id,
+                              notification.senderId,
+                              notification.type
+                            )
+                          }
+                          disabled={loading}
+                          className="w-10 h-10 rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
+                          title="Reject"
+                        >
+                          <FaTimesCircle />
+                        </button>
+                      </>
+                    ) : (
                       <button
                         onClick={() => handleDismiss(notification.id)}
                         disabled={loading}
-                        className="flex items-center justify-center bg-gray-500 hover:bg-gray-600 text-white w-10 h-10 rounded-full transition duration-300 disabled:opacity-50"
+                        className="w-10 h-10 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                         title="Dismiss"
                       >
-                        <FaTrash className="text-xl" />
+                        <FaTrash />
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
-            {hasApprovalNotification && (
-              <div className="text-center mt-6">
-                <button
-                  onClick={() => router.push("/lesson-plan")}
-                  className="bg-teal-500 text-white py-3 px-6 rounded-full font-semibold hover:bg-teal-600 transition-all duration-300"
-                >
-                  Proceed to Lesson Plan
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>

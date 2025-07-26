@@ -114,14 +114,20 @@ export interface Notification {
   id: number;
   senderId: string;
   message: string;
-  status: string;
-  type: string;
   user: {
     email: string | null;
     name: string | null;
     image: string | null;
   } | null;
   organizationId?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  type:
+    | "MESSAGE"
+    | "ALERT"
+    | "REMINDER"
+    | "ASSISTANT_REQUEST"
+    | "LESSON_DELETION_REQUEST";
+  createdAt: string;
 }
 
 export type NotificationPayload = {

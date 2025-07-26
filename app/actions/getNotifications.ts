@@ -1,7 +1,6 @@
 "use server";
-
 import { createClient } from "@/utils/supabase/server";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { notifications } from "@/app/db/schema/table/notifications";
 import { users } from "@/app/db/schema/table/users";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -28,7 +27,8 @@ export async function getNotifications() {
       senderId: notifications.senderId,
       message: notifications.message,
       status: notifications.status,
-      type: notifications.type, 
+      type: notifications.type,
+      createdAt: notifications.createdAt,
       user: {
         email: users.email,
         name: users.name,
@@ -40,9 +40,22 @@ export async function getNotifications() {
     .where(
       and(
         eq(notifications.userId, user.id),
-        inArray(notifications.status, ["PENDING", "INFO"]) 
+        inArray(notifications.status, ["PENDING", "APPROVED"]),
+        inArray(notifications.type, [
+          "ASSISTANT_REQUEST",
+          "LESSON_DELETION_REQUEST",
+        ])
       )
-    );
+    )
+    .orderBy(desc(notifications.createdAt));
 
-  return { userId: user.id, notifications: data };
+  const formattedData = data.map((notification) => ({
+    ...notification,
+    createdAt: notification.createdAt
+      ? new Date(notification.createdAt).toISOString()
+      : new Date().toISOString(),
+  }));
+
+
+  return { userId: user.id, notifications: formattedData };
 }

@@ -1,4 +1,5 @@
 import { getLessonPlans } from "@/app/actions/getLessonPlans";
+import { getNotifications } from "@/app/actions/getNotifications";
 import { createSchema, createYoga } from "graphql-yoga";
 
 interface NextContext {
@@ -196,12 +197,29 @@ const { handleRequest } = createYoga<NextContext>({
         AUS
       }
 
+      enum NotificationStatus {
+        PENDING
+        APPROVED
+        REJECTED
+      }
+
+      enum NotificationType {
+        MESSAGE
+        ALERT
+        REMINDER
+        ASSISTANT_REQUEST
+        LESSON_DELETION_REQUEST
+      }
+
       type User {
         id: ID!
         email: String!
         name: String!
         role: UserRole!
         createdAt: String!
+        image: String
+        organizationId: Int
+        pendingApproval: Boolean!
         lessonPlans: [LessonPlan!]!
         schedules: [Schedule!]!
         lessonNotes: [LessonNote!]!
@@ -324,9 +342,25 @@ const { handleRequest } = createYoga<NextContext>({
         isOrganizationOwner: Boolean!
       }
 
+      type Notification {
+        id: ID!
+        senderId: String!
+        message: String!
+        status: NotificationStatus!
+        type: NotificationType!
+        createdAt: String!
+        user: User!
+      }
+
+      type NotificationsResponse {
+        userId: String
+        notifications: [Notification!]!
+      }
+
       type Query {
         greetings: String
         lessonPlans: LessonPlansResponse!
+        notifications: NotificationsResponse!
       }
     `,
     resolvers: {
@@ -343,6 +377,20 @@ const { handleRequest } = createYoga<NextContext>({
             lessonPlans,
             userRole,
             isOrganizationOwner,
+          };
+        },
+        notifications: async () => {
+          const { userId, notifications } = await getNotifications();
+
+          if (!userId || !notifications) {
+            throw new Error(
+              "Failed to fetch notifications or user not authenticated"
+            );
+          }
+
+          return {
+            userId,
+            notifications,
           };
         },
       },
