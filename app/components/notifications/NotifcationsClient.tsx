@@ -96,7 +96,11 @@ export default function NotificationsClient({
         },
         async (payload) => {
           const newNotification = payload.new as Omit<Notification, "user">;
-          if (!["PENDING", "INFO", "APPROVED"].includes(newNotification.status))
+          if (
+            !["PENDING", "APPROVED", "REJECTED"].includes(
+              newNotification.status
+            )
+          )
             return;
 
           const { data: sender, error } = await supabase
@@ -139,7 +143,9 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
-          if (["PENDING", "APPROVED", "INFO"].includes(payload.new.status)) {
+          if (
+            ["PENDING", "APPROVED", "REJECTED"].includes(payload.new.status)
+          ) {
             setNotifications((prev) =>
               prev.map((n) =>
                 n.id === payload.new.id
@@ -453,21 +459,6 @@ export default function NotificationsClient({
                             Assistant Request
                           </span>
                         )}
-                        {notification.type === "EDUCATOR_REQUEST" && (
-                          <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-                            Educator Request
-                          </span>
-                        )}
-                        {notification.type === "APPROVAL" && (
-                          <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
-                            Approval
-                          </span>
-                        )}
-                        {notification.type === "MESSAGE" && (
-                          <span className="text-xs text-gray-600 font-medium bg-gray-50 px-2 py-1 rounded-full">
-                            Message
-                          </span>
-                        )}
                         {notification.type === "ALERT" && (
                           <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full">
                             Alert
@@ -485,8 +476,6 @@ export default function NotificationsClient({
                             ? "bg-yellow-100 text-yellow-800"
                             : notification.status === "APPROVED"
                             ? "bg-green-100 text-green-800"
-                            : notification.status === "INFO"
-                            ? "bg-blue-100 text-blue-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >

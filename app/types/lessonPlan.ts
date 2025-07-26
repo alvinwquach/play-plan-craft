@@ -110,28 +110,26 @@ export type Retailer = "google" | "amazon" | "walmart";
 export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
 
-export interface Notification {
+export type Notification = {
   id: string;
-  userId: string;
-  senderId: string;
+  senderId: string | null;
+  organizationId: string | null;
+  message: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
   type:
     | "MESSAGE"
     | "ALERT"
     | "REMINDER"
     | "ASSISTANT_REQUEST"
-    | "LESSON_DELETION_REQUEST"
-    | "EDUCATOR_REQUEST"
-    | "APPROVAL";
-  message: string;
-  organizationId: number | null;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "INFO";
+    | "LESSON_DELETION_REQUEST";
   createdAt: string;
-  user?: {
+  userId: string;
+  user: {
     email: string | null;
     name: string | null;
     image: string | null;
   };
-}
+};
 
 export type NotificationPayload = {
   eventType: string;

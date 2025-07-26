@@ -43,7 +43,10 @@ import {
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { Activity, LessonPlan, Retailer, Supply } from "@/app/types/lessonPlan";
 import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
-import { deleteLessonPlan } from "@/app/actions/deleteLessonPlan";
+import { useMutation, useQuery } from "@apollo/client";
+import { DELETE_LESSON_PLAN } from "@/app/graphql/mutations/deleteLessonPlan";
+import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
+import { Notification } from "../../types/lessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -363,6 +366,13 @@ interface CalendarProps {
   userId: string;
 }
 
+interface DeleteLessonPlanResponse {
+  deleteLessonPlan: {
+    success: boolean;
+    error?: { message: string; code: string };
+  };
+}
+
 export default function Calendar({
   initialLessonPlans,
   userRole,
@@ -384,6 +394,15 @@ export default function Calendar({
   const [selectedRetailer, setSelectedRetailer] = useState<Retailer>("google");
   const calendarRef = useRef<FullCalendar | null>(null);
   const today = new Date();
+  const [deleteLessonPlanMutation, { loading: deleteLoading }] =
+    useMutation<DeleteLessonPlanResponse>(DELETE_LESSON_PLAN);
+
+  // Fetch notifications for organization owners
+  const { data: notificationsData, loading: notificationsLoading } = useQuery<{
+    notifications: { userId: string; notifications: Notification[] };
+  }>(GET_NOTIFICATIONS, {
+    skip: !isOrganizationOwner, // Only fetch if user is organization owner
+  });
 
   const retailers = [
     { value: "google", label: "Google Shopping" },
@@ -1269,42 +1288,68 @@ ${
     if (!selectedLesson) return;
 
     try {
-      const response = await deleteLessonPlan(Number(selectedLesson.id));
+      console.log("handleDeleteLesson: Input variables:", {
+        lessonPlanId: Number(selectedLesson.id),
+      });
+      const { data, errors } = await deleteLessonPlanMutation({
+        variables: { input: { lessonPlanId: Number(selectedLesson.id) } },
+      });
+      console.log("handleDeleteLesson: GraphQL response:", { data, errors });
 
-      if (response.success) {
-        if (response.error?.includes("request sent")) {
-          toast.success(
-            "Deletion request sent to organization owner for approval!",
-            {
-              position: "top-right",
-              autoClose: 3000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            }
-          );
-          setIsModalOpen(false);
-          setSelectedLesson(null);
-        } else {
-          const updatedPlans = lessonPlans.filter(
-            (lp) => lp.id !== selectedLesson.id
-          );
-          setLessonPlans(updatedPlans);
-          setIsModalOpen(false);
-          setSelectedLesson(null);
-
-          toast.success("Lesson plan deleted successfully!", {
+      if (errors) {
+        console.error("handleDeleteLesson: GraphQL mutation errors:", errors);
+        toast.error(
+          `Failed to delete lesson plan: ${
+            errors[0]?.message || "Unknown error"
+          }`,
+          {
             position: "top-right",
             autoClose: 3000,
             hideProgressBar: false,
             closeOnClick: true,
             pauseOnHover: true,
             draggable: true,
-          });
-        }
+          }
+        );
+        return;
+      }
+
+      const response = data?.deleteLessonPlan;
+      if (response?.error) {
+        console.error(
+          "handleDeleteLesson: Delete lesson plan error:",
+          response.error
+        );
+        toast.error(response.error.message || "Failed to delete lesson plan", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        return;
+      }
+
+      if (response?.success) {
+        const updatedPlans = lessonPlans.filter(
+          (lp) => lp.id !== selectedLesson.id
+        );
+        setLessonPlans(updatedPlans);
+        setIsModalOpen(false);
+        setSelectedLesson(null);
+
+        toast.success("Lesson plan deleted successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       } else {
-        toast.error(response.error || "Failed to delete lesson plan", {
+        console.error("handleDeleteLesson: No success response:", response);
+        toast.error("Failed to delete lesson plan: No success response.", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -1314,15 +1359,23 @@ ${
         });
       }
     } catch (error) {
-      console.error("Error deleting lesson plan:", error);
-      toast.error("An error occurred while deleting the lesson plan.", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      console.error(
+        "handleDeleteLesson: GraphQL mutation error (catch):",
+        error
+      );
+      toast.error(
+        `Failed to delete lesson plan: ${
+          (error as Error).message || "Unknown error"
+        }`,
+        {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
     }
   };
 
@@ -1360,7 +1413,7 @@ ${
         }
 
         .fc .fc-timegrid-slot {
-          height: 1.8rem; /* Reduced height for day/week view */
+          height: 1.8rem;
           border-color: #e5e7eb;
           background: #ffffff;
         }
@@ -1371,11 +1424,11 @@ ${
         }
 
         .fc .fc-timegrid-event {
-          border-radius: 4px; /* Smaller radius for compact look */
-          padding: 4px 8px; /* Reduced padding */
-          font-size: 0.85rem; /* Smaller font size */
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 0.85rem;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          min-height: 2.5rem; /* Reduced min-height */
+          min-height: 2.5rem;
           display: flex;
           align-items: center;
           border: 1px solid rgba(0, 0, 0, 0.1);
@@ -1406,7 +1459,7 @@ ${
         }
 
         .fc .fc-timegrid-event .fc-event-main {
-          padding: 4px; /* Reduced padding */
+          padding: 4px;
         }
 
         .fc .fc-daygrid-event .fc-event-main {
@@ -1417,7 +1470,7 @@ ${
         }
 
         .fc .fc-timegrid-axis {
-          font-size: 0.85rem; /* Smaller font size */
+          font-size: 0.85rem;
           color: #1f2937;
           font-weight: 500;
         }
@@ -1433,7 +1486,7 @@ ${
           background: #2c7a7b;
           color: #ffffff;
           font-weight: 700;
-          padding: 8px; /* Slightly reduced padding */
+          padding: 8px;
           border-radius: 4px;
         }
 
@@ -1467,8 +1520,8 @@ ${
         }
 
         .fc-view-harness.fc-timeGridDay-view {
-          max-height: 70vh; /* Fixed height for day view */
-          overflow-y: auto; /* Scrollbar for overflow */
+          max-height: 70vh;
+          overflow-y: auto;
         }
 
         @media (max-width: 640px) {
@@ -1477,7 +1530,7 @@ ${
           }
 
           .fc .fc-timegrid-event {
-            font-size: 0.75rem; /* Even smaller for mobile */
+            font-size: 0.75rem;
             padding: 3px 6px;
             min-height: 2rem;
           }
@@ -1493,7 +1546,7 @@ ${
           }
 
           .fc .fc-timegrid-slot {
-            height: 1.5rem; /* Further reduced for mobile */
+            height: 1.5rem;
           }
 
           .fc .fc-daygrid-day-number {
@@ -1502,11 +1555,10 @@ ${
           }
 
           .fc-view-harness.fc-timeGridDay-view {
-            max-height: 60vh; /* Slightly smaller for mobile */
+            max-height: 60vh;
           }
         }
       `}</style>
-
       <div className="flex flex-col sm:flex-row justify-end sm:items-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
           Lesson Plan Calendar
@@ -1549,7 +1601,7 @@ ${
           events={events}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          editable={userRole === "EDUCATOR"}
+          editable={userRole === "EDUCATOR" || isOrganizationOwner} // Allow organization owners to edit
           selectable={false}
           datesSet={(dateInfo) =>
             updateHeaderToolbar(dateInfo.view.currentStart)
@@ -1621,7 +1673,7 @@ ${
                 minute: "2-digit",
                 hour12: true,
               });
-              timeText = `${startTime}–${endTime}`;
+              timeText = `${startTime}-${endTime}`;
             } else if (start) {
               timeText = start.toLocaleTimeString("en-US", {
                 hour: "numeric",
@@ -1730,6 +1782,25 @@ ${
                       {new Date(selectedLesson.scheduledDate).toLocaleString()}
                     </li>
                   )}
+                  {(userRole === "EDUCATOR" || isOrganizationOwner) && (
+                    <li>
+                      <label className="block text-sm font-semibold text-teal-800 mb-2">
+                        Reschedule Lesson
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={
+                          selectedLesson.scheduledDate
+                            ? new Date(selectedLesson.scheduledDate)
+                                .toISOString()
+                                .slice(0, 16)
+                            : ""
+                        }
+                        onChange={handleDateTimeChange}
+                        className="border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400 w-full"
+                      />
+                    </li>
+                  )}
                 </ul>
               </div>
               <div>
@@ -1781,6 +1852,65 @@ ${
                   <p className="text-gray-600">No activities available.</p>
                 )}
               </div>
+              {selectedLesson.alternateActivities &&
+                !Array.isArray(selectedLesson.alternateActivities) &&
+                Object.keys(selectedLesson.alternateActivities).length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                      Alternate Activities
+                    </h2>
+                    {Object.entries(selectedLesson.alternateActivities).map(
+                      ([activityType, activities], index) =>
+                        activities.length > 0 ? (
+                          <div key={index}>
+                            <h3 className="text-lg font-semibold text-teal-700">
+                              {activityType.replace("_", " ")}
+                            </h3>
+                            <ul className="text-gray-600 list-inside list-disc space-y-4">
+                              {activities.map((activity, aIndex) => (
+                                <li key={aIndex}>
+                                  <strong className="text-teal-800">
+                                    {activity.title} (
+                                    {activity.activityType.replace("_", " ")})
+                                  </strong>
+                                  <p>{activity.description}</p>
+                                  <p className="text-sm">
+                                    <strong>Duration:</strong>{" "}
+                                    {activity.durationMins} minutes
+                                  </p>
+                                  <p className="text-sm">
+                                    <strong>Scores:</strong> Engagement (
+                                    {activity.engagementScore}%), Alignment (
+                                    {activity.alignmentScore}%), Feasibility (
+                                    {activity.feasibilityScore}%)
+                                  </p>
+                                  {activity.source ? (
+                                    <p className="text-sm">
+                                      <strong>Source:</strong>{" "}
+                                      <a
+                                        href={activity.source.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-teal-500 hover:underline"
+                                      >
+                                        {activity.source.name}
+                                      </a>
+                                      <br />
+                                      {activity.source.description}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">
+                                      No source provided.
+                                    </p>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null
+                    )}
+                  </div>
+                )}
               <div>
                 <h2 className="text-xl font-semibold text-teal-800 mb-3">
                   Supplies
@@ -1807,29 +1937,22 @@ ${
                   <ul className="text-gray-600 list-inside list-disc space-y-2">
                     {selectedLesson.supplies.map((supply, index) => (
                       <li key={index}>
-                        <strong className="text-teal-800">
-                          {supply.name} ({supply.quantity} {supply.unit})
-                        </strong>
+                        {supply.name} ({supply.quantity} {supply.unit})
                         {supply.note && (
+                          <p className="text-sm">Note: {supply.note}</p>
+                        )}
+                        {supply.shoppingLink && (
                           <p className="text-sm">
-                            <strong>Note:</strong> {supply.note}
+                            <a
+                              href={supply.shoppingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-500 hover:underline"
+                            >
+                              Shop on {selectedRetailer}
+                            </a>
                           </p>
                         )}
-                        <p className="text-sm">
-                          <a
-                            href={generateShoppingLink(
-                              supply,
-                              selectedRetailer
-                            )}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-teal-500 hover:underline"
-                          >
-                            Find {supply.name} on{" "}
-                            {retailers.find((r) => r.value === selectedRetailer)
-                              ?.label || "Retailer"}
-                          </a>
-                        </p>
                       </li>
                     ))}
                   </ul>
@@ -1855,11 +1978,11 @@ ${
                 <h2 className="text-xl font-semibold text-teal-800 mb-3">
                   Developmental Goals
                 </h2>
-                {selectedLesson.developmentGoals?.length > 0 ? (
-                  <ul className="text-gray-600 list-inside list-disc space-y-4">
+                {selectedLesson.developmentGoals.length > 0 ? (
+                  <ul className="text-gray-600 list-inside list-disc space-y-2">
                     {selectedLesson.developmentGoals.map((goal, index) => (
                       <li key={index}>
-                        <strong className="text-teal-800">{goal.name}</strong>
+                        <strong>{goal.name}</strong>
                         <p>{goal.description}</p>
                       </li>
                     ))}
@@ -1876,19 +1999,23 @@ ${
                     <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       DRDP Domains
                     </h2>
-                    {selectedLesson.drdpDomains?.length > 0 ? (
+                    {selectedLesson.drdpDomains.length > 0 ? (
                       <ul className="text-gray-600 list-inside list-disc space-y-4">
                         {selectedLesson.drdpDomains.map((domain, index) => (
                           <li key={index}>
-                            <strong className="text-teal-800">
+                            <strong>
                               {domain.code} - {domain.name}
                             </strong>
                             <p>{domain.description}</p>
-                            <ul className="list-inside list-disc ml-4 space-y-2">
-                              {domain.strategies.map((strategy, sIndex) => (
-                                <li key={sIndex}>{strategy}</li>
-                              ))}
-                            </ul>
+                            {domain.strategies.length > 0 && (
+                              <ul className="list-inside list-disc pl-5 space-y-2">
+                                {domain.strategies.map((strategy, sIndex) => (
+                                  <li key={sIndex} className="text-sm">
+                                    {strategy}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -1899,51 +2026,45 @@ ${
                     )}
                   </div>
                 )}
-              {selectedLesson.standards && (
-                <div>
-                  <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                    Standards Alignment
-                  </h2>
-                  {selectedLesson.standards?.length > 0 ? (
-                    <ul className="text-gray-600 list-inside list-disc space-y-4">
+              {selectedLesson.standards &&
+                selectedLesson.standards.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                      Standards Alignment
+                    </h2>
+                    <ul className="text-gray-600 list-inside list-disc space-y-2">
                       {selectedLesson.standards.map((standard, index) => (
                         <li key={index}>
-                          <strong className="text-teal-800">
-                            {standard.code}
-                          </strong>
+                          <strong>{standard.code}</strong>
                           <p>{standard.description}</p>
                           {standard.source && (
                             <p className="text-sm">
+                              <strong>Source:</strong>{" "}
                               <a
                                 href={standard.source.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-teal-500 hover:underline"
                               >
-                                Source: {standard.source.name}
+                                {standard.source.name}
                               </a>
                             </p>
                           )}
                         </li>
                       ))}
                     </ul>
-                  ) : (
-                    <p className="text-gray-600">No standards specified.</p>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
               {selectedLesson.sourceMetadata &&
                 selectedLesson.sourceMetadata.length > 0 && (
                   <div>
                     <h2 className="text-xl font-semibold text-teal-800 mb-3">
                       General Source Metadata
                     </h2>
-                    <ul className="text-gray-600 list-inside list-disc space-y-4">
+                    <ul className="text-gray-600 list-inside list-disc space-y-2">
                       {selectedLesson.sourceMetadata.map((source, index) => (
                         <li key={index}>
-                          <strong className="text-teal-800">
-                            {source.name}
-                          </strong>
+                          <strong>{source.name}</strong>
                           <p>
                             <a
                               href={source.url}
@@ -1971,17 +2092,39 @@ ${
                   </p>
                 </div>
               )}
-              {userRole === "EDUCATOR" && (
+              {isOrganizationOwner && (
                 <div>
                   <h2 className="text-xl font-semibold text-teal-800 mb-3">
-                    Update Schedule
+                    Notifications
                   </h2>
-                  <input
-                    type="datetime-local"
-                    value={selectedLesson.scheduledDate?.slice(0, 16) || ""}
-                    onChange={handleDateTimeChange}
-                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400"
-                  />
+                  {notificationsLoading ? (
+                    <p className="text-gray-600">Loading notifications...</p>
+                  ) : notificationsData?.notifications.notifications.length ? (
+                    <ul className="text-gray-600 list-inside list-disc space-y-2">
+                      {notificationsData.notifications.notifications
+                        .filter(
+                          (notification) =>
+                            notification.type === "LESSON_DELETION_REQUEST" &&
+                            notification.status === "PENDING"
+                        )
+                        .map((notification) => (
+                          <li key={notification.id}>
+                            <strong>{notification.message}</strong>
+                            <p>
+                              Sender: {notification.user?.name || "Unknown"}
+                            </p>
+                            <p>
+                              Created:{" "}
+                              {new Date(
+                                notification.createdAt
+                              ).toLocaleString()}
+                            </p>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600">No pending notifications.</p>
+                  )}
                 </div>
               )}
               <div className="flex justify-between items-end w-full mt-6 flex-wrap gap-4">
@@ -1989,48 +2132,30 @@ ${
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        onClick={() => printPDF(selectedLesson)}
-                        disabled={pdfLoading || printLoading}
-                        className={`p-3 rounded-lg transition shadow-sm ${
-                          printLoading || pdfLoading
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
-                        }`}
-                      >
-                        <FaPrint className="text-lg sm:text-xl" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="center">
-                      {printLoading ? "Preparing to print..." : "Print PDF"}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
                         onClick={() => exportToPDF(selectedLesson)}
-                        disabled={pdfLoading || printLoading}
+                        disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
                         }`}
                       >
                         <FaFilePdf className="text-lg sm:text-xl" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="center">
-                      {pdfLoading ? "Generating PDF..." : "Export to PDF"}
+                      Export to PDF
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         onClick={() => exportToWord(selectedLesson)}
-                        disabled={pdfLoading || printLoading}
+                        disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
                         }`}
                       >
                         <FaRegFileWord className="text-lg sm:text-xl" />
@@ -2043,12 +2168,30 @@ ${
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        onClick={() => shareLessonPlan(selectedLesson)}
-                        disabled={pdfLoading || printLoading}
+                        onClick={() => printPDF(selectedLesson)}
+                        disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaPrint className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Print Lesson Plan
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => shareLessonPlan(selectedLesson)}
+                        disabled={pdfLoading || printLoading || deleteLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
                         }`}
                       >
                         <CiShare2 className="text-lg sm:text-xl" />
@@ -2062,11 +2205,11 @@ ${
                     <TooltipTrigger asChild>
                       <Button
                         onClick={() => exportToGoogleCalendar(selectedLesson)}
-                        disabled={pdfLoading || printLoading}
+                        disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-white text-teal-600 hover:text-teal-800 hover:bg-gray-100"
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
                         }`}
                       >
                         <SiGooglecalendar className="text-lg sm:text-xl" />
@@ -2077,29 +2220,28 @@ ${
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <div className="mt-4 sm:mt-0">
+                {(userRole === "EDUCATOR" ||
+                  (isOrganizationOwner &&
+                    selectedLesson.created_by_id !== userId)) && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         onClick={handleDeleteLesson}
-                        disabled={pdfLoading || printLoading}
+                        disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading
+                          pdfLoading || printLoading || deleteLoading
                             ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-white text-red-500 hover:bg-gray-100"
+                            : "bg-red-100 text-red-600 hover:bg-red-200"
                         }`}
                       >
                         <FaTrash className="text-lg sm:text-xl" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="center">
-                      {isOrganizationOwner &&
-                      selectedLesson?.created_by_id === userId
-                        ? "Delete Lesson Plan"
-                        : "Request Lesson Plan Deletion"}
+                      Delete Lesson Plan
                     </TooltipContent>
                   </Tooltip>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -2113,7 +2255,7 @@ ${
         pauseOnHover
         draggable
         theme="light"
-      />
+      />{" "}
     </TooltipProvider>
   );
 }
