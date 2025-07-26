@@ -13,7 +13,7 @@ import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
-import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
+// import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { approveUser } from "@/app/actions/approveUser";
 import { Notification } from "../../types/lessonPlan";
@@ -156,8 +156,8 @@ export default function NotificationsClient({
 
   const handleApprove = async (
     notificationId: string,
-    senderId: string | null,
-    type: string
+    senderId: string | null
+    // type: string
   ) => {
     setLoading(true);
 
@@ -233,8 +233,8 @@ export default function NotificationsClient({
 
   const handleReject = async (
     notificationId: string,
-    senderId: string | null,
-    type: string
+    senderId: string | null
+    // type: string
   ) => {
     setLoading(true);
 
@@ -348,10 +348,6 @@ export default function NotificationsClient({
                 image: null,
               };
 
-              const fallbackImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                user.name || "User"
-              )}&background=0D8ABC&color=fff`;
-
               const createdAtDate = new Date(notification.createdAt);
               const formattedDate = isNaN(createdAtDate.getTime())
                 ? "Invalid Date"
@@ -421,8 +417,8 @@ export default function NotificationsClient({
                           onClick={() =>
                             handleApprove(
                               notification.id,
-                              notification.senderId,
-                              notification.type
+                              notification.senderId
+                              // notification.type
                             )
                           }
                           disabled={loading}
@@ -435,8 +431,8 @@ export default function NotificationsClient({
                           onClick={() =>
                             handleReject(
                               notification.id,
-                              notification.senderId,
-                              notification.type
+                              notification.senderId
+                              // notification.type
                             )
                           }
                           disabled={loading}
