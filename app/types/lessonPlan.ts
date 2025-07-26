@@ -111,15 +111,9 @@ export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
 
 export interface Notification {
-  id: number;
-  senderId: string;
+  id: string;
+  senderId: string | null;
   message: string;
-  user: {
-    email: string | null;
-    name: string | null;
-    image: string | null;
-  } | null;
-  organizationId?: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
   type:
     | "MESSAGE"
@@ -128,6 +122,11 @@ export interface Notification {
     | "ASSISTANT_REQUEST"
     | "LESSON_DELETION_REQUEST";
   createdAt: string;
+  user: {
+    email: string | null;
+    name: string | null;
+    image: string | null;
+  };
 }
 
 export type NotificationPayload = {
