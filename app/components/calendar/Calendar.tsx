@@ -43,8 +43,10 @@ import {
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { Activity, LessonPlan, Retailer, Supply } from "@/app/types/lessonPlan";
 import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
-import { useMutation } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { DELETE_LESSON_PLAN } from "@/app/graphql/mutations/deleteLessonPlan";
+import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
+import { Notification } from "../../types/lessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -394,6 +396,13 @@ export default function Calendar({
   const today = new Date();
   const [deleteLessonPlanMutation, { loading: deleteLoading }] =
     useMutation<DeleteLessonPlanResponse>(DELETE_LESSON_PLAN);
+
+  // Fetch notifications for organization owners
+  const { data: notificationsData, loading: notificationsLoading } = useQuery<{
+    notifications: { userId: string; notifications: Notification[] };
+  }>(GET_NOTIFICATIONS, {
+    skip: !isOrganizationOwner, // Only fetch if user is organization owner
+  });
 
   const retailers = [
     { value: "google", label: "Google Shopping" },
@@ -1550,7 +1559,6 @@ ${
           }
         }
       `}</style>
-
       <div className="flex flex-col sm:flex-row justify-end sm:items-center">
         <h1 className="text-2xl sm:text-3xl font-bold text-teal-800 sr-only">
           Lesson Plan Calendar
@@ -1593,7 +1601,7 @@ ${
           events={events}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          editable={userRole === "EDUCATOR"}
+          editable={userRole === "EDUCATOR" || isOrganizationOwner} // Allow organization owners to edit
           selectable={false}
           datesSet={(dateInfo) =>
             updateHeaderToolbar(dateInfo.view.currentStart)
@@ -1774,7 +1782,7 @@ ${
                       {new Date(selectedLesson.scheduledDate).toLocaleString()}
                     </li>
                   )}
-                  {userRole === "EDUCATOR" && (
+                  {(userRole === "EDUCATOR" || isOrganizationOwner) && (
                     <li>
                       <label className="block text-sm font-semibold text-teal-800 mb-2">
                         Reschedule Lesson
@@ -2084,6 +2092,41 @@ ${
                   </p>
                 </div>
               )}
+              {isOrganizationOwner && (
+                <div>
+                  <h2 className="text-xl font-semibold text-teal-800 mb-3">
+                    Notifications
+                  </h2>
+                  {notificationsLoading ? (
+                    <p className="text-gray-600">Loading notifications...</p>
+                  ) : notificationsData?.notifications.notifications.length ? (
+                    <ul className="text-gray-600 list-inside list-disc space-y-2">
+                      {notificationsData.notifications.notifications
+                        .filter(
+                          (notification) =>
+                            notification.type === "LESSON_DELETION_REQUEST" &&
+                            notification.status === "PENDING"
+                        )
+                        .map((notification) => (
+                          <li key={notification.id}>
+                            <strong>{notification.message}</strong>
+                            <p>
+                              Sender: {notification.user?.name || "Unknown"}
+                            </p>
+                            <p>
+                              Created:{" "}
+                              {new Date(
+                                notification.createdAt
+                              ).toLocaleString()}
+                            </p>
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-600">No pending notifications.</p>
+                  )}
+                </div>
+              )}
               <div className="flex justify-between items-end w-full mt-6 flex-wrap gap-4">
                 <div className="flex gap-3 flex-wrap">
                   <Tooltip>
@@ -2107,24 +2150,6 @@ ${
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        onClick={() => printPDF(selectedLesson)}
-                        disabled={pdfLoading || printLoading || deleteLoading}
-                        className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading || deleteLoading
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-white text-teal-600 hover:bg-gray-100"
-                        }`}
-                      >
-                        <FaPrint className="text-lg sm:text-xl" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="center">
-                      Print Lesson Plan
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
                         onClick={() => exportToWord(selectedLesson)}
                         disabled={pdfLoading || printLoading || deleteLoading}
                         className={`p-3 rounded-lg transition shadow-sm ${
@@ -2138,6 +2163,24 @@ ${
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="center">
                       Export to Word
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => printPDF(selectedLesson)}
+                        disabled={pdfLoading || printLoading || deleteLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white text-teal-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        <FaPrint className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Print Lesson Plan
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
@@ -2177,27 +2220,27 @@ ${
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                {selectedLesson.created_by_id === userId && (
-                  <div className="mt-4 sm:mt-0">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={handleDeleteLesson}
-                          disabled={pdfLoading || printLoading || deleteLoading}
-                          className={`p-3 rounded-lg transition shadow-sm ${
-                            pdfLoading || printLoading || deleteLoading
-                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                              : "bg-white text-red-500 hover:bg-gray-100"
-                          }`}
-                        >
-                          <FaTrash className="text-lg sm:text-xl" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" align="center">
-                        Delete Lesson Plan
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
+                {(userRole === "EDUCATOR" ||
+                  (isOrganizationOwner &&
+                    selectedLesson.created_by_id !== userId)) && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleDeleteLesson}
+                        disabled={pdfLoading || printLoading || deleteLoading}
+                        className={`p-3 rounded-lg transition shadow-sm ${
+                          pdfLoading || printLoading || deleteLoading
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-red-100 text-red-600 hover:bg-red-200"
+                        }`}
+                      >
+                        <FaTrash className="text-lg sm:text-xl" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Delete Lesson Plan
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -2212,7 +2255,7 @@ ${
         pauseOnHover
         draggable
         theme="light"
-      />
+      />{" "}
     </TooltipProvider>
   );
 }
