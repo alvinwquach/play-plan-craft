@@ -13,15 +13,15 @@ import Image from "next/image";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
-import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
+// import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { approveUser } from "@/app/actions/approveUser";
 import { Notification } from "../../types/lessonPlan";
 
-interface NotificationsClientProps {
+type NotificationsClientProps = {
   initialNotifications: Notification[];
   userId: string;
-}
+};
 
 const NotificationSkeleton = () => (
   <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-pulse">
@@ -85,13 +85,7 @@ export default function NotificationsClient({
           setNotifications((prev) => [
             {
               ...newNotification,
-              createdAt: newNotification.createdAt
-                ? new Date(
-                    isNaN(Number(newNotification.createdAt))
-                      ? newNotification.createdAt
-                      : Number(newNotification.createdAt)
-                  ).toISOString()
-                : new Date().toISOString(),
+              createdAt: new Date(newNotification.createdAt).toISOString(),
               user: sender || {
                 email: "Unknown",
                 name: "Unknown Sender",
@@ -120,13 +114,7 @@ export default function NotificationsClient({
                   ? {
                       ...n,
                       ...payload.new,
-                      createdAt: payload.new.createdAt
-                        ? new Date(
-                            isNaN(Number(payload.new.createdAt))
-                              ? payload.new.createdAt
-                              : Number(payload.new.createdAt)
-                          ).toISOString()
-                        : n.createdAt,
+                      createdAt: new Date(payload.new.createdAt).toISOString(),
                     }
                   : n
               )
@@ -167,28 +155,38 @@ export default function NotificationsClient({
   }, [userId, supabase, subscribed]);
 
   const handleApprove = async (
-    notificationId: number,
-    senderId: string,
-    type: string
+    notificationId: string,
+    senderId: string | null
+    // type: string
   ) => {
     setLoading(true);
 
-    if (type === "LESSON_DELETION_REQUEST") {
-      const response = await approveLessonDeletion(notificationId, true);
-      if (response.success) {
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-        toast.success("Lesson deletion request approved successfully!", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-      } else {
-        toast.error(response.error || "Failed to approve lesson deletion", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-      }
+    // if (type === "LESSON_DELETION_REQUEST") {
+    //   const response = await approveLessonDeletion(notificationId, true);
+    //   if (response.success) {
+    //     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    //     toast.success("Lesson deletion request approved successfully!", {
+    //       position: "top-center",
+    //       autoClose: 3000,
+    //       theme: "colored",
+    //     });
+    //   } else {
+    //     toast.error(response.error || "Failed to approve lesson deletion", {
+    //       position: "top-center",
+    //       autoClose: 3000,
+    //       theme: "colored",
+    //     });
+    //   }
+    //   setLoading(false);
+    //   return;
+    // }
+
+    if (!senderId) {
+      toast.error("Sender ID is missing. Cannot approve request.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
       setLoading(false);
       return;
     }
@@ -234,28 +232,38 @@ export default function NotificationsClient({
   };
 
   const handleReject = async (
-    notificationId: number,
-    senderId: string,
-    type: string
+    notificationId: string,
+    senderId: string | null
+    // type: string
   ) => {
     setLoading(true);
 
-    if (type === "LESSON_DELETION_REQUEST") {
-      const response = await approveLessonDeletion(notificationId, false);
-      if (response.success) {
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-        toast.success("Lesson deletion request rejected successfully!", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-      } else {
-        toast.error(response.error || "Failed to reject lesson deletion", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-      }
+    // if (type === "LESSON_DELETION_REQUEST") {
+    //   const response = await approveLessonDeletion(notificationId, false);
+    //   if (response.success) {
+    //     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    //     toast.success("Lesson deletion request rejected successfully!", {
+    //       position: "top-center",
+    //       autoClose: 3000,
+    //       theme: "colored",
+    //     });
+    //   } else {
+    //     toast.error(response.error || "Failed to reject lesson deletion", {
+    //       position: "top-center",
+    //       autoClose: 3000,
+    //       theme: "colored",
+    //     });
+    //   }
+    //   setLoading(false);
+    //   return;
+    // }
+
+    if (!senderId) {
+      toast.error("Sender ID is missing. Cannot reject request.", {
+        position: "top-center",
+        autoClose: 3000,
+        theme: "colored",
+      });
       setLoading(false);
       return;
     }
@@ -280,7 +288,7 @@ export default function NotificationsClient({
     setLoading(false);
   };
 
-  const handleDismiss = async (notificationId: number) => {
+  const handleDismiss = async (notificationId: string) => {
     setLoading(true);
     await supabase.from("notifications").delete().eq("id", notificationId);
 
@@ -340,15 +348,7 @@ export default function NotificationsClient({
                 image: null,
               };
 
-              const fallbackImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                user.name || "User"
-              )}&background=0D8ABC&color=fff`;
-
-              const createdAtDate = new Date(
-                isNaN(Number(notification.createdAt))
-                  ? notification.createdAt
-                  : Number(notification.createdAt)
-              );
+              const createdAtDate = new Date(notification.createdAt);
               const formattedDate = isNaN(createdAtDate.getTime())
                 ? "Invalid Date"
                 : createdAtDate.toLocaleString("en-US", {
@@ -367,7 +367,7 @@ export default function NotificationsClient({
                 >
                   <div className="flex-shrink-0">
                     <Image
-                      src={user.image || fallbackImage}
+                      src={user.image || "Fallback Image"}
                       alt={user.name || "User Avatar"}
                       width={48}
                       height={48}
@@ -417,8 +417,8 @@ export default function NotificationsClient({
                           onClick={() =>
                             handleApprove(
                               notification.id,
-                              notification.senderId,
-                              notification.type
+                              notification.senderId
+                              // notification.type
                             )
                           }
                           disabled={loading}
@@ -431,8 +431,8 @@ export default function NotificationsClient({
                           onClick={() =>
                             handleReject(
                               notification.id,
-                              notification.senderId,
-                              notification.type
+                              notification.senderId
+                              // notification.type
                             )
                           }
                           disabled={loading}
