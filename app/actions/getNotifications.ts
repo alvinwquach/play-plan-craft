@@ -32,6 +32,7 @@ export async function getNotifications(): Promise<{
       .select({
         id: notifications.id,
         senderId: notifications.senderId,
+        organizationId: notifications.organizationId,
         message: notifications.message,
         status: notifications.status,
         type: notifications.type,
@@ -59,6 +60,9 @@ export async function getNotifications(): Promise<{
     const formattedData: Notification[] = data.map((notification) => ({
       id: String(notification.id),
       senderId: notification.senderId ? String(notification.senderId) : null,
+      organizationId: notification.organizationId
+        ? String(notification.organizationId)
+        : null,
       message: notification.message,
       status: notification.status as "PENDING" | "APPROVED" | "REJECTED",
       type: notification.type as
