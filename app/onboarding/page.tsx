@@ -12,16 +12,7 @@ import { requestAssistantRole } from "../actions/requestAssistantRole";
 import { useMutation } from "@apollo/client";
 import { CREATE_EDUCATOR_ORGANIZATION } from "../graphql/mutations/createEducatorOrganization";
 
-// Register GSAP plugin
 gsap.registerPlugin(ScrollTrigger);
-
-interface User {
-  id: string;
-  email: string;
-  role: "EDUCATOR" | "ASSISTANT" | null;
-  organizationId: string | null;
-  pendingApproval: boolean;
-}
 
 interface CreateEducatorOrganizationResponse {
   createEducatorOrganization: {
