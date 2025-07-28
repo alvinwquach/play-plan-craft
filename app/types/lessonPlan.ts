@@ -112,8 +112,8 @@ export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
 
 export type Notification = {
   id: string;
-  senderId: string;
-  organizationId: string;
+  senderId: string | null;
+  organizationId: string | null;
   message: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
   type:
