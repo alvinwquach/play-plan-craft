@@ -233,6 +233,7 @@ const { handleRequest } = createYoga<NextContext>({
         REMINDER
         ASSISTANT_REQUEST
         LESSON_DELETION_REQUEST
+        LESSON_RESCHEDULE_REQUEST
         EDUCATOR_REQUEST
       }
 

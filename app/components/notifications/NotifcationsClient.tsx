@@ -17,7 +17,9 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { useMutation, useQuery } from "@apollo/client";
 import { APPROVE_USER } from "@/app/graphql/mutations/approveUser";
 import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
-import { Notification } from "../../types/lessonPlan";
+import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
+import { approveLessonReschedule } from "@/app/actions/approveLessonReschedule";
+import { Notification } from "@/app/types/lessonPlan";
 
 type NotificationsClientProps = {
   initialNotifications: Notification[];
@@ -82,6 +84,7 @@ export default function NotificationsClient({
     | "PENDING"
     | "APPROVED"
     | "LESSON_DELETION_REQUEST"
+    | "LESSON_RESCHEDULE_REQUEST"
     | "ASSISTANT_REQUEST"
     | "EDUCATOR_REQUEST"
   >("ALL");
@@ -249,7 +252,8 @@ export default function NotificationsClient({
 
   const handleApprove = async (
     notificationId: string,
-    senderId: string | null
+    senderId: string | null,
+    notificationType: string
   ) => {
     setLoading(true);
     if (!senderId) {
@@ -262,87 +266,115 @@ export default function NotificationsClient({
       setLoading(false);
       return;
     }
-    const {
-      data: { user: educator },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !educator) {
-      console.error(
-        "handleApprove: Auth error:",
-        authError?.message,
-        "educator:",
-        educator
-      );
-      toast.error("Failed to authenticate user. Please try again.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
-      setLoading(false);
-      return;
-    }
+
     try {
-      const { data, errors } = await approveUser({
-        variables: { input: { userId: senderId, approverId: educator.id } },
-      });
-      if (errors) {
-        console.error("handleApprove: GraphQL mutation errors:", errors);
-        toast.error(
-          `Failed to approve user: ${errors[0]?.message || "Unknown error"}`,
-          {
+      if (
+        notificationType === "ASSISTANT_REQUEST" ||
+        notificationType === "EDUCATOR_REQUEST"
+      ) {
+        const { data, errors } = await approveUser({
+          variables: { input: { userId: senderId, approverId: userId } },
+        });
+        if (errors) {
+          console.error("handleApprove: GraphQL mutation errors:", errors);
+          toast.error(
+            `Failed to approve user: ${errors[0]?.message || "Unknown error"}`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+          setLoading(false);
+          return;
+        }
+        const response = data?.approveUser;
+        if (response?.error) {
+          console.error("handleApprove: Approve user error:", response.error);
+          toast.error(response.error.message || "Failed to approve request.", {
             position: "top-center",
             autoClose: 3000,
             theme: "colored",
+          });
+          setLoading(false);
+          return;
+        }
+        if (response?.success) {
+          const { error: updateError } = await supabase
+            .from("notifications")
+            .update({ status: "APPROVED" })
+            .eq("id", notificationId);
+          if (updateError) {
+            console.error(
+              "handleApprove: Supabase notification update error:",
+              updateError
+            );
+            toast.error("Failed to update notification status.", {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            });
           }
-        );
-        setLoading(false);
-        return;
-      }
-      const response = data?.approveUser;
-      if (response?.error) {
-        console.error("handleApprove: Approve user error:", response.error);
-        toast.error(response.error.message || "Failed to approve request.", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-        setLoading(false);
-        return;
-      }
-      if (response?.success) {
-        const { error: updateError } = await supabase
-          .from("notifications")
-          .update({ status: "APPROVED" })
-          .eq("id", notificationId);
-        if (updateError) {
-          console.error(
-            "handleApprove: Supabase notification update error:",
-            updateError
-          );
-          toast.error("Failed to update notification status.", {
+          toast.success("User approved successfully!", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        } else {
+          console.error("handleApprove: No success response:", response);
+          toast.error("Failed to approve user: No success response.", {
             position: "top-center",
             autoClose: 3000,
             theme: "colored",
           });
         }
-        toast.success("User approved successfully!", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
-        refetch();
-      } else {
-        console.error("handleApprove: No success response:", response);
-        toast.error("Failed to approve user: No success response.", {
-          position: "top-center",
-          autoClose: 3000,
-          theme: "colored",
-        });
+      } else if (notificationType === "LESSON_DELETION_REQUEST") {
+        const result = await approveLessonDeletion(
+          Number(notificationId),
+          true
+        );
+        if (result.success) {
+          toast.success("Lesson deletion approved successfully!", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        } else {
+          console.error("handleApprove: Lesson deletion error:", result.error);
+          toast.error(result.error || "Failed to approve lesson deletion.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
+      } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
+        const result = await approveLessonReschedule(
+          Number(notificationId),
+          true
+        );
+        if (result.success) {
+          toast.success("Lesson reschedule approved successfully!", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        } else {
+          console.error(
+            "handleApprove: Lesson reschedule error:",
+            result.error
+          );
+          toast.error(result.error || "Failed to approve lesson reschedule.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
       }
+      refetch();
     } catch (error: unknown) {
-      console.error("handleApprove: GraphQL mutation error (catch):", error);
+      console.error("handleApprove: Error:", error);
       toast.error(
-        `Failed to approve user: ${
+        `Failed to approve request: ${
           (error as Error).message || "Unknown error"
         }`,
         {
@@ -358,7 +390,8 @@ export default function NotificationsClient({
 
   const handleReject = async (
     notificationId: string,
-    senderId: string | null
+    senderId: string | null,
+    notificationType: string
   ) => {
     setLoading(true);
     if (!senderId) {
@@ -371,20 +404,64 @@ export default function NotificationsClient({
       setLoading(false);
       return;
     }
+
     try {
-      await supabase
-        .from("users")
-        .update({ organizationId: null, pendingApproval: false })
-        .eq("id", senderId);
-      await supabase
-        .from("notifications")
-        .update({ status: "REJECTED" })
-        .eq("id", notificationId);
-      toast.success("Request rejected successfully.", {
-        position: "top-center",
-        autoClose: 3000,
-        theme: "colored",
-      });
+      if (
+        notificationType === "ASSISTANT_REQUEST" ||
+        notificationType === "EDUCATOR_REQUEST"
+      ) {
+        await supabase
+          .from("users")
+          .update({ organizationId: null, pendingApproval: false })
+          .eq("id", senderId);
+        await supabase
+          .from("notifications")
+          .update({ status: "REJECTED" })
+          .eq("id", notificationId);
+        toast.success("Request rejected successfully.", {
+          position: "top-center",
+          autoClose: 3000,
+          theme: "colored",
+        });
+      } else if (notificationType === "LESSON_DELETION_REQUEST") {
+        const result = await approveLessonDeletion(
+          Number(notificationId),
+          false
+        );
+        if (result.success) {
+          toast.success("Lesson deletion rejected successfully!", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        } else {
+          console.error("handleReject: Lesson deletion error:", result.error);
+          toast.error(result.error || "Failed to reject lesson deletion.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
+      } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
+        const result = await approveLessonReschedule(
+          Number(notificationId),
+          false
+        );
+        if (result.success) {
+          toast.success("Lesson reschedule rejected successfully!", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        } else {
+          console.error("handleReject: Lesson reschedule error:", result.error);
+          toast.error(result.error || "Failed to reject lesson reschedule.", {
+            position: "top-center",
+            autoClose: 3000,
+            theme: "colored",
+          });
+        }
+      }
       refetch();
     } catch (error: unknown) {
       console.error("handleReject: Error rejecting request:", error);
@@ -425,6 +502,7 @@ export default function NotificationsClient({
     { label: "Pending", value: "PENDING" },
     { label: "Approved", value: "APPROVED" },
     { label: "Deletion Requests", value: "LESSON_DELETION_REQUEST" },
+    { label: "Reschedule Requests", value: "LESSON_RESCHEDULE_REQUEST" },
     { label: "Assistant Requests", value: "ASSISTANT_REQUEST" },
     { label: "Educator Requests", value: "EDUCATOR_REQUEST" },
   ];
@@ -532,6 +610,11 @@ export default function NotificationsClient({
                             Lesson Deletion
                           </span>
                         )}
+                        {notification.type === "LESSON_RESCHEDULE_REQUEST" && (
+                          <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-1 rounded-full">
+                            Lesson Reschedule
+                          </span>
+                        )}
                         {notification.type === "ASSISTANT_REQUEST" && (
                           <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
                             Assistant Request
@@ -578,15 +661,17 @@ export default function NotificationsClient({
                     {notification.status === "PENDING" &&
                     [
                       "ASSISTANT_REQUEST",
-                      "LESSON_DELETION_REQUEST",
                       "EDUCATOR_REQUEST",
+                      "LESSON_DELETION_REQUEST",
+                      "LESSON_RESCHEDULE_REQUEST",
                     ].includes(notification.type) ? (
                       <>
                         <button
                           onClick={() =>
                             handleApprove(
                               notification.id,
-                              notification.senderId
+                              notification.senderId,
+                              notification.type
                             )
                           }
                           disabled={loading || approveUserLoading}
@@ -597,7 +682,11 @@ export default function NotificationsClient({
                         </button>
                         <button
                           onClick={() =>
-                            handleReject(notification.id, notification.senderId)
+                            handleReject(
+                              notification.id,
+                              notification.senderId,
+                              notification.type
+                            )
                           }
                           disabled={loading || approveUserLoading}
                           className="w-10 h-10 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
