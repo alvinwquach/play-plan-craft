@@ -420,11 +420,10 @@ const { handleRequest } = createYoga<NextContext>({
         requestAssistantRole(
           input: RequestAssistantRoleInput!
         ): RequestAssistantRoleResponse!
-      
+
         createEducatorOrganization(
           input: CreateEducatorOrganizationInput!
-        ): CreateEducatorOrganizationResponse!
-      }
+        ): CreateEducatorOrganizationResponse
       }
     `,
     resolvers: {
