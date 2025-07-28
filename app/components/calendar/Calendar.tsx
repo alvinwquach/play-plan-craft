@@ -1978,7 +1978,7 @@ ${
                 <h2 className="text-xl font-semibold text-teal-800 mb-3">
                   Developmental Goals
                 </h2>
-                {selectedLesson.developmentGoals.length > 0 ? (
+                {selectedLesson.developmentGoals?.length > 0 ? (
                   <ul className="text-gray-600 list-inside list-disc space-y-2">
                     {selectedLesson.developmentGoals.map((goal, index) => (
                       <li key={index}>
