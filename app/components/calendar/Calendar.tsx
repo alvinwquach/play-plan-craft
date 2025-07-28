@@ -396,7 +396,6 @@ export default function Calendar({
   const today = new Date();
   const [deleteLessonPlanMutation, { loading: deleteLoading }] =
     useMutation<DeleteLessonPlanResponse>(DELETE_LESSON_PLAN);
-
   const { data: notificationsData, loading: notificationsLoading } = useQuery<{
     notifications: { userId: string; notifications: Notification[] };
   }>(GET_NOTIFICATIONS, {
