@@ -87,7 +87,7 @@ export async function rescheduleLessonPlan(
 
       const start = new Date(scheduledDate);
       await db.insert(notifications).values({
-        userId: organization.user_id, // Notify the organization owner
+        userId: organization.user_id,
         senderId: user.id,
         type: "LESSON_RESCHEDULE_REQUEST",
         message: `User ${user.id} requested to reschedule lesson plan "${
