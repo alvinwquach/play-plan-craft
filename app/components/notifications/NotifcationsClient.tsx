@@ -14,8 +14,9 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useRouter } from "next/navigation";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import { useMutation } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { APPROVE_USER } from "@/app/graphql/mutations/approveUser";
+import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
 import { Notification } from "../../types/lessonPlan";
 
 type NotificationsClientProps = {
@@ -76,10 +77,37 @@ export default function NotificationsClient({
     useState<Notification[]>(initialNotifications);
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [filter, setFilter] = useState<
+    | "ALL"
+    | "PENDING"
+    | "APPROVED"
+    | "LESSON_DELETION_REQUEST"
+    | "ASSISTANT_REQUEST"
+    | "EDUCATOR_REQUEST"
+  >("ALL");
   const supabase = createClient();
   const router = useRouter();
   const [approveUser, { loading: approveUserLoading }] =
     useMutation<ApproveUserResponse>(APPROVE_USER);
+
+  const {
+    data,
+    loading: queryLoading,
+    refetch,
+  } = useQuery(GET_NOTIFICATIONS, {
+    variables: { filter: filter === "ALL" ? null : filter },
+    fetchPolicy: "network-only",
+  });
+
+  useEffect(() => {
+    if (data?.notifications?.notifications) {
+      setNotifications(data.notifications.notifications);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    refetch({ filter: filter === "ALL" ? null : filter });
+  }, [filter, refetch]);
 
   useEffect(() => {
     if (subscribed) return;
@@ -96,12 +124,18 @@ export default function NotificationsClient({
         },
         async (payload) => {
           const newNotification = payload.new as Omit<Notification, "user">;
-          if (
-            !["PENDING", "APPROVED", "REJECTED"].includes(
-              newNotification.status
-            )
-          )
+          if (!["PENDING", "APPROVED"].includes(newNotification.status)) {
             return;
+          }
+
+          if (
+            filter !== "ALL" &&
+            (filter === "PENDING" || filter === "APPROVED"
+              ? newNotification.status !== filter
+              : newNotification.type !== filter)
+          ) {
+            return;
+          }
 
           const { data: sender, error } = await supabase
             .from("users")
@@ -110,7 +144,10 @@ export default function NotificationsClient({
             .single();
 
           if (error) {
-            console.error("Error fetching sender details:", error.message);
+            console.error(
+              "NotificationsClient: Error fetching sender details:",
+              error.message
+            );
             toast.error("Failed to fetch sender details.", {
               position: "top-center",
               autoClose: 3000,
@@ -143,21 +180,36 @@ export default function NotificationsClient({
           filter: `userId=eq.${userId}`,
         },
         (payload) => {
+          if (!["PENDING", "APPROVED"].includes(payload.new.status)) {
+            setNotifications((prev) =>
+              prev.filter((n) => n.id !== payload.new.id)
+            );
+            return;
+          }
+
           if (
-            ["PENDING", "APPROVED", "REJECTED"].includes(payload.new.status)
+            filter !== "ALL" &&
+            (filter === "PENDING" || filter === "APPROVED"
+              ? payload.new.status !== filter
+              : payload.new.type !== filter)
           ) {
             setNotifications((prev) =>
-              prev.map((n) =>
-                n.id === payload.new.id
-                  ? {
-                      ...n,
-                      ...payload.new,
-                      createdAt: new Date(payload.new.createdAt).toISOString(),
-                    }
-                  : n
-              )
+              prev.filter((n) => n.id !== payload.new.id)
             );
+            return;
           }
+
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n.id === payload.new.id
+                ? {
+                    ...n,
+                    ...payload.new,
+                    createdAt: new Date(payload.new.createdAt).toISOString(),
+                  }
+                : n
+            )
+          );
         }
       )
       .on(
@@ -177,7 +229,10 @@ export default function NotificationsClient({
       .subscribe((status, error) => {
         setSubscribed(status === "SUBSCRIBED");
         if (error) {
-          console.error("Subscription error:", error.message);
+          console.error(
+            "NotificationsClient: Subscription error:",
+            error.message
+          );
           toast.error("Error connecting to notifications. Please refresh.", {
             position: "top-center",
             autoClose: 3000,
@@ -190,7 +245,7 @@ export default function NotificationsClient({
       supabase.removeChannel(channel);
       setSubscribed(false);
     };
-  }, [userId, supabase, subscribed]);
+  }, [userId, supabase, subscribed, filter]);
 
   const handleApprove = async (
     notificationId: string,
@@ -227,15 +282,9 @@ export default function NotificationsClient({
       return;
     }
     try {
-      console.log("handleApprove: Input variables:", {
-        userId: senderId,
-        approverId: educator.id,
-        notificationId,
-      });
       const { data, errors } = await approveUser({
         variables: { input: { userId: senderId, approverId: educator.id } },
       });
-      console.log("handleApprove: GraphQL response:", { data, errors });
       if (errors) {
         console.error("handleApprove: GraphQL mutation errors:", errors);
         toast.error(
@@ -276,12 +325,12 @@ export default function NotificationsClient({
             theme: "colored",
           });
         }
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
         toast.success("User approved successfully!", {
           position: "top-center",
           autoClose: 3000,
           theme: "colored",
         });
+        refetch();
       } else {
         console.error("handleApprove: No success response:", response);
         toast.error("Failed to approve user: No success response.", {
@@ -313,6 +362,7 @@ export default function NotificationsClient({
   ) => {
     setLoading(true);
     if (!senderId) {
+      console.error("handleReject: Sender ID is missing");
       toast.error("Sender ID is missing. Cannot reject request.", {
         position: "top-center",
         autoClose: 3000,
@@ -330,14 +380,14 @@ export default function NotificationsClient({
         .from("notifications")
         .update({ status: "REJECTED" })
         .eq("id", notificationId);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       toast.success("Request rejected successfully.", {
         position: "top-center",
         autoClose: 3000,
         theme: "colored",
       });
+      refetch();
     } catch (error: unknown) {
-      console.error("Error rejecting request:", error);
+      console.error("handleReject: Error rejecting request:", error);
       toast.error("Failed to reject request.", {
         position: "top-center",
         autoClose: 3000,
@@ -352,14 +402,14 @@ export default function NotificationsClient({
     setLoading(true);
     try {
       await supabase.from("notifications").delete().eq("id", notificationId);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       toast.success("Notification dismissed.", {
         position: "top-center",
         autoClose: 3000,
         theme: "colored",
       });
+      refetch();
     } catch (error: unknown) {
-      console.error("Error dismissing notification:", error);
+      console.error("handleDismiss: Error dismissing notification:", error);
       toast.error("Failed to dismiss notification.", {
         position: "top-center",
         autoClose: 3000,
@@ -369,6 +419,15 @@ export default function NotificationsClient({
       setLoading(false);
     }
   };
+
+  const tabs = [
+    { label: "All", value: "ALL" },
+    { label: "Pending", value: "PENDING" },
+    { label: "Approved", value: "APPROVED" },
+    { label: "Deletion Requests", value: "LESSON_DELETION_REQUEST" },
+    { label: "Assistant Requests", value: "ASSISTANT_REQUEST" },
+    { label: "Educator Requests", value: "EDUCATOR_REQUEST" },
+  ];
 
   const skeletonCount = Math.max(initialNotifications.length, 1);
 
@@ -385,7 +444,26 @@ export default function NotificationsClient({
             and organization.
           </p>
         </div>
-        {loading || approveUserLoading ? (
+        <div className="mb-6">
+          <div className="flex overflow-x-auto space-x-4 pb-2 sm:justify-center scrollbar-hide">
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setFilter(tab.value as typeof filter)}
+                role="tab"
+                aria-selected={filter === tab.value}
+                className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  filter === tab.value
+                    ? "text-teal-600 border-b-4 border-teal-600 font-semibold"
+                    : "text-gray-500 hover:text-gray-700 hover:border-b-2 hover:border-gray-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {loading || approveUserLoading || queryLoading ? (
           <div className="space-y-4">
             {[...Array(skeletonCount)].map((_, i) => (
               <NotificationSkeleton key={i} />
@@ -459,6 +537,11 @@ export default function NotificationsClient({
                             Assistant Request
                           </span>
                         )}
+                        {notification.type === "EDUCATOR_REQUEST" && (
+                          <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full">
+                            Educator Request
+                          </span>
+                        )}
                         {notification.type === "ALERT" && (
                           <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full">
                             Alert
@@ -493,9 +576,11 @@ export default function NotificationsClient({
                   </div>
                   <div className="flex gap-3 mt-4 sm:mt-0 sm:ml-4">
                     {notification.status === "PENDING" &&
-                    ["ASSISTANT_REQUEST", "EDUCATOR_REQUEST"].includes(
-                      notification.type
-                    ) ? (
+                    [
+                      "ASSISTANT_REQUEST",
+                      "LESSON_DELETION_REQUEST",
+                      "EDUCATOR_REQUEST",
+                    ].includes(notification.type) ? (
                       <>
                         <button
                           onClick={() =>

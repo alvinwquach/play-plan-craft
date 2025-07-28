@@ -209,6 +209,7 @@ const { handleRequest } = createYoga<NextContext>({
         REMINDER
         ASSISTANT_REQUEST
         LESSON_DELETION_REQUEST
+        EDUCATOR_REQUEST
       }
 
       type User {
@@ -360,17 +361,15 @@ const { handleRequest } = createYoga<NextContext>({
       type Query {
         greetings: String
         lessonPlans: LessonPlansResponse!
-        notifications: NotificationsResponse!
+        notifications(filter: String): NotificationsResponse!
       }
     `,
     resolvers: {
       Query: {
         lessonPlans: async () => {
-          console.log("lessonPlans resolver hit");
 
           try {
             const result = await getLessonPlans();
-            console.log("lessonPlans result:", result);
 
             const {
               success,
@@ -395,19 +394,23 @@ const { handleRequest } = createYoga<NextContext>({
             throw err;
           }
         },
-        notifications: async () => {
-          const { userId, notifications } = await getNotifications();
+        notifications: async (_, { filter }) => {
+          try {
+            const { userId, notifications } = await getNotifications(filter);
+            if (!userId || !notifications) {
+              throw new Error(
+                "Failed to fetch notifications or user not authenticated"
+              );
+            }
 
-          if (!userId || !notifications) {
-            throw new Error(
-              "Failed to fetch notifications or user not authenticated"
-            );
+            return {
+              userId,
+              notifications,
+            };
+          } catch (err) {
+            console.error("Notifications resolver failed:", err);
+            throw err;
           }
-
-          return {
-            userId,
-            notifications,
-          };
         },
       },
     },

@@ -6,7 +6,9 @@ import NotificationsClient from "../components/notifications/NotifcationsClient"
 import { GET_NOTIFICATIONS } from "../graphql/queries/getNotifications";
 
 export default function NotificationsPage() {
-  const { data, loading, error } = useQuery(GET_NOTIFICATIONS);
+  const { data, loading, error } = useQuery(GET_NOTIFICATIONS, {
+    variables: { filter: null },
+  });
 
   if (loading) {
     return <div>Loading notifications...</div>;

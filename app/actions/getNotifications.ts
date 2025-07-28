@@ -13,7 +13,7 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
-export async function getNotifications(): Promise<{
+export async function getNotifications(filter?: string): Promise<{
   userId: string | null;
   notifications: Notification[];
 }> {
@@ -25,7 +25,31 @@ export async function getNotifications(): Promise<{
     } = await supabase.auth.getUser();
 
     if (error || !user) {
+      console.error("getNotifications: Auth error:", error?.message);
       return { userId: null, notifications: [] };
+    }
+
+    const allowedFilters = [
+      "ASSISTANT_REQUEST",
+      "LESSON_DELETION_REQUEST",
+      "EDUCATOR_REQUEST",
+      "PENDING",
+      "APPROVED",
+    ];
+
+    const conditions = [eq(notifications.userId, user.id)];
+
+    if (filter && allowedFilters.includes(filter)) {
+      if (filter === "PENDING" || filter === "APPROVED") {
+        conditions.push(eq(notifications.status, filter));
+      } else {
+        conditions.push(eq(notifications.type, filter));
+        conditions.push(inArray(notifications.status, ["PENDING", "APPROVED"]));
+      }
+    } else if (!filter) {
+      conditions.push(inArray(notifications.status, ["PENDING", "APPROVED"]));
+    } else {
+      return { userId: user.id, notifications: [] };
     }
 
     const data = await db
@@ -45,48 +69,44 @@ export async function getNotifications(): Promise<{
       })
       .from(notifications)
       .leftJoin(users, eq(notifications.senderId, users.id))
-      .where(
-        and(
-          eq(notifications.userId, user.id),
-          inArray(notifications.status, ["PENDING", "APPROVED"]),
-          inArray(notifications.type, [
-            "ASSISTANT_REQUEST",
-            "LESSON_DELETION_REQUEST",
-          ])
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(notifications.createdAt));
 
-    const formattedData: Notification[] = data.map((notification) => ({
-      id: String(notification.id),
-      senderId: notification.senderId ? String(notification.senderId) : null,
-      organizationId: notification.organizationId
-        ? String(notification.organizationId)
-        : null,
-      message: notification.message,
-      status: notification.status as "PENDING" | "APPROVED" | "REJECTED",
-      type: notification.type as
-        | "MESSAGE"
-        | "ALERT"
-        | "REMINDER"
-        | "ASSISTANT_REQUEST"
-        | "LESSON_DELETION_REQUEST",
-      createdAt: notification.createdAt
-        ? new Date(notification.createdAt).toISOString()
-        : new Date().toISOString(),
-      user: {
-        email: notification.user?.email ?? null,
-        name: notification.user?.name ?? null,
-        image: notification.user?.image ?? null,
-      },
-    }));
+    const formattedData: Notification[] = data.map((notification) => {
+      const formattedNotification = {
+        id: String(notification.id),
+        senderId: notification.senderId ? String(notification.senderId) : null,
+        organizationId: notification.organizationId
+          ? String(notification.organizationId)
+          : null,
+        message: notification.message,
+        status: notification.status as "PENDING" | "APPROVED" | "REJECTED",
+        type: notification.type as
+          | "MESSAGE"
+          | "ALERT"
+          | "REMINDER"
+          | "ASSISTANT_REQUEST"
+          | "LESSON_DELETION_REQUEST"
+          | "EDUCATOR_REQUEST",
+        createdAt: notification.createdAt
+          ? new Date(notification.createdAt).toISOString()
+          : new Date().toISOString(),
+        user: {
+          email: notification.user?.email ?? null,
+          name: notification.user?.name ?? null,
+          image: notification.user?.image ?? null,
+        },
+      };
+
+      return formattedNotification;
+    });
 
     return {
       userId: user.id,
       notifications: formattedData,
     };
   } catch (err) {
-    console.error("Failed to fetch notifications:", err);
+    console.error("getNotifications: Failed to fetch notifications:", err);
     return { userId: null, notifications: [] };
   }
 }
