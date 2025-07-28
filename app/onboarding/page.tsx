@@ -285,7 +285,6 @@ export default function Onboarding() {
                   assistants to join your organization.
                 </li>
               </ul>
-
               <label
                 htmlFor="educatorEmail"
                 className="block text-gray-700 font-medium sr-only"
