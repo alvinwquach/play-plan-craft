@@ -110,7 +110,7 @@ export type Retailer = "google" | "amazon" | "walmart";
 export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
 
-export type Notification = {
+export interface Notification {
   id: string;
   senderId: string | null;
   organizationId: string | null;
@@ -123,13 +123,12 @@ export type Notification = {
     | "ASSISTANT_REQUEST"
     | "LESSON_DELETION_REQUEST";
   createdAt: string;
-  userId: string;
   user: {
     email: string | null;
     name: string | null;
     image: string | null;
   };
-};
+}
 
 export type NotificationPayload = {
   eventType: string;

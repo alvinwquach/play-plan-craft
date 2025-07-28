@@ -31,7 +31,6 @@ export async function getNotifications(): Promise<{
     const data = await db
       .select({
         id: notifications.id,
-        userId: notifications.userId, // Added userId to the select
         senderId: notifications.senderId,
         organizationId: notifications.organizationId,
         message: notifications.message,
@@ -60,7 +59,6 @@ export async function getNotifications(): Promise<{
 
     const formattedData: Notification[] = data.map((notification) => ({
       id: String(notification.id),
-      userId: String(notification.userId), // Added userId to the mapping
       senderId: notification.senderId ? String(notification.senderId) : null,
       organizationId: notification.organizationId
         ? String(notification.organizationId)

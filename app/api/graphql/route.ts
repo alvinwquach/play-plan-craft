@@ -1,19 +1,6 @@
-// /api/graphql.ts
-import { createYoga, createSchema } from "graphql-yoga";
-import { createClient } from "@/utils/supabase/server";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
-import { schedules } from "@/app/db/schema/table/schedules";
-import { users } from "@/app/db/schema/table/users";
-import { organizations } from "@/app/db/schema/table/organizations";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const db = drizzle(pool);
+import { getLessonPlans } from "@/app/actions/getLessonPlans";
+import { getNotifications } from "@/app/actions/getNotifications";
+import { createSchema, createYoga } from "graphql-yoga";
 
 interface NextContext {
   params: Promise<Record<string, string>>;
@@ -23,356 +10,415 @@ const CustomResponse = Response as typeof Response & {
   json: (data: unknown, init?: ResponseInit) => Response;
 };
 
-interface PostgresError extends Error {
-  code?: string;
-}
-
-interface ActionResponse<T = unknown> {
-  data?: T;
-  error?: { message: string; code: string };
-}
-
 const { handleRequest } = createYoga<NextContext>({
   schema: createSchema({
     typeDefs: /* GraphQL */ `
+      enum AgeGroup {
+        INFANT
+        TODDLER
+        PRESCHOOL
+        KINDERGARTEN
+        GRADE_1
+        GRADE_2
+        GRADE_3
+        GRADE_4
+        GRADE_5
+        GRADE_6
+        GRADE_7
+        GRADE_8
+        GRADE_9
+        GRADE_10
+        GRADE_11
+        GRADE_12
+      }
+
+      enum Subject {
+        LITERACY
+        MATH
+        SCIENCE
+        ART
+        MUSIC
+        PHYSICAL_EDUCATION
+        SOCIAL_EMOTIONAL
+        HISTORY
+        GEOGRAPHY
+        STEM
+        FOREIGN_LANGUAGE
+        COMPUTER_SCIENCE
+        CIVICS
+        ENGLISH
+        MATHEMATICS
+        THE_ARTS
+        HEALTH_PE
+        HUMANITIES_SOCIAL_SCIENCES
+        TECHNOLOGIES
+        LANGUAGES
+        CIVICS_CITIZENSHIP
+        SENSORY_DEVELOPMENT
+        FINE_MOTOR_SKILLS
+        LANGUAGE_DEVELOPMENT
+        SOCIAL_STUDIES
+        DRAMA
+        DANCE
+        HEALTH_AND_WELLNESS
+        CHARACTER_EDUCATION
+        COMMUNITY_SERVICE
+        ENGINEERING
+        BUSINESS
+        ECONOMICS
+        PHILOSOPHY
+      }
+
+      enum Theme {
+        SEASONS
+        NATURE
+        HOLIDAYS
+        EMOTIONS
+        COMMUNITY
+        ANIMALS
+        TRANSPORTATION
+        COLORS
+        SHAPES
+        NUMBERS
+        CULTURE
+        HISTORY
+        SCIENCE_FICTION
+        GLOBAL_ISSUES
+        LITERATURE
+        INDIGENOUS_CULTURE
+        AUSTRALIAN_HISTORY
+        SUSTAINABILITY
+        COLOURS
+        TRANSPORT
+        SPACE
+        OCEANS
+        WEATHER
+        FAMILY
+        CULTURES
+        HEROES
+        IMAGINATION
+        FRIENDSHIP
+        HEALTH
+        SAFETY
+        SCIENCE
+        GEOGRAPHY
+        ENVIRONMENT
+        TECHNOLOGY
+        INNOVATION
+        CITIZENSHIP
+        DIVERSITY
+        HERITAGE
+        EXPLORATION
+        PHYSICS
+        BIOLOGY
+        CHEMISTRY
+        ECONOMICS
+        GOVERNMENT
+        SOCIALJUSTICE
+        GLOBALISSUES
+        PHILOSOPHY
+        ETHICS
+        RESEARCH
+        ENTREPRENEURSHIP
+        GLOBALCITIZENSHIP
+        CAREERDEVELOPMENT
+        LEADERSHIP
+        CRITICALTHINKING
+      }
+
+      enum ActivityType {
+        UNKNOWN
+        STORYTELLING
+        CRAFT
+        MOVEMENT
+        MUSIC
+        EXPERIMENT
+        FREE_PLAY
+        OUTDOOR
+        GROUP_DISCUSSION
+        PROJECT
+        PRESENTATION
+        WRITING
+        RESEARCH
+        DEBATE
+        CODING
+        INDIGENOUS_STORY
+        QUIZ
+        PROJECT_BASED
+        HANDS_ON
+        DEMONSTRATION
+        ROLE_PLAY
+        CASE_STUDY
+        TEST
+        REVIEW_GAME
+        FLASHCARDS
+        SELF_ASSESSMENT
+        PEER_REVIEW
+        CLASS_DISCUSSION
+        ONLINE_RESEARCH
+        DIGITAL_PROJECT
+        INTERACTIVE_SIMULATION
+        VIRTUAL_FIELD_TRIP
+        PROGRAMMING_EXERCISE
+        MULTIMEDIA_PRESENTATION
+        SCIENCE_FAIR
+        ART_PORTFOLIO
+        MUSIC_PERFORMANCE
+        THEATER_PRODUCTION
+        SPORTS_COMPETITION
+        SCIENCE_COMPETITION
+        RESEARCH_PROJECT
+        SERVICE_LEARNING
+        ENTREPRENEURSHIP
+        ART_EXHIBITION
+        MUSIC_RECRITAL
+        STUDY_GROUP
+        PRACTICE_EXERCISES
+        REVIEW_SESSION
+        QUIZ_GAME
+        SCAVENGER_HUNT
+        ESCAPE_ROOM
+      }
+
+      enum LessonStatus {
+        DRAFT
+        PUBLISHED
+        ARCHIVED
+      }
+
       enum UserRole {
-        ADMIN
         EDUCATOR
+        ADMIN
         ASSISTANT
       }
 
+      enum Curriculum {
+        US
+        AUS
+      }
+
+      enum NotificationStatus {
+        PENDING
+        APPROVED
+        REJECTED
+      }
+
+      enum NotificationType {
+        MESSAGE
+        ALERT
+        REMINDER
+        ASSISTANT_REQUEST
+        LESSON_DELETION_REQUEST
+      }
+
       type User {
-        id: String!
-        email: String
+        id: ID!
+        email: String!
+        name: String!
         role: UserRole!
+        createdAt: String!
+        image: String
         organizationId: Int
+        pendingApproval: Boolean!
+        lessonPlans: [LessonPlan!]!
+        schedules: [Schedule!]!
+        lessonNotes: [LessonNote!]!
+        organization: Organization
       }
 
-      type ApproveUserResponse {
-        success: Boolean!
-        error: ApproveUserError
+      type Organization {
+        id: ID!
+        name: String!
+        users: [User!]!
       }
 
-      type ApproveUserError {
-        message: String!
+      type Supply {
+        name: String!
+        quantity: Int!
+        unit: String!
+        note: String
+      }
+
+      type LessonPlan {
+        id: ID!
+        title: String!
+        gradeLevel: String!
+        ageGroup: AgeGroup!
+        subject: Subject!
+        theme: Theme
+        status: LessonStatus!
+        createdAt: String!
+        createdBy: User!
+        curriculum: Curriculum!
+        duration: Int!
+        classroomSize: Int!
+        learningIntention: String
+        successCriteria: [String!]!
+        activities: [Activity!]!
+        alternateActivities: [AlternateActivityGroup!]!
+        supplies: [Supply!]!
+        developmentGoals: [DevelopmentGoal!]!
+        lessonNotes: [LessonNote!]!
+        standards: [Standard!]!
+        drdpDomains: [DrdpDomain!]!
+        sourceMetadata: [Source!]!
+        citationScore: Int!
+        tags: [String!]!
+        created_by_id: String!
+        createdByName: String!
+        scheduledDate: String
+      }
+
+      type Activity {
+        id: ID!
+        title: String!
+        description: String!
+        activityType: ActivityType!
+        durationMins: Int!
+        lessonPlan: LessonPlan!
+        source: Source!
+        engagementScore: Int!
+        alignmentScore: Int!
+        feasibilityScore: Int!
+      }
+
+      type AlternateActivityGroup {
+        activityType: ActivityType!
+        activities: [Activity!]!
+      }
+
+      type Schedule {
+        id: ID!
+        user: User!
+        lessonPlan: LessonPlan!
+        date: String!
+        startTime: String!
+        endTime: String!
+      }
+
+      type LessonNote {
+        id: ID!
+        user: User!
+        lessonPlan: LessonPlan!
+        note: String!
+        createdAt: String!
+      }
+
+      type DevelopmentGoal {
+        id: ID!
+        name: String!
+        description: String!
+        ageGroup: AgeGroup!
+        lessonPlans: [LessonPlan!]!
+      }
+
+      type Standard {
         code: String!
+        description: String!
+        source: Source!
       }
 
-      type DeleteLessonPlanResponse {
-        success: Boolean!
-        error: DeleteLessonPlanError
-      }
-
-      type DeleteLessonPlanError {
-        message: String!
+      type DrdpDomain {
         code: String!
+        name: String!
+        description: String!
+        strategies: [String!]!
       }
 
-      input ApproveUserInput {
-        userId: String!
+      type Source {
+        name: String!
+        url: String!
+        description: String!
       }
 
-      input DeleteLessonPlanInput {
-        lessonPlanId: Int!
+      type AuthResponse {
+        accessToken: String!
+        user: User!
+      }
+
+      type LessonPlansResponse {
+        lessonPlans: [LessonPlan!]!
+        userRole: UserRole
+        isOrganizationOwner: Boolean!
+      }
+
+      type Notification {
+        id: ID!
+        senderId: String!
+        message: String!
+        status: NotificationStatus!
+        type: NotificationType!
+        createdAt: String!
+        user: User!
+      }
+
+      type NotificationsResponse {
+        userId: String
+        notifications: [Notification!]!
       }
 
       type Query {
-        ping: String!
-      }
-
-      type Mutation {
-        approveUser(input: ApproveUserInput!): ApproveUserResponse!
-        deleteLessonPlan(
-          input: DeleteLessonPlanInput!
-        ): DeleteLessonPlanResponse!
+        greetings: String
+        lessonPlans: LessonPlansResponse!
+        notifications: NotificationsResponse!
       }
     `,
     resolvers: {
       Query: {
-        ping: () => "pong",
-      },
-      Mutation: {
-        approveUser: async (
-          _: unknown,
-          { input }: { input: { userId: string } }
-        ): Promise<ActionResponse<{ success: boolean }>> => {
+        lessonPlans: async () => {
+          console.log("lessonPlans resolver hit");
+
           try {
-            const supabase = await createClient();
+            const result = await getLessonPlans();
+            console.log("lessonPlans result:", result);
+
             const {
-              data: { user },
-              error: authError,
-            } = await supabase.auth.getUser();
+              success,
+              lessonPlans,
+              userRole,
+              isOrganizationOwner,
+              error,
+            } = result;
 
-            if (authError || !user) {
-              return {
-                error: { message: "Unauthorized: No user found", code: "401" },
-              };
+            if (!success || !lessonPlans) {
+              console.error("Lesson plans error:", error);
+              throw new Error(error || "Failed to fetch lesson plans");
             }
 
-            const uuidRegex =
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(user.id) || !uuidRegex.test(input.userId)) {
-              return {
-                error: { message: "Invalid user ID format", code: "400" },
-              };
-            }
-
-            return await db.transaction(async (tx) => {
-              try {
-                const [currentUser] = await tx
-                  .select({
-                    organizationId: users.organizationId,
-                    role: users.role,
-                  })
-                  .from(users)
-                  .where(eq(users.id, user.id))
-                  .limit(1);
-
-                if (!currentUser || !currentUser.organizationId) {
-                  return {
-                    error: {
-                      message: "User is not associated with an organization",
-                      code: "403",
-                    },
-                  };
-                }
-
-                if (currentUser.role !== "ADMIN") {
-                  return {
-                    error: {
-                      message: "Only admins can approve users",
-                      code: "403",
-                    },
-                  };
-                }
-
-                const [organization] = await tx
-                  .select()
-                  .from(organizations)
-                  .where(eq(organizations.id, currentUser.organizationId))
-                  .limit(1);
-
-                if (!organization) {
-                  return {
-                    error: { message: "Organization not found", code: "404" },
-                  };
-                }
-
-                const [targetUser] = await tx
-                  .select({ organizationId: users.organizationId })
-                  .from(users)
-                  .where(eq(users.id, input.userId))
-                  .limit(1);
-
-                if (!targetUser) {
-                  return { error: { message: "User not found", code: "404" } };
-                }
-
-                if (targetUser.organizationId !== currentUser.organizationId) {
-                  return {
-                    error: {
-                      message: "User does not belong to the same organization",
-                      code: "403",
-                    },
-                  };
-                }
-
-                await tx
-                  .update(users)
-                  .set({ role: "EDUCATOR" })
-                  .where(eq(users.id, input.userId));
-
-                return { data: { success: true } };
-              } catch (innerError) {
-                throw innerError;
-              }
-            });
-          } catch (error: unknown) {
-            console.error("Error approving user:", error);
-            const pgError = error as PostgresError;
-            let errorMessage = "Failed to approve user";
-            if (pgError.code === "ENOTFOUND") {
-              errorMessage =
-                "Database connection failed: Unable to resolve hostname";
-            } else if (pgError.code === "ETIMEDOUT") {
-              errorMessage = "Database connection timed out";
-            } else if (pgError.message) {
-              errorMessage = pgError.message;
-            }
             return {
-              error: { message: errorMessage, code: pgError.code || "500" },
+              lessonPlans,
+              userRole,
+              isOrganizationOwner,
             };
+          } catch (err) {
+            console.error("lessonPlans resolver failed:", err);
+            throw err;
           }
         },
-        deleteLessonPlan: async (
-          _: unknown,
-          { input }: { input: { lessonPlanId: number } }
-        ): Promise<ActionResponse<{ success: boolean }>> => {
-          console.log("deleteLessonPlan: input:", input);
-          try {
-            const supabase = await createClient();
-            const {
-              data: { user },
-              error: authError,
-            } = await supabase.auth.getUser();
-            console.log(
-              "deleteLessonPlan: authUser:",
-              user,
-              "authError:",
-              authError?.message
+        notifications: async () => {
+          const { userId, notifications } = await getNotifications();
+
+          if (!userId || !notifications) {
+            throw new Error(
+              "Failed to fetch notifications or user not authenticated"
             );
-            if (authError || !user) {
-              console.error(
-                "deleteLessonPlan: Auth error - user:",
-                user,
-                "error:",
-                authError?.message
-              );
-              return {
-                error: { message: "Unauthorized: No user found", code: "401" },
-              };
-            }
-
-            const uuidRegex =
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(user.id)) {
-              console.error(
-                "deleteLessonPlan: Invalid user ID format:",
-                user.id
-              );
-              return {
-                error: { message: "Invalid user ID format", code: "400" },
-              };
-            }
-
-            return await db.transaction(async (tx) => {
-              try {
-                const [userData] = await tx
-                  .select({
-                    organizationId: users.organizationId,
-                    role: users.role,
-                  })
-                  .from(users)
-                  .where(eq(users.id, user.id))
-                  .limit(1);
-                console.log("deleteLessonPlan: userData:", userData);
-                if (!userData || !userData.organizationId) {
-                  console.error(
-                    "deleteLessonPlan: User not found or no organizationId:",
-                    userData
-                  );
-                  return {
-                    error: {
-                      message: "User is not associated with an organization",
-                      code: "403",
-                    },
-                  };
-                }
-
-                const [organization] = await tx
-                  .select()
-                  .from(organizations)
-                  .where(eq(organizations.id, userData.organizationId))
-                  .limit(1);
-                console.log("deleteLessonPlan: organization:", organization);
-                if (!organization) {
-                  console.error(
-                    "deleteLessonPlan: Organization not found for id:",
-                    userData.organizationId
-                  );
-                  return {
-                    error: {
-                      message:
-                        "Only the organization owner can delete lesson plans",
-                      code: "403",
-                    },
-                  };
-                }
-
-                const [lessonPlan] = await tx
-                  .select()
-                  .from(lessonPlans)
-                  .where(eq(lessonPlans.id, input.lessonPlanId))
-                  .limit(1);
-                console.log("deleteLessonPlan: lessonPlan:", lessonPlan);
-                if (!lessonPlan) {
-                  console.error(
-                    "deleteLessonPlan: Lesson plan not found for id:",
-                    input.lessonPlanId
-                  );
-                  return {
-                    error: { message: "Lesson plan not found", code: "404" },
-                  };
-                }
-
-                if (lessonPlan.created_by_id !== user.id) {
-                  console.error(
-                    "deleteLessonPlan: Unauthorized - lessonPlan.created_by_id:",
-                    lessonPlan.created_by_id,
-                    "user.id:",
-                    user.id
-                  );
-                  return {
-                    error: {
-                      message:
-                        "Only the creator of the lesson plan can delete it",
-                      code: "403",
-                    },
-                  };
-                }
-
-                await tx
-                  .delete(schedules)
-                  .where(eq(schedules.lessonPlanId, input.lessonPlanId));
-                console.log(
-                  "deleteLessonPlan: Deleted schedules for lessonPlanId:",
-                  input.lessonPlanId
-                );
-                await tx
-                  .delete(lessonPlans)
-                  .where(eq(lessonPlans.id, input.lessonPlanId));
-                console.log(
-                  "deleteLessonPlan: Deleted lesson plan with id:",
-                  input.lessonPlanId
-                );
-
-                revalidatePath("/calendar", "page");
-                const result = { data: { success: true } };
-                console.log("deleteLessonPlan: final return value:", result);
-                return result;
-              } catch (innerError) {
-                console.error(
-                  "deleteLessonPlan: Transaction error:",
-                  innerError
-                );
-                throw innerError;
-              }
-            });
-          } catch (error: unknown) {
-            console.error(
-              "deleteLessonPlan: Error deleting lesson plan:",
-              error
-            );
-            const pgError = error as PostgresError;
-            let errorMessage = "Failed to delete lesson plan";
-            if (pgError.code === "ENOTFOUND") {
-              errorMessage =
-                "Database connection failed: Unable to resolve hostname";
-            } else if (pgError.code === "ETIMEDOUT") {
-              errorMessage = "Database connection timed out";
-            } else if (pgError.message) {
-              errorMessage = pgError.message;
-            }
-            return {
-              error: { message: errorMessage, code: pgError.code || "500" },
-            };
           }
+
+          return {
+            userId,
+            notifications,
+          };
         },
       },
     },
   }),
+
+  // While using Next.js file convention for routing, we need to configure Yoga to use the correct endpoint
   graphqlEndpoint: "/api/graphql",
-  fetchAPI: { Response: CustomResponse },
+
+  fetchAPI: {
+    Response: CustomResponse,
+  },
 });
 
 export {
