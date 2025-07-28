@@ -1,8 +1,8 @@
 import { gql } from "@apollo/client";
 
 export const GET_NOTIFICATIONS = gql`
-  query GetNotifications {
-    notifications {
+  query GetNotifications($filter: String) {
+    notifications(filter: $filter) {
       userId
       notifications {
         id
