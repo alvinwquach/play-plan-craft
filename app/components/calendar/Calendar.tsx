@@ -396,10 +396,11 @@ export default function Calendar({
   const today = new Date();
   const [deleteLessonPlanMutation, { loading: deleteLoading }] =
     useMutation<DeleteLessonPlanResponse>(DELETE_LESSON_PLAN);
+
   const { data: notificationsData, loading: notificationsLoading } = useQuery<{
     notifications: { userId: string; notifications: Notification[] };
   }>(GET_NOTIFICATIONS, {
-    skip: !isOrganizationOwner,
+    skip: !isOrganizationOwner, 
   });
 
   const retailers = [
@@ -1286,9 +1287,13 @@ ${
     if (!selectedLesson) return;
 
     try {
+      console.log("handleDeleteLesson: Input variables:", {
+        lessonPlanId: Number(selectedLesson.id),
+      });
       const { data, errors } = await deleteLessonPlanMutation({
         variables: { input: { lessonPlanId: Number(selectedLesson.id) } },
       });
+      console.log("handleDeleteLesson: GraphQL response:", { data, errors });
 
       if (errors) {
         console.error("handleDeleteLesson: GraphQL mutation errors:", errors);
