@@ -6,10 +6,11 @@ import { Pool } from "pg";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { users } from "@/app/db/schema/table/users";
+import { organizations } from "@/app/db/schema/table/organizations";
+import { notifications } from "@/app/db/schema/table/notifications";
 import { eq, and, inArray, or, lte, gt, lt, gte, ne } from "drizzle-orm";
 import { LessonPlan } from "@/app/types/lessonPlan";
 import { revalidatePath } from "next/cache";
-import { organizations } from "../db/schema/table/organizations";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -27,6 +28,7 @@ export async function rescheduleLessonPlan(
   success: boolean;
   lessonPlan?: LessonPlan;
   error?: string;
+  requestSent?: boolean;
 }> {
   try {
     const supabase = await createClient();
@@ -74,10 +76,32 @@ export async function rescheduleLessonPlan(
       .where(eq(organizations.id, userData.organizationId))
       .limit(1);
 
-    if (!organization || organization.user_id !== user.id) {
+    if (
+      !organization ||
+      !organization.user_id ||
+      organization.user_id !== user.id
+    ) {
+      if (!organization?.user_id) {
+        return { success: false, error: "Organization owner not found" };
+      }
+
+      const start = new Date(scheduledDate);
+      await db.insert(notifications).values({
+        userId: organization.user_id,
+        senderId: user.id,
+        type: "LESSON_RESCHEDULE_REQUEST",
+        message: `User ${user.id} requested to reschedule lesson plan "${
+          lessonPlan.title
+        }" (ID: ${lessonPlanId}) to ${start.toLocaleString()}.`,
+        organizationId: userData.organizationId,
+        status: "PENDING",
+      });
+
       return {
         success: false,
-        error: "Only the organization owner can reschedule lesson plans",
+        requestSent: true,
+        error:
+          "Reschedule request sent to the organization owner for approval.",
       };
     }
 

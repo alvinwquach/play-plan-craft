@@ -115,13 +115,15 @@ export type Notification = {
   senderId: string | null;
   organizationId: string | null;
   message: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
   type:
     | "MESSAGE"
     | "ALERT"
     | "REMINDER"
     | "ASSISTANT_REQUEST"
     | "LESSON_DELETION_REQUEST"
+    | "LESSON_RESCHEDULE_REQUEST"
+    | "LESSON_RESCHEDULE_RESPONSE"
     | "EDUCATOR_REQUEST";
   createdAt: string;
   user: {
