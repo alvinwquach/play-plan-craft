@@ -44,7 +44,6 @@ export const GET_LESSON_PLANS = gql`
           description
         }
         alternateActivities {
-          activityType
           activities {
             id
             title
