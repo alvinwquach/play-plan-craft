@@ -282,11 +282,93 @@ export async function createLessonPlan(formData: FormData) {
     if (!normalizedSubject || !validSubjectsList.includes(normalizedSubject)) {
       throw new Error(`Invalid subject: ${inputSubject || "undefined"}`);
     }
+
+    const themeMap: { [key: string]: string } = {
+      seasons: "SEASONS",
+      nature: "NATURE",
+      holidays: "HOLIDAYS",
+      emotions: "EMOTIONS",
+      community: "COMMUNITY",
+      animals: "ANIMALS",
+      transportation: "TRANSPORTATION",
+      colors: "COLORS",
+      colours: "COLOURS",
+      shapes: "SHAPES",
+      numbers: "NUMBERS",
+      culture: "CULTURE",
+      history: "HISTORY",
+      science_fiction: "SCIENCE_FICTION",
+      technology: "TECHNOLOGY",
+      global_issues: "GLOBAL_ISSUES",
+      literature: "LITERATURE",
+      indigenous_culture: "INDIGENOUS_CULTURE",
+      australian_history: "AUSTRALIAN_HISTORY",
+      sustainability: "SUSTAINABILITY",
+      transport: "TRANSPORT",
+      SEASONS: "SEASONS",
+      NATURE: "NATURE",
+      HOLIDAYS: "HOLIDAYS",
+      EMOTIONS: "EMOTIONS",
+      COMMUNITY: "COMMUNITY",
+      ANIMALS: "ANIMALS",
+      TRANSPORTATION: "TRANSPORTATION",
+      COLORS: "COLORS",
+      COLOURS: "COLOURS",
+      SHAPES: "SHAPES",
+      NUMBERS: "NUMBERS",
+      CULTURE: "CULTURE",
+      HISTORY: "HISTORY",
+      SCIENCE_FICTION: "SCIENCE_FICTION",
+      TECHNOLOGY: "TECHNOLOGY",
+      GLOBAL_ISSUES: "GLOBAL_ISSUES",
+      LITERATURE: "LITERATURE",
+      INDIGENOUS_CULTURE: "INDIGENOUS_CULTURE",
+      AUSTRALIAN_HISTORY: "AUSTRALIAN_HISTORY",
+      SUSTAINABILITY: "SUSTAINABILITY",
+      TRANSPORT: "TRANSPORT",
+    };
+
+    const validThemesList = [
+      "SEASONS",
+      "NATURE",
+      "HOLIDAYS",
+      "EMOTIONS",
+      "COMMUNITY",
+      "ANIMALS",
+      "TRANSPORTATION",
+      "COLORS",
+      "COLOURS",
+      "SHAPES",
+      "NUMBERS",
+      "CULTURE",
+      "HISTORY",
+      "SCIENCE_FICTION",
+      "TECHNOLOGY",
+      "GLOBAL_ISSUES",
+      "LITERATURE",
+      "INDIGENOUS_CULTURE",
+      "AUSTRALIAN_HISTORY",
+      "SUSTAINABILITY",
+      "TRANSPORT",
+    ];
+
+    const inputTheme = inputData.theme?.toString().trim().toUpperCase(); // Convert to uppercase first
+    console.log("Received theme (server):", inputData.theme); // Log received theme
+    const normalizedTheme = inputTheme
+      ? themeMap[inputTheme.toLowerCase()] ||
+        (inputTheme === "OTHER" ? null : inputTheme)
+      : null;
+    console.log("Normalized theme (server):", normalizedTheme); // Log normalized theme
+
+    if (normalizedTheme && !validThemesList.includes(normalizedTheme)) {
+      throw new Error(`Invalid theme: ${inputTheme}`);
+    }
+
     const normalizedData = {
       title: inputData.title || "Untitled Lesson",
       gradeLevel: normalizedGradeLevel,
       subject: normalizedSubject,
-      theme: inputData.theme === "" ? null : inputData.theme ?? null,
+      theme: normalizedTheme,
       duration: inputData.duration,
       activityTypes: Array.isArray(inputData.activityTypes)
         ? inputData.activityTypes
@@ -1292,7 +1374,7 @@ export async function createLessonPlan(formData: FormData) {
       title: lesson.title ?? title,
       gradeLevel: normalizedGradeLevel,
       subject: normalizedSubject,
-      theme: lesson.theme === "" ? null : lesson.theme ?? theme,
+      theme: lesson.theme === "" ? null : lesson.theme ?? normalizedTheme,
       duration: parseInt(
         lesson.duration?.toString().replace("minutes", "").trim() ??
           `${durationNum}`,
@@ -1377,7 +1459,7 @@ export async function createLessonPlan(formData: FormData) {
       })),
       sourceMetadata: lesson.sourceMetadata ?? sources,
       citationScore: lesson.citationScore ?? citationScore,
-      created_by_id: user.id, 
+      created_by_id: user.id,
       createdByName: "",
     };
 
@@ -1388,7 +1470,7 @@ export async function createLessonPlan(formData: FormData) {
           title: lessonPlan.title,
           age_group: lessonPlan.gradeLevel,
           subject: lessonPlan.subject,
-          theme: lessonPlan.theme,
+          theme: normalizedTheme,
           created_at: new Date(),
           created_by_id: lessonPlan.created_by_id,
           curriculum: lessonPlan.curriculum,
