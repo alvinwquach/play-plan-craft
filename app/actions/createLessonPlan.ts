@@ -1374,6 +1374,7 @@ export async function createLessonPlan(formData: FormData) {
       title: lesson.title ?? title,
       gradeLevel: normalizedGradeLevel,
       subject: normalizedSubject,
+      createdAt: lesson.createdAt,
       theme: lesson.theme === "" ? null : lesson.theme ?? normalizedTheme,
       duration: parseInt(
         lesson.duration?.toString().replace("minutes", "").trim() ??
@@ -1460,7 +1461,7 @@ export async function createLessonPlan(formData: FormData) {
       sourceMetadata: lesson.sourceMetadata ?? sources,
       citationScore: lesson.citationScore ?? citationScore,
       created_by_id: user.id,
-      createdByName: "",
+      createdBy: "",
     };
 
     const newLessonPlans = await db
@@ -1472,6 +1473,7 @@ export async function createLessonPlan(formData: FormData) {
           subject: lessonPlan.subject,
           theme: normalizedTheme,
           created_at: new Date(),
+          createdAt: lessonPlan?.createdAt?.toISOString(),
           created_by_id: lessonPlan.created_by_id,
           curriculum: lessonPlan.curriculum,
           duration: lessonPlan.duration,

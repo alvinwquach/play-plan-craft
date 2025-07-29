@@ -12,6 +12,7 @@ import { organizations } from "@/app/db/schema/table/organizations";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
 import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
+import { createLessonPlan } from "@/app/actions/createLessonPlan";
 
 interface NextContext {
   params: Promise<Record<string, string>>;
@@ -269,7 +270,7 @@ const { handleRequest } = createYoga<NextContext>({
       type LessonPlan {
         id: ID!
         title: String!
-        gradeLevel: String!
+        gradeLevel: String
         ageGroup: AgeGroup!
         subject: Subject!
         theme: Theme
@@ -342,7 +343,7 @@ const { handleRequest } = createYoga<NextContext>({
       type Standard {
         code: String!
         description: String!
-        source: Source!
+        source: Source
       }
 
       type DrdpDomain {
@@ -353,6 +354,18 @@ const { handleRequest } = createYoga<NextContext>({
       }
 
       type Source {
+        name: String!
+        url: String!
+        description: String!
+      }
+
+      input StandardInput {
+        code: String!
+        description: String!
+        source: SourceInput
+      }
+
+      input SourceInput {
         name: String!
         url: String!
         description: String!
@@ -432,6 +445,29 @@ const { handleRequest } = createYoga<NextContext>({
         isOrganizationOwner: Boolean!
       }
 
+      type CreateLessonPlanResponse {
+        success: Boolean!
+        lessonPlan: LessonPlan
+        error: Error
+      }
+
+      input CreateLessonPlanInput {
+        title: String
+        gradeLevel: String!
+        subject: String!
+        theme: String
+        duration: Int!
+        activityTypes: [String!]
+        classroomSize: Int!
+        learningIntention: String
+        successCriteria: [String!]
+        standardsFramework: String
+        standards: [StandardInput!]
+        preferredSources: [SourceInput!]
+        curriculum: Curriculum!
+        scheduledDate: String
+      }
+
       type Notification {
         id: ID!
         senderId: String!
@@ -466,6 +502,9 @@ const { handleRequest } = createYoga<NextContext>({
         rescheduleLessonPlan(
           input: RescheduleLessonPlanInput!
         ): RescheduleLessonPlanResponse!
+        createLessonPlan(
+          input: CreateLessonPlanInput!
+        ): CreateLessonPlanResponse!
       }
     `,
     resolvers: {
@@ -944,6 +983,134 @@ const { handleRequest } = createYoga<NextContext>({
             console.error("Error in rescheduleLessonPlan mutation:", error);
             return {
               success: false,
+            };
+          }
+        },
+        createLessonPlan: async (_, { input }) => {
+          try {
+            const validGradeLevels = [
+              "INFANT",
+              "TODDLER",
+              "PRESCHOOL",
+              "KINDERGARTEN",
+              "GRADE_1",
+              "GRADE_2",
+              "GRADE_3",
+              "GRADE_4",
+              "GRADE_5",
+              "GRADE_6",
+              "GRADE_7",
+              "GRADE_8",
+              "GRADE_9",
+              "GRADE_10",
+              "GRADE_11",
+              "GRADE_12",
+            ];
+            if (!validGradeLevels.includes(input.gradeLevel)) {
+              return {
+                success: false,
+                error: {
+                  message: `Invalid gradeLevel: ${input.gradeLevel}`,
+                  code: "400",
+                },
+              };
+            }
+
+            const formData = new FormData();
+            if (input.title) formData.append("title", input.title);
+            formData.append("gradeLevel", input.gradeLevel);
+            formData.append("subject", input.subject);
+            if (input.theme) formData.append("theme", input.theme);
+            formData.append("duration", input.duration.toString());
+            if (input.activityTypes && input.activityTypes.length > 0) {
+              formData.append("activityTypes", input.activityTypes.join(","));
+            }
+            formData.append("classroomSize", input.classroomSize.toString());
+            if (input.learningIntention) {
+              formData.append("learningIntention", input.learningIntention);
+            }
+            if (input.successCriteria && input.successCriteria.length > 0) {
+              formData.append(
+                "successCriteria",
+                input.successCriteria.join(",")
+              );
+            }
+            if (input.standardsFramework) {
+              formData.append("standardsFramework", input.standardsFramework);
+            }
+            if (input.standards && input.standards.length > 0) {
+              formData.append("standards", JSON.stringify(input.standards));
+            }
+            if (input.preferredSources && input.preferredSources.length > 0) {
+              formData.append(
+                "preferredSources",
+                JSON.stringify(input.preferredSources)
+              );
+            }
+            formData.append("curriculum", input.curriculum);
+            if (input.scheduledDate) {
+              formData.append("scheduledDate", input.scheduledDate);
+            }
+
+            const result = await createLessonPlan(formData);
+
+            if (result.success && result.data) {
+              const supabase = await createClient();
+              const { data: user, error: userError } = await supabase
+                .from("users")
+                .select("name")
+                .eq("id", result.data.created_by_id)
+                .single();
+
+              if (userError) {
+                console.error("Error fetching user name:", userError);
+                return {
+                  success: true,
+                  lessonPlan: {
+                    ...result.data,
+                    ageGroup: result.data.age_group,
+                    createdAt:
+                      result.data.created_at ?? new Date().toISOString(),
+                    classroomSize: result.data.classroom_size ?? 0,
+                    successCriteria: result.data.success_criteria ?? [],
+                    createdByName: "Unknown",
+                  },
+                  error: null,
+                };
+              }
+
+              return {
+                success: true,
+                lessonPlan: {
+                  ...result.data,
+                  ageGroup: result.data.age_group,
+                  createdAt: result.data.created_at ?? new Date().toISOString(),
+                  classroomSize: result.data.classroom_size ?? 0,
+                  successCriteria: result.data.success_criteria ?? [],
+                  createdByName: user.name ?? "Unknown",
+                },
+                error: null,
+              };
+            }
+
+            return {
+              success: false,
+              error: {
+                message: result.error || "Failed to create lesson plan",
+                code: "500",
+              },
+            };
+          } catch (error) {
+            console.error("Error in createLessonPlan mutation:", error);
+            return {
+              success: false,
+              error: {
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to create lesson plan",
+                code: "500",
+              },
             };
           }
         },

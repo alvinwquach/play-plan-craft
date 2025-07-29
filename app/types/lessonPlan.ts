@@ -65,7 +65,8 @@ export interface LessonPlan {
   title: string;
   subject: string;
   learningIntention: string;
-  createdByName?: string;
+  createdAt: Date | undefined;
+  createdBy?: string;
   created_by_id: string;
   successCriteria: string[];
   gradeLevel: string;
