@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation } from "@apollo/client";
 import { Source, Curriculum } from "../types/lessonPlan";
-import { createLessonPlan } from "../actions/createLessonPlan";
+import { CREATE_LESSON_PLAN } from "../graphql/mutations/createLessonPlan";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -18,7 +19,7 @@ interface FormData {
   learningIntention: string;
   successCriteria: string[];
   standardsFramework: string;
-  standards: string[];
+  standards: { code: string; description: string; source?: Source }[];
   scheduledDate: string;
   preferredSources: Source[];
   curriculum: Curriculum;
@@ -34,6 +35,8 @@ const formatLabel = (value: string): string => {
 
 export default function LessonPlanForm() {
   const router = useRouter();
+  const [createLessonPlan, { loading, error: mutationError }] =
+    useMutation(CREATE_LESSON_PLAN);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     gradeLevel: "PRESCHOOL",
@@ -69,7 +72,6 @@ export default function LessonPlanForm() {
   ]);
   const [customTheme, setCustomTheme] = useState<string>("");
   const [customActivityType, setCustomActivityType] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -629,7 +631,6 @@ export default function LessonPlanForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     const availableThemes = getAvailableThemes(
@@ -642,7 +643,6 @@ export default function LessonPlanForm() {
       !availableThemes.includes(formData.theme)
     ) {
       setError(`Invalid theme: ${formData.theme}`);
-      setLoading(false);
       return;
     }
 
@@ -656,40 +656,33 @@ export default function LessonPlanForm() {
       !availableThemes.includes(themeToSend)
     ) {
       setError(`Invalid theme: ${themeToSend}`);
-      setLoading(false);
       return;
     }
 
-    // Validate other fields
     if (!formData.scheduledDate) {
       setError("Scheduled date and time are required.");
-      setLoading(false);
       return;
     }
 
     const scheduledDate = new Date(formData.scheduledDate);
     if (isNaN(scheduledDate.getTime())) {
       setError("Invalid scheduled date and time.");
-      setLoading(false);
       return;
     }
 
     const now = new Date();
     if (scheduledDate < now) {
       setError("Scheduled date and time cannot be in the past.");
-      setLoading(false);
       return;
     }
 
     if (formData.duration < 5 || formData.duration > 120) {
       setError("Duration must be between 5 and 120 minutes.");
-      setLoading(false);
       return;
     }
 
     if (formData.classroomSize < 1 || formData.classroomSize > 100) {
       setError("Classroom size must be between 1 and 100 students.");
-      setLoading(false);
       return;
     }
 
@@ -699,7 +692,6 @@ export default function LessonPlanForm() {
       .filter((line) => line.length > 0);
     if (criteria.length > 0 && !criteria.every((c) => c.startsWith("I can"))) {
       setError("All success criteria must start with &apos;I can&apos;.");
-      setLoading(false);
       return;
     }
 
@@ -710,12 +702,15 @@ export default function LessonPlanForm() {
       .map((line) => ({
         code: line,
         description: line,
+        source:
+          formData.preferredSources.length > 0
+            ? formData.preferredSources[0]
+            : undefined,
       }));
     if (formData.standardsFramework && standards.length === 0) {
       setError(
         "At least one standard is required when a standards framework is selected."
       );
-      setLoading(false);
       return;
     }
 
@@ -726,62 +721,48 @@ export default function LessonPlanForm() {
     );
     if (invalidSource) {
       setError(`Invalid URL for source: ${invalidSource.name || "Unnamed"}`);
-      setLoading(false);
       return;
     }
 
     try {
-      const formDataToSend = new FormData();
-      if (formData.title) formDataToSend.append("title", formData.title);
-      formDataToSend.append("gradeLevel", formData.gradeLevel);
-      formDataToSend.append("subject", formData.subject);
-      if (themeToSend) {
-        formDataToSend.append("theme", themeToSend);
-      }
-      formDataToSend.append("duration", formData.duration.toString());
-      if (formData.activityTypes.length > 0) {
-        formDataToSend.append(
-          "activityTypes",
-          formData.activityTypes.join(",")
-        );
-      }
-      formDataToSend.append("classroomSize", formData.classroomSize.toString());
-      if (formData.learningIntention) {
-        formDataToSend.append("learningIntention", formData.learningIntention);
-      }
-      if (criteria.length > 0) {
-        formDataToSend.append("successCriteria", criteria.join(","));
-      }
-      if (formData.standardsFramework) {
-        formDataToSend.append(
-          "standardsFramework",
-          formData.standardsFramework
-        );
-      }
-      if (standards.length > 0) {
-        formDataToSend.append("standards", JSON.stringify(standards));
-      }
-      if (formData.preferredSources.length > 0) {
-        formDataToSend.append(
-          "preferredSources",
-          JSON.stringify(formData.preferredSources)
-        );
-      }
-      formDataToSend.append("curriculum", formData.curriculum);
-      if (formData.scheduledDate) {
-        formDataToSend.append("scheduledDate", formData.scheduledDate);
-      }
+      const { data } = await createLessonPlan({
+        variables: {
+          input: {
+            title: formData.title || undefined,
+            gradeLevel: formData.gradeLevel,
+            subject: formData.subject,
+            theme: themeToSend || undefined,
+            duration: formData.duration,
+            activityTypes:
+              formData.activityTypes.length > 0
+                ? formData.activityTypes
+                : undefined,
+            classroomSize: formData.classroomSize,
+            learningIntention: formData.learningIntention || undefined,
+            successCriteria: criteria.length > 0 ? criteria : undefined,
+            standardsFramework: formData.standardsFramework || undefined,
+            standards: standards.length > 0 ? standards : undefined,
+            preferredSources:
+              formData.preferredSources.length > 0
+                ? formData.preferredSources
+                : undefined,
+            curriculum: formData.curriculum,
+            scheduledDate: formData.scheduledDate || undefined,
+          },
+        },
+      });
 
-      const result = await createLessonPlan(formDataToSend);
-
-      if (result.success) {
+      if (data?.createLessonPlan?.success) {
         toast.success("Lesson plan created successfully!", {
           position: "top-right",
           autoClose: 3000,
         });
         router.push("/calendar");
       } else {
-        throw new Error(result.error || "Failed to create lesson plan");
+        throw new Error(
+          data?.createLessonPlan?.error?.message ||
+            "Failed to create lesson plan"
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -789,8 +770,6 @@ export default function LessonPlanForm() {
         position: "top-right",
         autoClose: 5000,
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -804,8 +783,7 @@ export default function LessonPlanForm() {
             </h1>
             <p className="text-sm text-gray-600 text-center mt-2">
               Whether you&apos;re nurturing infants or managing high school
-              you&apos;re nurturing infants or managing high school projects,
-              our AI-driven platform has you covered.
+              projects, our AI-driven platform has you covered.
             </p>
           </div>
         </div>
@@ -1212,6 +1190,9 @@ export default function LessonPlanForm() {
               input and the {formData.curriculum} curriculum.
             </p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
+            {mutationError && (
+              <p className="text-red-500 text-sm">{mutationError.message}</p>
+            )}
             <button
               type="submit"
               disabled={loading}
