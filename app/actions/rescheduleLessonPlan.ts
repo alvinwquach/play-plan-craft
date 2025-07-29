@@ -193,6 +193,7 @@ export async function rescheduleLessonPlan(
       scheduledDate: start.toISOString(),
       created_by_id: lessonPlan.created_by_id,
       createdByName: "",
+      createdAt: lessonPlan.created_at,
     };
 
     return { success: true, lessonPlan: updatedLesson };
