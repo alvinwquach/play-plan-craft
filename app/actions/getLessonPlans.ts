@@ -172,6 +172,7 @@ export async function getLessonPlans(): Promise<{
             : undefined,
           created_by_id: lp.created_by_id,
           createdByName: lp.createdByName ?? "",
+          createdAt: lp.created_at,
         };
       }
     );
