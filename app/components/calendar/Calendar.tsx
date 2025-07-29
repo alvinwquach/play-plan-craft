@@ -370,6 +370,7 @@ interface DeleteLessonPlanResponse {
   deleteLessonPlan: {
     success: boolean;
     error?: { message: string; code: string };
+    requestSent?: boolean;
   };
 }
 
@@ -526,10 +527,23 @@ export default function Calendar({
       end: end.toISOString(),
       allDay: false,
       extendedProps: { lesson },
-      backgroundColor: lesson.created_by_id === userId ? "#2c7a7b" : "#4a9f9e",
-      borderColor: lesson.created_by_id === userId ? "#1a5f5f" : "#3a8f8e",
+      backgroundColor:
+        lesson.status === "PENDING_DELETION"
+          ? "#ff6b6b"
+          : lesson.created_by_id === userId
+          ? "#2c7a7b"
+          : "#4a9f9e",
+      borderColor:
+        lesson.status === "PENDING_DELETION"
+          ? "#d63031"
+          : lesson.created_by_id === userId
+          ? "#1a5f5f"
+          : "#3a8f8e",
       textColor: "#ffffff",
-      classNames: ["custom-event"],
+      classNames: [
+        "custom-event",
+        lesson.status === "PENDING_DELETION" ? "pending-deletion" : "",
+      ],
     };
   });
 
@@ -1275,18 +1289,14 @@ ${
     if (!selectedLesson) return;
 
     try {
-      console.log("handleDeleteLesson: Input variables:", {
-        lessonPlanId: Number(selectedLesson.id),
-      });
       const { data, errors } = await deleteLessonPlanMutation({
         variables: { input: { lessonPlanId: Number(selectedLesson.id) } },
       });
-      console.log("handleDeleteLesson: GraphQL response:", { data, errors });
 
       if (errors) {
         console.error("handleDeleteLesson: GraphQL mutation errors:", errors);
         toast.error(
-          `Failed to delete lesson plan: ${
+          `Failed to process deletion: ${
             errors[0]?.message || "Unknown error"
           }`,
           {
@@ -1302,12 +1312,9 @@ ${
       }
 
       const response = data?.deleteLessonPlan;
-      if (response?.error) {
-        console.error(
-          "handleDeleteLesson: Delete lesson plan error:",
-          response.error
-        );
-        toast.error(response.error.message || "Failed to delete lesson plan", {
+      if (!response) {
+        console.error("handleDeleteLesson: No response data");
+        toast.error("Failed to process deletion: No response data", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -1318,25 +1325,51 @@ ${
         return;
       }
 
-      if (response?.success) {
-        const updatedPlans = lessonPlans.filter(
-          (lp) => lp.id !== selectedLesson.id
-        );
-        setLessonPlans(updatedPlans);
-        setIsModalOpen(false);
-        setSelectedLesson(null);
-
-        toast.success("Lesson plan deleted successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+      if (response.success) {
+        if (response.requestSent) {
+          const updatedPlans = lessonPlans.map((lp) =>
+            lp.id === selectedLesson.id
+              ? { ...lp, status: "PENDING_DELETION" }
+              : lp
+          );
+          setLessonPlans(updatedPlans);
+          setSelectedLesson({
+            ...selectedLesson,
+            status: "PENDING_DELETION",
+          });
+          toast.info(
+            "Lesson Plan Deletion Request sent to organization owner",
+            {
+              position: "top-right",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            }
+          );
+        } else {
+          const updatedPlans = lessonPlans.filter(
+            (lp) => lp.id !== selectedLesson.id
+          );
+          setLessonPlans(updatedPlans);
+          setIsModalOpen(false);
+          setSelectedLesson(null);
+          toast.success("Lesson plan deleted successfully!", {
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
       } else {
-        console.error("handleDeleteLesson: No success response:", response);
-        toast.error("Failed to delete lesson plan: No success response.", {
+        console.error(
+          "handleDeleteLesson: Delete lesson plan error:",
+          response.error
+        );
+        toast.error(response.error?.message || "Failed to process deletion", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -1351,7 +1384,7 @@ ${
         error
       );
       toast.error(
-        `Failed to delete lesson plan: ${
+        `Failed to process deletion: ${
           (error as Error).message || "Unknown error"
         }`,
         {
@@ -2207,16 +2240,22 @@ ${
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                {(userRole === "EDUCATOR" ||
-                  (isOrganizationOwner &&
-                    selectedLesson.created_by_id !== userId)) && (
+                {(userRole === "EDUCATOR" || isOrganizationOwner) && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         onClick={handleDeleteLesson}
-                        disabled={pdfLoading || printLoading || deleteLoading}
+                        disabled={
+                          pdfLoading ||
+                          printLoading ||
+                          deleteLoading ||
+                          selectedLesson?.status === "PENDING_DELETION"
+                        }
                         className={`p-3 rounded-lg transition shadow-sm ${
-                          pdfLoading || printLoading || deleteLoading
+                          pdfLoading ||
+                          printLoading ||
+                          deleteLoading ||
+                          selectedLesson?.status === "PENDING_DELETION"
                             ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                             : "bg-red-100 text-red-600 hover:bg-red-200"
                         }`}
@@ -2225,7 +2264,11 @@ ${
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" align="center">
-                      Delete Lesson Plan
+                      {selectedLesson?.status === "PENDING_DELETION"
+                        ? "Deletion Request Pending"
+                        : isOrganizationOwner
+                        ? "Delete Lesson Plan"
+                        : "Request Lesson Plan Deletion"}
                     </TooltipContent>
                   </Tooltip>
                 )}
