@@ -210,6 +210,7 @@ const { handleRequest } = createYoga<NextContext>({
         DRAFT
         PUBLISHED
         ARCHIVED
+        PENDING_DELETION
       }
 
       enum UserRole {
@@ -423,6 +424,7 @@ const { handleRequest } = createYoga<NextContext>({
       type DeleteLessonPlanResponse {
         success: Boolean!
         error: DeleteLessonPlanError
+        requestSent: Boolean
       }
 
       type DeleteLessonPlanError {
@@ -489,6 +491,16 @@ const { handleRequest } = createYoga<NextContext>({
         notifications(filter: String): NotificationsResponse!
       }
 
+      input ApproveLessonDeletionInput {
+        notificationId: ID!
+        approve: Boolean!
+      }
+
+      type ApproveLessonDeletionResponse {
+        success: Boolean!
+        error: Error
+      }
+
       type Mutation {
         requestAssistantRole(
           input: RequestAssistantRoleInput!
@@ -505,6 +517,9 @@ const { handleRequest } = createYoga<NextContext>({
         createLessonPlan(
           input: CreateLessonPlanInput!
         ): CreateLessonPlanResponse!
+        approveLessonDeletion(
+          input: ApproveLessonDeletionInput!
+        ): ApproveLessonDeletionResponse!
       }
     `,
     resolvers: {
@@ -805,7 +820,11 @@ const { handleRequest } = createYoga<NextContext>({
         deleteLessonPlan: async (
           _: unknown,
           { input }: { input: { lessonPlanId: number } }
-        ): Promise<ActionResponse<{ success: boolean }>> => {
+        ): Promise<{
+          success: boolean;
+          error?: { message: string; code: string };
+          requestSent?: boolean;
+        }> => {
           console.log("deleteLessonPlan: input:", input);
           try {
             const supabase = await createClient();
@@ -813,12 +832,6 @@ const { handleRequest } = createYoga<NextContext>({
               data: { user },
               error: authError,
             } = await supabase.auth.getUser();
-            console.log(
-              "deleteLessonPlan: authUser:",
-              user,
-              "authError:",
-              authError?.message
-            );
             if (authError || !user) {
               console.error(
                 "deleteLessonPlan: Auth error - user:",
@@ -827,6 +840,7 @@ const { handleRequest } = createYoga<NextContext>({
                 authError?.message
               );
               return {
+                success: false,
                 error: { message: "Unauthorized: No user found", code: "401" },
               };
             }
@@ -839,6 +853,7 @@ const { handleRequest } = createYoga<NextContext>({
                 user.id
               );
               return {
+                success: false,
                 error: { message: "Invalid user ID format", code: "400" },
               };
             }
@@ -849,17 +864,14 @@ const { handleRequest } = createYoga<NextContext>({
                   .select({
                     organizationId: users.organizationId,
                     role: users.role,
+                    name: users.name,
                   })
                   .from(users)
                   .where(eq(users.id, user.id))
                   .limit(1);
-                console.log("deleteLessonPlan: userData:", userData);
                 if (!userData || !userData.organizationId) {
-                  console.error(
-                    "deleteLessonPlan: User not found or no organizationId:",
-                    userData
-                  );
                   return {
+                    success: false,
                     error: {
                       message: "User is not associated with an organization",
                       code: "403",
@@ -868,91 +880,143 @@ const { handleRequest } = createYoga<NextContext>({
                 }
 
                 const [organization] = await tx
-                  .select()
+                  .select({
+                    id: organizations.id,
+                    user_id: organizations.user_id,
+                  })
                   .from(organizations)
                   .where(eq(organizations.id, userData.organizationId))
                   .limit(1);
-                console.log("deleteLessonPlan: organization:", organization);
                 if (!organization) {
-                  console.error(
-                    "deleteLessonPlan: Organization not found for id:",
-                    userData.organizationId
-                  );
                   return {
+                    success: false,
                     error: {
-                      message:
-                        "Only the organization owner can delete lesson plans",
+                      message: "Organization not found",
                       code: "403",
+                    },
+                  };
+                }
+
+                if (!organization.user_id) {
+                  return {
+                    success: false,
+                    error: {
+                      message: "Organization has no owner",
+                      code: "400",
                     },
                   };
                 }
 
                 const [lessonPlan] = await tx
-                  .select()
+                  .select({
+                    id: lessonPlans.id,
+                    title: lessonPlans.title,
+                    created_by_id: lessonPlans.created_by_id,
+                  })
                   .from(lessonPlans)
                   .where(eq(lessonPlans.id, input.lessonPlanId))
                   .limit(1);
-                console.log("deleteLessonPlan: lessonPlan:", lessonPlan);
                 if (!lessonPlan) {
-                  console.error(
-                    "deleteLessonPlan: Lesson plan not found for id:",
-                    input.lessonPlanId
-                  );
                   return {
+                    success: false,
                     error: { message: "Lesson plan not found", code: "404" },
                   };
                 }
 
-                if (lessonPlan.created_by_id !== user.id) {
-                  console.error(
-                    "deleteLessonPlan: Unauthorized - lessonPlan.created_by_id:",
-                    lessonPlan.created_by_id,
-                    "user.id:",
-                    user.id
-                  );
+                const isOrganizationOwner = organization.user_id === user.id;
+
+                if (!isOrganizationOwner) {
+                  if (
+                    userData.role !== "EDUCATOR" &&
+                    userData.role !== "ADMIN"
+                  ) {
+                    return {
+                      success: false,
+                      error: {
+                        message:
+                          "Only educators or admins can request deletion",
+                        code: "403",
+                      },
+                    };
+                  }
+
+                  const [ownerData] = await tx
+                    .select({ id: users.id })
+                    .from(users)
+                    .where(eq(users.id, organization.user_id))
+                    .limit(1);
+                  if (!ownerData) {
+                    return {
+                      success: false,
+                      error: {
+                        message: "Organization owner not found",
+                        code: "404",
+                      },
+                    };
+                  }
+
+                  // Update the lesson plan status to PENDING_DELETION
+                  await tx
+                    .update(lessonPlans)
+                    .set({ status: "PENDING_DELETION" })
+                    .where(eq(lessonPlans.id, input.lessonPlanId));
+
+                  await tx.insert(notifications).values({
+                    userId: ownerData.id,
+                    senderId: user.id,
+                    type: "LESSON_DELETION_REQUEST",
+                    message: `${
+                      userData.name || "User"
+                    } has requested to delete the lesson plan: "${
+                      lessonPlan.title
+                    }" (ID: ${lessonPlan.id})`,
+                    organizationId: userData.organizationId,
+                    status: "PENDING",
+                    createdAt: new Date(),
+                  });
+
+                  revalidatePath("/notifications");
                   return {
-                    error: {
-                      message:
-                        "Only the creator of the lesson plan can delete it",
-                      code: "403",
-                    },
+                    success: true,
+                    requestSent: true,
                   };
                 }
 
+                // Organization owners can delete any lesson plan directly
                 await tx
                   .delete(schedules)
                   .where(eq(schedules.lessonPlanId, input.lessonPlanId));
-                console.log(
-                  "deleteLessonPlan: Deleted schedules for lessonPlanId:",
-                  input.lessonPlanId
-                );
                 await tx
                   .delete(lessonPlans)
                   .where(eq(lessonPlans.id, input.lessonPlanId));
-                console.log(
-                  "deleteLessonPlan: Deleted lesson plan with id:",
-                  input.lessonPlanId
-                );
-
                 revalidatePath("/calendar", "page");
-                const result = { data: { success: true } };
-                console.log("deleteLessonPlan: final return value:", result);
-                return result;
+                return {
+                  success: true,
+                  requestSent: false,
+                };
               } catch (innerError) {
                 console.error(
                   "deleteLessonPlan: Transaction error:",
                   innerError
                 );
-                throw innerError;
+                return {
+                  success: false,
+                  error: {
+                    message:
+                      innerError instanceof Error
+                        ? innerError.message
+                        : "Transaction failed",
+                    code: "500",
+                  },
+                };
               }
             });
           } catch (error: unknown) {
-            console.error(
-              "deleteLessonPlan: Error deleting lesson plan:",
-              error
-            );
+            console.error("deleteLessonPlan: Error:", error);
             const pgError = error as PostgresError;
-            let errorMessage = "Failed to delete lesson plan";
+            let errorMessage = "Failed to process deletion";
+            let errorCode = pgError.code || "500";
+
             if (pgError.code === "ENOTFOUND") {
               errorMessage =
                 "Database connection failed: Unable to resolve hostname";
@@ -961,8 +1025,10 @@ const { handleRequest } = createYoga<NextContext>({
             } else if (pgError.message) {
               errorMessage = pgError.message;
             }
+
             return {
-              error: { message: errorMessage, code: pgError.code || "500" },
+              success: false,
+              error: { message: errorMessage, code: errorCode },
             };
           }
         },
@@ -1110,6 +1176,159 @@ const { handleRequest } = createYoga<NextContext>({
                     ? error.message
                     : "Failed to create lesson plan",
                 code: "500",
+              },
+            };
+          }
+        },
+        approveLessonDeletion: async (
+          _: unknown,
+          {
+            input,
+          }: {
+            input: {
+              notificationId: string;
+              approve: boolean;
+            };
+          }
+        ): Promise<{
+          success: boolean;
+          error?: { message: string; code: string };
+        }> => {
+          try {
+            const supabase = await createClient();
+            const {
+              data: { user },
+              error: authError,
+            } = await supabase.auth.getUser();
+
+            if (authError || !user) {
+              return {
+                success: false,
+                error: {
+                  message: "Unauthorized: No user found",
+                  code: "401",
+                },
+              };
+            }
+
+            return await db.transaction(async (tx) => {
+              const [notification] = await tx
+                .select({
+                  id: notifications.id,
+                  userId: notifications.userId,
+                  senderId: notifications.senderId,
+                  organizationId: notifications.organizationId,
+                  type: notifications.type,
+                  message: notifications.message,
+                  status: notifications.status,
+                })
+                .from(notifications)
+                .where(eq(notifications.id, parseInt(input.notificationId, 10)))
+                .limit(1);
+
+              if (!notification) {
+                return {
+                  success: false,
+                  error: {
+                    message: "Notification not found",
+                    code: "404",
+                  },
+                };
+              }
+
+              if (notification.type !== "LESSON_DELETION_REQUEST") {
+                return {
+                  success: false,
+                  error: {
+                    message: "Invalid notification type for deletion approval",
+                    code: "400",
+                  },
+                };
+              }
+
+              if (notification.userId !== user.id) {
+                return {
+                  success: false,
+                  error: {
+                    message: "User is not authorized to approve this request",
+                    code: "403",
+                  },
+                };
+              }
+
+              const lessonPlanIdMatch = notification.message.match(/ID: (\d+)/);
+              if (!lessonPlanIdMatch) {
+                return {
+                  success: false,
+                  error: {
+                    message:
+                      "Failed to extract lesson plan ID from notification message",
+                    code: "400",
+                  },
+                };
+              }
+
+              const lessonPlanId = parseInt(lessonPlanIdMatch[1]);
+              if (isNaN(lessonPlanId)) {
+                return {
+                  success: false,
+                  error: {
+                    message: "Extracted lesson plan ID is not a valid number",
+                    code: "400",
+                  },
+                };
+              }
+
+              if (input.approve) {
+                await tx
+                  .delete(schedules)
+                  .where(eq(schedules.lessonPlanId, lessonPlanId));
+                await tx
+                  .delete(lessonPlans)
+                  .where(eq(lessonPlans.id, lessonPlanId));
+              } else {
+                await tx
+                  .update(lessonPlans)
+                  .set({ status: "PUBLISHED" })
+                  .where(eq(lessonPlans.id, lessonPlanId));
+              }
+
+              await tx
+                .update(notifications)
+                .set({
+                  status: input.approve ? "APPROVED" : "REJECTED",
+                })
+                .where(
+                  eq(notifications.id, parseInt(input.notificationId, 10))
+                );
+
+              await tx.insert(notifications).values({
+                userId: notification.senderId,
+                senderId: user.id,
+                type: "LESSON_DELETION_RESPONSE",
+                message: `Your request to delete lesson plan (ID: ${lessonPlanId}) was ${
+                  input.approve ? "approved" : "rejected"
+                } by the organization owner.`,
+                organizationId: notification.organizationId,
+                status: "RESOLVED",
+                createdAt: new Date(),
+              });
+
+              revalidatePath("/notifications");
+              revalidatePath("/calendar", "page");
+              return { success: true };
+            });
+          } catch (error: unknown) {
+            console.error("approveLessonDeletion: Error:", error);
+            const pgError = error as PostgresError;
+            return {
+              success: false,
+              error: {
+                message:
+                  pgError instanceof Error
+                    ? pgError.message
+                    : "Failed to approve lesson deletion",
+                code: pgError.code || "500",
               },
             };
           }

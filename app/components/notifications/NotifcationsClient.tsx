@@ -17,9 +17,9 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { useMutation, useQuery } from "@apollo/client";
 import { APPROVE_USER } from "@/app/graphql/mutations/approveUser";
 import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
-import { approveLessonDeletion } from "@/app/actions/approveLessonDeletion";
 import { approveLessonReschedule } from "@/app/actions/approveLessonReschedule";
 import { Notification } from "@/app/types/lessonPlan";
+import { APPROVE_LESSON_DELETION } from "@/app/graphql/mutations/approveLessonDeletion";
 
 type NotificationsClientProps = {
   initialNotifications: Notification[];
@@ -52,6 +52,13 @@ interface ApproveUserResponse {
         image: string | null;
       };
     };
+    error?: { message: string; code: string };
+  };
+}
+
+interface ApproveLessonDeletionResponse {
+  approveLessonDeletion: {
+    success: boolean;
     error?: { message: string; code: string };
   };
 }
@@ -92,7 +99,9 @@ export default function NotificationsClient({
   const router = useRouter();
   const [approveUser, { loading: approveUserLoading }] =
     useMutation<ApproveUserResponse>(APPROVE_USER);
-
+  const [approveLessonDeletion] = useMutation<ApproveLessonDeletionResponse>(
+    APPROVE_LESSON_DELETION
+  );
   const {
     data,
     loading: queryLoading,
@@ -329,23 +338,46 @@ export default function NotificationsClient({
           });
         }
       } else if (notificationType === "LESSON_DELETION_REQUEST") {
-        const result = await approveLessonDeletion(
-          Number(notificationId),
-          true
-        );
-        if (result.success) {
+        const { data, errors } = await approveLessonDeletion({
+          variables: {
+            input: { notificationId: Number(notificationId), approve: true },
+          },
+        });
+        if (errors) {
+          console.error("handleApprove: GraphQL mutation errors:", errors);
+          toast.error(
+            `Failed to approve lesson deletion: ${
+              errors[0]?.message || "Unknown error"
+            }`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+          setLoading(false);
+          return;
+        }
+        const response = data?.approveLessonDeletion;
+        if (response?.success) {
           toast.success("Lesson deletion approved successfully!", {
             position: "top-center",
             autoClose: 3000,
             theme: "colored",
           });
         } else {
-          console.error("handleApprove: Lesson deletion error:", result.error);
-          toast.error(result.error || "Failed to approve lesson deletion.", {
-            position: "top-center",
-            autoClose: 3000,
-            theme: "colored",
-          });
+          console.error(
+            "handleApprove: Lesson deletion error:",
+            response?.error
+          );
+          toast.error(
+            response?.error?.message || "Failed to approve lesson deletion.",
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
         }
       } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
         const result = await approveLessonReschedule(
@@ -424,23 +456,46 @@ export default function NotificationsClient({
           theme: "colored",
         });
       } else if (notificationType === "LESSON_DELETION_REQUEST") {
-        const result = await approveLessonDeletion(
-          Number(notificationId),
-          false
-        );
-        if (result.success) {
+        const { data, errors } = await approveLessonDeletion({
+          variables: {
+            input: { notificationId: Number(notificationId), approve: false },
+          },
+        });
+        if (errors) {
+          console.error("handleReject: GraphQL mutation errors:", errors);
+          toast.error(
+            `Failed to reject lesson deletion: ${
+              errors[0]?.message || "Unknown error"
+            }`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+          setLoading(false);
+          return;
+        }
+        const response = data?.approveLessonDeletion;
+        if (response?.success) {
           toast.success("Lesson deletion rejected successfully!", {
             position: "top-center",
             autoClose: 3000,
             theme: "colored",
           });
         } else {
-          console.error("handleReject: Lesson deletion error:", result.error);
-          toast.error(result.error || "Failed to reject lesson deletion.", {
-            position: "top-center",
-            autoClose: 3000,
-            theme: "colored",
-          });
+          console.error(
+            "handleReject: Lesson deletion error:",
+            response?.error
+          );
+          toast.error(
+            response?.error?.message || "Failed to reject lesson deletion.",
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
         }
       } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
         const result = await approveLessonReschedule(
