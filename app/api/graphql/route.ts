@@ -1015,7 +1015,7 @@ const { handleRequest } = createYoga<NextContext>({
             console.error("deleteLessonPlan: Error:", error);
             const pgError = error as PostgresError;
             let errorMessage = "Failed to process deletion";
-            let errorCode = pgError.code || "500";
+            const errorCode = pgError.code || "500";
 
             if (pgError.code === "ENOTFOUND") {
               errorMessage =
