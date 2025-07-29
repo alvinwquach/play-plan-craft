@@ -42,11 +42,11 @@ import {
 } from "@react-pdf/renderer";
 import { Document as DocxDocument, Paragraph, Packer } from "docx";
 import { Activity, LessonPlan, Retailer, Supply } from "@/app/types/lessonPlan";
-import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
 import { useMutation, useQuery } from "@apollo/client";
 import { DELETE_LESSON_PLAN } from "@/app/graphql/mutations/deleteLessonPlan";
 import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
 import { Notification } from "../../types/lessonPlan";
+import { RESCHEDULE_LESSON_PLAN } from "@/app/graphql/mutations/rescheduleLessonPlan";
 
 Font.register({
   family: "Roboto",
@@ -399,7 +399,26 @@ export default function Calendar({
   const { data: notificationsData, loading: notificationsLoading } = useQuery<{
     notifications: { userId: string; notifications: Notification[] };
   }>(GET_NOTIFICATIONS, {
-    skip: !isOrganizationOwner, 
+    skip: !isOrganizationOwner,
+  });
+  const [rescheduleLessonPlanMutation] = useMutation(RESCHEDULE_LESSON_PLAN, {
+    onCompleted: (data) => {
+      if (data.rescheduleLessonPlan.success) {
+        toast.success("Lesson plan rescheduled successfully!");
+      } else if (data.rescheduleLessonPlan.requestSent) {
+        toast.info(
+          "Reschedule request sent to organization owner for approval"
+        );
+      } else {
+        toast.error(
+          data.rescheduleLessonPlan.error || "Failed to reschedule lesson plan"
+        );
+      }
+    },
+    onError: (error) => {
+      console.error("Error rescheduling lesson plan:", error);
+      toast.error("Failed to reschedule lesson plan: " + error.message);
+    },
   });
 
   const retailers = [
@@ -1170,12 +1189,18 @@ ${
     };
 
     try {
-      const response = await rescheduleLessonPlan(
-        updatedLesson.id || updatedLesson.title,
-        updatedLesson.scheduledDate!
-      );
+      const { data } = await rescheduleLessonPlanMutation({
+        variables: {
+          input: {
+            lessonPlanId: updatedLesson.id,
+            scheduledDate: updatedLesson.scheduledDate!,
+          },
+        },
+      });
 
-      if (response.success && response.lessonPlan) {
+      const response = data?.rescheduleLessonPlan;
+
+      if (response?.success && response.lessonPlan) {
         const updatedPlans = lessonPlans.map((lp) =>
           lp.id === updatedLesson.id
             ? { ...updatedLesson, supplies: lp.supplies }
@@ -1190,35 +1215,14 @@ ${
           });
         }
 
-        toast.success("Lesson rescheduled successfully!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.success("Lesson rescheduled successfully!");
       } else {
-        toast.error(response.error || "Failed to reschedule lesson", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.error(response?.error || "Failed to reschedule lesson");
         info.revert();
       }
     } catch (error) {
       console.error("Error rescheduling lesson:", error);
-      toast.error("An error occurred while rescheduling the lesson.", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      toast.error("An error occurred while rescheduling the lesson.");
       info.revert();
     }
   };
@@ -1234,10 +1238,16 @@ ${
     };
 
     try {
-      const response = await rescheduleLessonPlan(
-        updatedLesson.id || updatedLesson.title,
-        updatedLesson.scheduledDate!
-      );
+      const { data } = await rescheduleLessonPlanMutation({
+        variables: {
+          input: {
+            lessonPlanId: updatedLesson.id,
+            scheduledDate: updatedLesson.scheduledDate!,
+          },
+        },
+      });
+
+      const response = data?.rescheduleLessonPlan;
 
       if (response.success && response.lessonPlan) {
         const updatedPlans = lessonPlans.map((lp) =>
@@ -1251,34 +1261,13 @@ ${
           supplies: selectedLesson.supplies,
         });
 
-        toast.success("Lesson schedule updated!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.success("Lesson schedule updated!");
       } else {
-        toast.error(response.error || "Failed to update lesson schedule", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.error(response.error || "Failed to update lesson schedule");
       }
     } catch (error) {
       console.error("Error updating lesson schedule:", error);
-      toast.error("An error occurred while updating the lesson schedule.", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      toast.error("An error occurred while updating the lesson schedule.");
     }
   };
 
@@ -1599,7 +1588,7 @@ ${
           events={events}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
-          editable={userRole === "EDUCATOR" || isOrganizationOwner} // Allow organization owners to edit
+          editable={userRole === "EDUCATOR" || isOrganizationOwner}
           selectable={false}
           datesSet={(dateInfo) =>
             updateHeaderToolbar(dateInfo.view.currentStart)

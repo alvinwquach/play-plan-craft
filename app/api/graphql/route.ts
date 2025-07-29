@@ -11,6 +11,7 @@ import { notifications } from "@/app/db/schema/table/notifications";
 import { organizations } from "@/app/db/schema/table/organizations";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
+import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
 
 interface NextContext {
   params: Promise<Record<string, string>>;
@@ -296,7 +297,7 @@ const { handleRequest } = createYoga<NextContext>({
       }
 
       type Activity {
-        id: ID!
+        id: ID
         title: String!
         description: String!
         activityType: ActivityType!
@@ -389,6 +390,23 @@ const { handleRequest } = createYoga<NextContext>({
         code: String!
       }
 
+      input RescheduleLessonPlanInput {
+        lessonPlanId: ID!
+        scheduledDate: String!
+      }
+
+      type RescheduleLessonPlanResponse {
+        success: Boolean!
+        lessonPlan: LessonPlan
+        error: Error
+        requestSent: Boolean
+      }
+
+      type Error {
+        message: String!
+        code: String
+      }
+
       type DeleteLessonPlanResponse {
         success: Boolean!
         error: DeleteLessonPlanError
@@ -445,6 +463,9 @@ const { handleRequest } = createYoga<NextContext>({
         deleteLessonPlan(
           input: DeleteLessonPlanInput!
         ): DeleteLessonPlanResponse!
+        rescheduleLessonPlan(
+          input: RescheduleLessonPlanInput!
+        ): RescheduleLessonPlanResponse!
       }
     `,
     resolvers: {
@@ -903,6 +924,26 @@ const { handleRequest } = createYoga<NextContext>({
             }
             return {
               error: { message: errorMessage, code: pgError.code || "500" },
+            };
+          }
+        },
+        rescheduleLessonPlan: async (_, { input }) => {
+          try {
+            const result = await rescheduleLessonPlan(
+              input.lessonPlanId,
+              input.scheduledDate
+            );
+
+            return {
+              success: result.success,
+              lessonPlan: result.lessonPlan,
+              error: result.error,
+              requestSent: result.requestSent,
+            };
+          } catch (error) {
+            console.error("Error in rescheduleLessonPlan mutation:", error);
+            return {
+              success: false,
             };
           }
         },
