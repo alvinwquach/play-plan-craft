@@ -632,6 +632,34 @@ export default function LessonPlanForm() {
     setLoading(true);
     setError(null);
 
+    const availableThemes = getAvailableThemes(
+      formData.gradeLevel,
+      formData.curriculum
+    );
+    if (
+      formData.theme &&
+      formData.theme !== "OTHER" &&
+      !availableThemes.includes(formData.theme)
+    ) {
+      setError(`Invalid theme: ${formData.theme}`);
+      setLoading(false);
+      return;
+    }
+
+    const themeToSend =
+      formData.theme === "OTHER" && customTheme
+        ? customTheme.toUpperCase()
+        : formData.theme.toUpperCase();
+    if (
+      themeToSend &&
+      themeToSend !== "OTHER" &&
+      !availableThemes.includes(themeToSend)
+    ) {
+      setError(`Invalid theme: ${themeToSend}`);
+      setLoading(false);
+      return;
+    }
+
     // Validate other fields
     if (!formData.scheduledDate) {
       setError("Scheduled date and time are required.");
@@ -707,10 +735,8 @@ export default function LessonPlanForm() {
       if (formData.title) formDataToSend.append("title", formData.title);
       formDataToSend.append("gradeLevel", formData.gradeLevel);
       formDataToSend.append("subject", formData.subject);
-      if (formData.theme === "OTHER") {
-        if (customTheme) formDataToSend.append("theme", customTheme);
-      } else if (formData.theme) {
-        formDataToSend.append("theme", formData.theme);
+      if (themeToSend) {
+        formDataToSend.append("theme", themeToSend);
       }
       formDataToSend.append("duration", formData.duration.toString());
       if (formData.activityTypes.length > 0) {
@@ -869,8 +895,9 @@ export default function LessonPlanForm() {
                 <select
                   value={formData.theme}
                   onChange={(e) => {
-                    setFormData({ ...formData, theme: e.target.value });
-                    if (e.target.value !== "OTHER") {
+                    const selectedTheme = e.target.value.toUpperCase();
+                    setFormData({ ...formData, theme: selectedTheme });
+                    if (selectedTheme !== "OTHER") {
                       setCustomTheme("");
                     }
                   }}
@@ -887,18 +914,6 @@ export default function LessonPlanForm() {
                   ))}
                   <option value="OTHER">Other</option>
                 </select>
-                {formData.theme === "OTHER" && (
-                  <input
-                    type="text"
-                    value={customTheme}
-                    onChange={(e) => {
-                      setCustomTheme(e.target.value);
-                      setFormData({ ...formData, theme: "OTHER" });
-                    }}
-                    className="block w-full border border-gray-200 rounded-lg p-3 text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-400 mt-2"
-                    placeholder="Enter custom theme"
-                  />
-                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-teal-800 mb-2">
