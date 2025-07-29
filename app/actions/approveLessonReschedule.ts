@@ -226,7 +226,7 @@ export async function approveLessonReschedule(
         citationScore: lessonPlan.citation_score,
         scheduledDate: start.toISOString(),
         created_by_id: lessonPlan.created_by_id,
-        createdByName: "",
+        createdBy: "",
       };
     }
 
