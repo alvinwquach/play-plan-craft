@@ -404,21 +404,47 @@ export default function Calendar({
   });
   const [rescheduleLessonPlanMutation] = useMutation(RESCHEDULE_LESSON_PLAN, {
     onCompleted: (data) => {
-      if (data.rescheduleLessonPlan.success) {
+      const response = data?.rescheduleLessonPlan;
+
+      if (response?.success && response.lessonPlan) {
+        const updatedPlans = lessonPlans.map((lp) =>
+          lp.id === response.lessonPlan.id
+            ? { ...response.lessonPlan, supplies: lp.supplies }
+            : lp
+        );
+        setLessonPlans(updatedPlans);
+
+        if (selectedLesson && selectedLesson.id === response.lessonPlan.id) {
+          setSelectedLesson({
+            ...response.lessonPlan,
+            supplies: selectedLesson.supplies,
+          });
+        }
+
         toast.success("Lesson plan rescheduled successfully!");
-      } else if (data.rescheduleLessonPlan.requestSent) {
+      } else if (response?.requestSent) {
         toast.info(
           "Reschedule request sent to organization owner for approval"
         );
       } else {
         toast.error(
-          data.rescheduleLessonPlan.error || "Failed to reschedule lesson plan"
+          response?.error?.message || "Failed to reschedule lesson plan"
         );
       }
     },
     onError: (error) => {
       console.error("Error rescheduling lesson plan:", error);
-      toast.error("Failed to reschedule lesson plan: " + error.message);
+      if (
+        error.graphQLErrors.some((err) =>
+          err.message.includes("Reschedule request sent")
+        )
+      ) {
+        toast.info(
+          "Reschedule request sent to organization owner for approval"
+        );
+      } else {
+        toast.error("An error occurred while rescheduling the lesson plan.");
+      }
     },
   });
 
@@ -1230,8 +1256,13 @@ ${
         }
 
         toast.success("Lesson rescheduled successfully!");
+      } else if (response?.requestSent) {
+        toast.info(
+          "Reschedule request sent to organization owner for approval"
+        );
+        info.revert();
       } else {
-        toast.error(response?.error || "Failed to reschedule lesson");
+        toast.error(response?.error?.message || "Failed to reschedule lesson");
         info.revert();
       }
     } catch (error) {
@@ -1263,7 +1294,7 @@ ${
 
       const response = data?.rescheduleLessonPlan;
 
-      if (response.success && response.lessonPlan) {
+      if (response?.success && response.lessonPlan) {
         const updatedPlans = lessonPlans.map((lp) =>
           lp.id === updatedLesson.id
             ? { ...updatedLesson, supplies: lp.supplies }
@@ -1276,8 +1307,14 @@ ${
         });
 
         toast.success("Lesson schedule updated!");
+      } else if (response?.requestSent) {
+        toast.info(
+          "Reschedule request sent to organization owner for approval"
+        );
       } else {
-        toast.error(response.error || "Failed to update lesson schedule");
+        toast.error(
+          response?.error?.message || "Failed to update lesson schedule"
+        );
       }
     } catch (error) {
       console.error("Error updating lesson schedule:", error);

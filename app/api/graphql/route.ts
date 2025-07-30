@@ -1038,17 +1038,33 @@ const { handleRequest } = createYoga<NextContext>({
               input.lessonPlanId,
               input.scheduledDate
             );
-
+        
             return {
               success: result.success,
               lessonPlan: result.lessonPlan,
-              error: result.error,
+              error: result.error
+                ? {
+                    message: result.error,
+                    code:
+                      result.error ===
+                      "Reschedule request sent to the organization owner for approval."
+                        ? "200"
+                        : "500",
+                  }
+                : null,
               requestSent: result.requestSent,
             };
           } catch (error) {
             console.error("Error in rescheduleLessonPlan mutation:", error);
             return {
               success: false,
+              error: {
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to reschedule lesson plan",
+                code: "500",
+              },
             };
           }
         },
