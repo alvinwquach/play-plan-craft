@@ -1,5 +1,3 @@
-import { getLessonPlans } from "@/app/actions/getLessonPlans";
-import { getNotifications } from "@/app/actions/getNotifications";
 import { createSchema, createYoga } from "graphql-yoga";
 import { createClient } from "@/utils/supabase/server";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -11,8 +9,12 @@ import { notifications } from "@/app/db/schema/table/notifications";
 import { organizations } from "@/app/db/schema/table/organizations";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
-import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
 import { createLessonPlan } from "@/app/actions/createLessonPlan";
+import { rescheduleLessonPlan } from "@/app/actions/rescheduleLessonPlan";
+import { approveLessonReschedule } from "@/app/actions/approveLessonReschedule";
+import { getLessonPlans } from "@/app/actions/getLessonPlans";
+import { getNotifications } from "@/app/actions/getNotifications";
+import { LessonPlan } from "@/app/types/lessonPlan";
 
 interface NextContext {
   params: Promise<Record<string, string>>;
@@ -501,6 +503,17 @@ const { handleRequest } = createYoga<NextContext>({
         error: Error
       }
 
+      input ApproveLessonRescheduleInput {
+        notificationId: ID!
+        approve: Boolean!
+      }
+
+      type ApproveLessonRescheduleResponse {
+        success: Boolean!
+        lessonPlan: LessonPlan
+        error: Error
+      }
+
       type Mutation {
         requestAssistantRole(
           input: RequestAssistantRoleInput!
@@ -520,6 +533,9 @@ const { handleRequest } = createYoga<NextContext>({
         approveLessonDeletion(
           input: ApproveLessonDeletionInput!
         ): ApproveLessonDeletionResponse!
+        approveLessonReschedule(
+          input: ApproveLessonRescheduleInput!
+        ): ApproveLessonRescheduleResponse!
       }
     `,
     resolvers: {
@@ -1038,7 +1054,7 @@ const { handleRequest } = createYoga<NextContext>({
               input.lessonPlanId,
               input.scheduledDate
             );
-        
+
             return {
               success: result.success,
               lessonPlan: result.lessonPlan,
@@ -1344,6 +1360,63 @@ const { handleRequest } = createYoga<NextContext>({
                   pgError instanceof Error
                     ? pgError.message
                     : "Failed to approve lesson deletion",
+                code: pgError.code || "500",
+              },
+            };
+          }
+        },
+        approveLessonReschedule: async (
+          _: unknown,
+          {
+            input,
+          }: {
+            input: {
+              notificationId: string;
+              approve: boolean;
+            };
+          }
+        ): Promise<{
+          success: boolean;
+          lessonPlan?: LessonPlan;
+          error?: { message: string; code: string };
+        }> => {
+          try {
+            const notificationId = parseInt(input.notificationId, 10);
+            if (isNaN(notificationId)) {
+              return {
+                success: false,
+                error: {
+                  message: "Invalid notification ID format",
+                  code: "400",
+                },
+              };
+            }
+
+            const result = await approveLessonReschedule(
+              notificationId,
+              input.approve
+            );
+
+            return {
+              success: result.success,
+              lessonPlan: result.lessonPlan,
+              error: result.error
+                ? {
+                    message: result.error,
+                    code: result.error.includes("conflict") ? "409" : "500",
+                  }
+                : undefined,
+            };
+          } catch (error: unknown) {
+            console.error("approveLessonReschedule: Error:", error);
+            const pgError = error as PostgresError;
+            return {
+              success: false,
+              error: {
+                message:
+                  pgError instanceof Error
+                    ? pgError.message
+                    : "Failed to process lesson reschedule approval",
                 code: pgError.code || "500",
               },
             };
