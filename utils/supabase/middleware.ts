@@ -27,12 +27,23 @@ export async function updateSession(request: NextRequest) {
     );
 
     const protectedRoutes = ["/lesson-plan", "/calendar", "/notifications"];
+    const publicRoutes = [
+      "/login",
+      "/auth",
+      "/auth/callback",
+      "/auth/error",
+      "/onboarding",
+      "/",
+    ];
 
-    if (
-      request.nextUrl.pathname.startsWith("/auth") ||
-      request.nextUrl.pathname.startsWith("/login") ||
-      request.nextUrl.pathname.startsWith("/onboarding")
-    ) {
+    const isPublicRoute = publicRoutes.some(
+      (route) =>
+        request.nextUrl.pathname.startsWith(route) ||
+        request.nextUrl.pathname === route
+    );
+
+    if (isPublicRoute) {
+      console.log(`Allowing public route: ${request.nextUrl.pathname}`);
       return supabaseResponse;
     }
 
@@ -41,6 +52,7 @@ export async function updateSession(request: NextRequest) {
     );
 
     if (!isProtectedRoute) {
+      console.log(`Allowing non-protected route: ${request.nextUrl.pathname}`);
       return supabaseResponse;
     }
 
@@ -50,8 +62,13 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getSession();
 
     if (!session || sessionError) {
+      console.error(
+        `No session found for protected route ${request.nextUrl.pathname}:`,
+        sessionError?.message
+      );
       const url = request.nextUrl.clone();
       url.pathname = "/login";
+      url.search = "";
       return NextResponse.redirect(url);
     }
 
@@ -61,8 +78,13 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error(
+        `No user found for protected route ${request.nextUrl.pathname}:`,
+        authError?.message
+      );
       const url = request.nextUrl.clone();
       url.pathname = "/login";
+      url.search = "";
       return NextResponse.redirect(url);
     }
 
@@ -73,23 +95,35 @@ export async function updateSession(request: NextRequest) {
       .single();
 
     if (roleError && roleError.code !== "PGRST116") {
-      console.error("Error querying users table in middleware:", roleError);
+      console.error(
+        `Error querying users table for ${request.nextUrl.pathname}:`,
+        roleError.message
+      );
       const url = request.nextUrl.clone();
       url.pathname = "/login";
+      url.search = "";
       return NextResponse.redirect(url);
     }
 
     if (!userData?.role) {
+      console.log(
+        `User has no role, redirecting to onboarding from ${request.nextUrl.pathname}`
+      );
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
+      url.search = "";
       return NextResponse.redirect(url);
     }
 
     return supabaseResponse;
   } catch (error) {
-    console.error("Unexpected middleware error:", error);
+    console.error(
+      `Unexpected middleware error for ${request.nextUrl.pathname}:`,
+      error
+    );
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 }

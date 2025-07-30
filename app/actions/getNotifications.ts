@@ -25,7 +25,6 @@ export async function getNotifications(filter?: string): Promise<{
     } = await supabase.auth.getUser();
 
     if (error || !user) {
-      console.error("getNotifications: Auth error:", error?.message);
       return { userId: null, notifications: [] };
     }
 

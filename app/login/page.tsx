@@ -1,27 +1,15 @@
 "use client";
 
-import { createClient } from "@/utils/supabase/client";
 import { useState } from "react";
-import { FaGoogle, FaFacebookF, FaTwitter, FaDiscord } from "react-icons/fa";
-import type { Provider } from "@supabase/supabase-js";
-
-const providers: {
-  name: string;
-  icon: React.ElementType;
-  provider: Provider;
-}[] = [
-  { name: "Google", icon: FaGoogle, provider: "google" },
-  { name: "Facebook", icon: FaFacebookF, provider: "facebook" },
-  { name: "Twitter", icon: FaTwitter, provider: "twitter" },
-  { name: "Discord", icon: FaDiscord, provider: "discord" },
-];
+import { FaGoogle } from "react-icons/fa";
+import { createClient } from "@/utils/supabase/client";
 
 export default function Login() {
-  const [loadingProvider, setLoadingProvider] = useState<Provider | null>(null);
+  const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
-  const handleOAuthLogin = async (provider: Provider) => {
-    setLoadingProvider(provider);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
       const redirectTo =
         process.env.NODE_ENV === "development"
@@ -29,7 +17,7 @@ export default function Login() {
           : process.env.NEXT_PUBLIC_AUTH_CALLBACK_URL;
 
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
           redirectTo,
           queryParams: {
@@ -41,9 +29,9 @@ export default function Login() {
 
       if (error) throw error;
     } catch (error) {
-      console.error(`Error during ${provider} login:`, error);
+      console.error("Error during Google login:", error);
     } finally {
-      setLoadingProvider(null);
+      setLoading(false);
     }
   };
 
@@ -54,24 +42,16 @@ export default function Login() {
           Sign in to Play Plan Craft
         </h2>
         <p className="text-gray-600 text-center mb-6 text-sm">
-          Continue using one of your social accounts
+          Continue with Google
         </p>
-
-        <div className="space-y-3">
-          {providers.map(({ name, icon: Icon, provider }) => (
-            <button
-              key={provider}
-              onClick={() => handleOAuthLogin(provider)}
-              disabled={loadingProvider !== null}
-              className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-2.5 px-4 rounded-lg shadow-sm transition-all duration-200 disabled:opacity-60"
-            >
-              <Icon className="w-5 h-5" />
-              {loadingProvider === provider
-                ? `Signing in with ${name}...`
-                : `Sign in with ${name}`}
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium py-2.5 px-4 rounded-lg shadow-sm transition-all duration-200 disabled:opacity-60"
+        >
+          <FaGoogle className="w-5 h-5" />
+          {loading ? "Signing in with Google..." : "Sign in with Google"}
+        </button>
       </div>
     </div>
   );
