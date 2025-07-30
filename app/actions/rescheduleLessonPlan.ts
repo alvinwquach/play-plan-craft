@@ -82,7 +82,10 @@ export async function rescheduleLessonPlan(
       organization.user_id !== user.id
     ) {
       if (!organization?.user_id) {
-        return { success: false, error: "Organization owner not found" };
+        return {
+          success: false,
+          error: "Organization owner not found",
+        };
       }
 
       const start = new Date(scheduledDate);
@@ -100,8 +103,7 @@ export async function rescheduleLessonPlan(
       return {
         success: false,
         requestSent: true,
-        error:
-          "Reschedule request sent to the organization owner for approval.",
+        error: "Reschedule request sent to the organization owner for approval.",
       };
     }
 
