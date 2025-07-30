@@ -17,9 +17,9 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { useMutation, useQuery } from "@apollo/client";
 import { APPROVE_USER } from "@/app/graphql/mutations/approveUser";
 import { GET_NOTIFICATIONS } from "@/app/graphql/queries/getNotifications";
-import { approveLessonReschedule } from "@/app/actions/approveLessonReschedule";
-import { Notification } from "@/app/types/lessonPlan";
 import { APPROVE_LESSON_DELETION } from "@/app/graphql/mutations/approveLessonDeletion";
+import { APPROVE_LESSON_RESCHEDULE } from "@/app/graphql/mutations/approveLessonReschedule";
+import { Notification, LessonPlan } from "@/app/types/lessonPlan";
 
 type NotificationsClientProps = {
   initialNotifications: Notification[];
@@ -63,6 +63,14 @@ interface ApproveLessonDeletionResponse {
   };
 }
 
+interface ApproveLessonRescheduleResponse {
+  approveLessonReschedule: {
+    success: boolean;
+    lessonPlan?: LessonPlan;
+    error?: { message: string; code: string };
+  };
+}
+
 const NotificationSkeleton = () => (
   <div className="bg-white border border-gray-100 p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
     <div className="w-12 h-12 bg-gray-200 rounded-full" />
@@ -99,9 +107,10 @@ export default function NotificationsClient({
   const router = useRouter();
   const [approveUser, { loading: approveUserLoading }] =
     useMutation<ApproveUserResponse>(APPROVE_USER);
-  const [approveLessonDeletion] = useMutation<ApproveLessonDeletionResponse>(
-    APPROVE_LESSON_DELETION
-  );
+  const [approveLessonDeletion, { loading: approveLessonDeletionLoading }] =
+    useMutation<ApproveLessonDeletionResponse>(APPROVE_LESSON_DELETION);
+  const [approveLessonReschedule, { loading: approveLessonRescheduleLoading }] =
+    useMutation<ApproveLessonRescheduleResponse>(APPROVE_LESSON_RESCHEDULE);
   const {
     data,
     loading: queryLoading,
@@ -380,11 +389,28 @@ export default function NotificationsClient({
           );
         }
       } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
-        const result = await approveLessonReschedule(
-          Number(notificationId),
-          true
-        );
-        if (result.success) {
+        const { data, errors } = await approveLessonReschedule({
+          variables: {
+            input: { notificationId: Number(notificationId), approve: true },
+          },
+        });
+        if (errors) {
+          console.error("handleApprove: GraphQL mutation errors:", errors);
+          toast.error(
+            `Failed to approve lesson reschedule: ${
+              errors[0]?.message || "Unknown error"
+            }`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+          setLoading(false);
+          return;
+        }
+        const response = data?.approveLessonReschedule;
+        if (response?.success) {
           toast.success("Lesson reschedule approved successfully!", {
             position: "top-center",
             autoClose: 3000,
@@ -393,13 +419,16 @@ export default function NotificationsClient({
         } else {
           console.error(
             "handleApprove: Lesson reschedule error:",
-            result.error
+            response?.error
           );
-          toast.error(result.error || "Failed to approve lesson reschedule.", {
-            position: "top-center",
-            autoClose: 3000,
-            theme: "colored",
-          });
+          toast.error(
+            response?.error?.message || "Failed to approve lesson reschedule.",
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
         }
       }
       refetch();
@@ -498,23 +527,46 @@ export default function NotificationsClient({
           );
         }
       } else if (notificationType === "LESSON_RESCHEDULE_REQUEST") {
-        const result = await approveLessonReschedule(
-          Number(notificationId),
-          false
-        );
-        if (result.success) {
+        const { data, errors } = await approveLessonReschedule({
+          variables: {
+            input: { notificationId: Number(notificationId), approve: false },
+          },
+        });
+        if (errors) {
+          console.error("handleReject: GraphQL mutation errors:", errors);
+          toast.error(
+            `Failed to reject lesson reschedule: ${
+              errors[0]?.message || "Unknown error"
+            }`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
+          setLoading(false);
+          return;
+        }
+        const response = data?.approveLessonReschedule;
+        if (response?.success) {
           toast.success("Lesson reschedule rejected successfully!", {
             position: "top-center",
             autoClose: 3000,
             theme: "colored",
           });
         } else {
-          console.error("handleReject: Lesson reschedule error:", result.error);
-          toast.error(result.error || "Failed to reject lesson reschedule.", {
-            position: "top-center",
-            autoClose: 3000,
-            theme: "colored",
-          });
+          console.error(
+            "handleReject: Lesson reschedule error:",
+            response?.error
+          );
+          toast.error(
+            response?.error?.message || "Failed to reject lesson reschedule.",
+            {
+              position: "top-center",
+              autoClose: 3000,
+              theme: "colored",
+            }
+          );
         }
       }
       refetch();
@@ -596,7 +648,11 @@ export default function NotificationsClient({
             ))}
           </div>
         </div>
-        {loading || approveUserLoading || queryLoading ? (
+        {loading ||
+        approveUserLoading ||
+        queryLoading ||
+        approveLessonDeletionLoading ||
+        approveLessonRescheduleLoading ? (
           <div className="space-y-4">
             {[...Array(skeletonCount)].map((_, i) => (
               <NotificationSkeleton key={i} />
@@ -729,7 +785,12 @@ export default function NotificationsClient({
                               notification.type
                             )
                           }
-                          disabled={loading || approveUserLoading}
+                          disabled={
+                            loading ||
+                            approveUserLoading ||
+                            approveLessonDeletionLoading ||
+                            approveLessonRescheduleLoading
+                          }
                           className="w-10 h-10 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                           title="Approve"
                         >
@@ -743,7 +804,12 @@ export default function NotificationsClient({
                               notification.type
                             )
                           }
-                          disabled={loading || approveUserLoading}
+                          disabled={
+                            loading ||
+                            approveUserLoading ||
+                            approveLessonDeletionLoading ||
+                            approveLessonRescheduleLoading
+                          }
                           className="w-10 h-10 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                           title="Reject"
                         >
@@ -753,7 +819,12 @@ export default function NotificationsClient({
                     ) : (
                       <button
                         onClick={() => handleDismiss(notification.id)}
-                        disabled={loading || approveUserLoading}
+                        disabled={
+                          loading ||
+                          approveUserLoading ||
+                          approveLessonDeletionLoading ||
+                          approveLessonRescheduleLoading
+                        }
                         className="w-10 h-10 rounded-full bg-gray-200 text-gray-600 hover:bg-gray-300 transition transform hover:scale-105 shadow-sm flex items-center justify-center"
                         title="Dismiss"
                       >

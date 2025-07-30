@@ -117,6 +117,28 @@ export async function approveLessonReschedule(
       return { success: false, error: "Lesson plan not found" };
     }
 
+    const [createdByUser] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        createdAt: users.createdAt,
+        image: users.image,
+        organizationId: users.organizationId,
+        pendingApproval: users.pendingApproval,
+      })
+      .from(users)
+      .where(eq(users.id, lessonPlan.created_by_id))
+      .limit(1);
+
+    if (!createdByUser) {
+      return {
+        success: false,
+        error: "Creator of the lesson plan not found",
+      };
+    }
+
     let updatedLesson: LessonPlan | undefined;
 
     if (approve) {
@@ -215,7 +237,7 @@ export async function approveLessonReschedule(
         curriculum: lessonPlan.curriculum,
         learningIntention: lessonPlan.learning_intention ?? "",
         successCriteria: lessonPlan.success_criteria ?? [],
-        activities: [],
+        activities: [], 
         alternateActivities: lessonPlan.alternate_activities ?? [],
         supplies: lessonPlan.supplies ?? [],
         tags: lessonPlan.tags ?? [],
@@ -227,7 +249,7 @@ export async function approveLessonReschedule(
         scheduledDate: start.toISOString(),
         created_by_id: lessonPlan.created_by_id,
         createdAt: lessonPlan.created_at,
-        createdBy: "",
+        createdByName: createdByUser.name ?? "Unknown",
       };
     }
 
@@ -270,7 +292,7 @@ export async function approveLessonReschedule(
       if (pgError.code === "ENOTFOUND") {
         errorMessage = `Database connection failed: Unable to resolve hostname`;
       } else if (pgError.code === "ETIMEDOUT") {
-        errorMessage = "Database connection timed out";
+        errorMessage = `Database connection timed out`;
       }
     }
     return { success: false, error: errorMessage };
