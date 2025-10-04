@@ -81,8 +81,8 @@ async function getRecentLessons(
     .leftJoin(activities, eq(activities.lesson_plan_id, lessonPlans.id))
     .where(
       and(
-        eq(lessonPlans.age_group, gradeLevel),
-        eq(lessonPlans.subject, subject),
+        eq(lessonPlans.age_group, gradeLevel as any),
+        eq(lessonPlans.subject, subject as any),
         eq(lessonPlans.created_by_id, userId)
       )
     )
@@ -940,7 +940,7 @@ ${recentLessons
     (lesson, idx) => `
 ${idx + 1}. "${lesson.title}" (${new Date(lesson.created_at!).toLocaleDateString()})
    - Learning Intention: ${lesson.learning_intention || "N/A"}
-   - Activities Used: ${lesson.activities.map((a) => `${a.title} (${a.type})`).join(", ") || "N/A"}
+   - Activities Used: ${lesson.activities.map((a: any) => `${a.title} (${a.type})`).join(", ") || "N/A"}
    - Success Criteria: ${lesson.success_criteria?.join("; ") || "N/A"}
 `
   )
