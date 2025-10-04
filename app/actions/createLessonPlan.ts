@@ -14,6 +14,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { lessonPlans } from "@/app/db/schema/table/lessonPlans";
 import { schedules } from "@/app/db/schema/table/schedules";
+import { activities } from "@/app/db/schema/table/activities";
 import { revalidatePath } from "next/cache";
 import {
   InferSelectModel,
@@ -26,6 +27,7 @@ import {
   gt,
   gte,
   inArray,
+  desc,
 } from "drizzle-orm";
 import { users } from "../db/schema/table/users";
 
@@ -58,6 +60,58 @@ const db = drizzle(pool);
 
 type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
+
+async function getRecentLessons(
+  gradeLevel: string,
+  subject: string,
+  userId: string,
+  limit: number = 5
+) {
+  const recentLessons = await db
+    .select({
+      id: lessonPlans.id,
+      title: lessonPlans.title,
+      created_at: lessonPlans.created_at,
+      learning_intention: lessonPlans.learning_intention,
+      success_criteria: lessonPlans.success_criteria,
+      activityTitle: activities.title,
+      activityType: activities.activity_type,
+    })
+    .from(lessonPlans)
+    .leftJoin(activities, eq(activities.lesson_plan_id, lessonPlans.id))
+    .where(
+      and(
+        eq(lessonPlans.age_group, gradeLevel),
+        eq(lessonPlans.subject, subject),
+        eq(lessonPlans.created_by_id, userId)
+      )
+    )
+    .orderBy(desc(lessonPlans.created_at))
+    .limit(limit);
+
+  // Group activities by lesson
+  const lessonsMap = new Map();
+  recentLessons.forEach((row) => {
+    if (!lessonsMap.has(row.id)) {
+      lessonsMap.set(row.id, {
+        id: row.id,
+        title: row.title,
+        created_at: row.created_at,
+        learning_intention: row.learning_intention,
+        success_criteria: row.success_criteria,
+        activities: [],
+      });
+    }
+    if (row.activityTitle) {
+      lessonsMap.get(row.id).activities.push({
+        title: row.activityTitle,
+        type: row.activityType,
+      });
+    }
+  });
+
+  return Array.from(lessonsMap.values());
+}
 
 export async function createLessonPlan(formData: FormData) {
   try {
@@ -870,7 +924,42 @@ export async function createLessonPlan(formData: FormData) {
         }))
       : defaultSources;
 
+    // Get recent lessons for context
+    const recentLessons = await getRecentLessons(
+      normalizedGradeLevel,
+      normalizedSubject,
+      user.id
+    );
+
+    const lessonContext =
+      recentLessons.length > 0
+        ? `
+**PREVIOUS LESSONS CONTEXT** (Build upon these, don't repeat):
+${recentLessons
+  .map(
+    (lesson, idx) => `
+${idx + 1}. "${lesson.title}" (${new Date(lesson.created_at!).toLocaleDateString()})
+   - Learning Intention: ${lesson.learning_intention || "N/A"}
+   - Activities Used: ${lesson.activities.map((a) => `${a.title} (${a.type})`).join(", ") || "N/A"}
+   - Success Criteria: ${lesson.success_criteria?.join("; ") || "N/A"}
+`
+  )
+  .join("\n")}
+
+**CRITICAL REQUIREMENTS**:
+- Build upon concepts from previous lessons above
+- Introduce NEW activities that progress from what students already learned
+- Reference prior learning in your lesson plan (e.g., "Building on our previous ${recentLessons[0]?.title?.toLowerCase()} lesson...")
+- DO NOT repeat any activity titles or types already used in the lessons above
+- Ensure progression in difficulty and complexity from the most recent lesson
+`
+        : `
+**FIRST LESSON**: This is the first lesson for this grade/subject combination. Focus on foundational concepts.
+`;
+
     const prompt = `
+        ${lessonContext}
+
         You are an AI lesson planner for the ${curriculum} curriculum, designed to support educators from nurturing infants to managing high school projects. Generate a structured JSON response for a lesson plan tailored to the provided inputs.
         
         Create a ${duration}-minute lesson plan for ${normalizedGradeLevel} students focusing on ${normalizedSubject?.toLowerCase()}${
