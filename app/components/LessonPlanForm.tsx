@@ -36,7 +36,9 @@ const formatLabel = (value: string): string => {
 export default function LessonPlanForm() {
   const router = useRouter();
   const [createLessonPlan, { loading, error: mutationError }] =
-    useMutation(CREATE_LESSON_PLAN);
+    useMutation(CREATE_LESSON_PLAN, {
+      refetchQueries: ["LessonPlans"],
+    });
   const [formData, setFormData] = useState<FormData>({
     title: "",
     gradeLevel: "PRESCHOOL",

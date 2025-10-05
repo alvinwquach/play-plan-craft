@@ -540,38 +540,38 @@ export default function Calendar({
       window.removeEventListener("resize", updateViewBasedOnScreenSize);
   }, [currentMonth]);
 
-  const events: EventInput[] = lessonPlans.map((lesson) => {
-    const start = lesson.scheduledDate
-      ? new Date(lesson.scheduledDate)
-      : new Date();
-    const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
+  const events: EventInput[] = lessonPlans
+    .filter((lesson) => lesson.scheduledDate) // Only show lessons with scheduled dates
+    .map((lesson) => {
+      const start = new Date(lesson.scheduledDate!);
+      const end = new Date(start.getTime() + lesson.duration * 60 * 1000);
 
-    return {
-      id: lesson.id || lesson.title,
-      title: `${lesson.title} (${lesson.createdByName || "Unknown"})`,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      allDay: false,
-      extendedProps: { lesson },
-      backgroundColor:
-        lesson.status === "PENDING_DELETION"
-          ? "#ff6b6b"
-          : lesson.created_by_id === userId
-          ? "#2c7a7b"
-          : "#4a9f9e",
-      borderColor:
-        lesson.status === "PENDING_DELETION"
-          ? "#d63031"
-          : lesson.created_by_id === userId
-          ? "#1a5f5f"
-          : "#3a8f8e",
-      textColor: "#ffffff",
-      classNames: [
-        "custom-event",
-        lesson.status === "PENDING_DELETION" ? "pending-deletion" : "",
-      ],
-    };
-  });
+      return {
+        id: lesson.id || lesson.title,
+        title: `${lesson.title} (${lesson.createdByName || "Unknown"})`,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        allDay: false,
+        extendedProps: { lesson },
+        backgroundColor:
+          lesson.status === "PENDING_DELETION"
+            ? "#ff6b6b"
+            : lesson.created_by_id === userId
+            ? "#2c7a7b"
+            : "#4a9f9e",
+        borderColor:
+          lesson.status === "PENDING_DELETION"
+            ? "#d63031"
+            : lesson.created_by_id === userId
+            ? "#1a5f5f"
+            : "#3a8f8e",
+        textColor: "#ffffff",
+        classNames: [
+          "custom-event",
+          lesson.status === "PENDING_DELETION" ? "pending-deletion" : "",
+        ],
+      };
+    });
 
   const formatGoogleCalendarDate = (date: Date) => {
     return date
