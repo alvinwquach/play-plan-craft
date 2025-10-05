@@ -30,14 +30,14 @@ export async function generateEmbedding(text: string): Promise<number[]> {
  * @param data - Lesson plan fields to summarize
  * @returns Concatenated string for embedding
  */
-export function createLessonSummary(data: {
+export async function createLessonSummary(data: {
   title: string;
   subject: string;
   gradeLevel: string;
   learningIntention?: string;
   successCriteria?: string[];
   theme?: string | null;
-}): string {
+}): Promise<string> {
   const parts = [
     data.title,
     data.subject.toLowerCase().replace(/_/g, " "),

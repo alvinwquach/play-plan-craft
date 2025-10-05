@@ -73,7 +73,7 @@ export async function createLessonPlan(formData: FormData) {
       : defaultSources;
 
     // Generate preliminary embedding for similarity search
-    const preliminarySummary = createLessonSummary({
+    const preliminarySummary = await createLessonSummary({
       title: title || "Lesson",
       subject: subject,
       gradeLevel: gradeLevel,
@@ -223,7 +223,7 @@ export async function createLessonPlan(formData: FormData) {
       );
     }
 
-    const lessonSummary = createLessonSummary({
+    const lessonSummary = await createLessonSummary({
       title: lessonPlan.title,
       subject: lessonPlan.subject,
       gradeLevel: lessonPlan.gradeLevel,
