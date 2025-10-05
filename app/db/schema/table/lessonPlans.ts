@@ -8,6 +8,7 @@ import {
   timestamp,
   index,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 import { ageGroup } from "../enum/ageGroup";
 import { subject } from "../enum/subject";
@@ -60,8 +61,13 @@ export const lessonPlans = pgTable(
       .$type<AlternateActivityGroup[]>(), // Alternate activity groups
     supplies: jsonb("supplies").notNull().default([]).$type<Supply[]>(), // Supplies list
     tags: jsonb("tags").notNull().default([]).$type<string[]>(), // Tags for filtering
+    embedding: vector("embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small embedding
   },
   (table) => ({
     created_by_idx: index("lesson_plan_created_by_idx").on(table.created_by_id),
+    embedding_idx: index("lesson_plan_embedding_idx").using(
+      "ivfflat",
+      table.embedding.op("vector_cosine_ops")
+    ),
   })
 );

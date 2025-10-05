@@ -84,7 +84,7 @@ export const metadata: Metadata = {
       },
     ],
   },
-  manifest: "https://www.playplancraft.com/manifest.json",
+  manifest: "/manifest.json",
   archives: ["https://www.playplancraft.com/"],
   bookmarks: ["https://www.playplancraft.com/"],
   category: "education",
