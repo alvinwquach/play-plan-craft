@@ -28,6 +28,15 @@ export const db = drizzle(pool);
 export type LessonPlanDB = InferSelectModel<typeof lessonPlans>;
 export type LessonPlanInsert = InferInsertModel<typeof lessonPlans>;
 
+interface SimilarLessonRow {
+  id: number;
+  title: string;
+  created_at: Date;
+  learning_intention: string | null;
+  success_criteria: string[] | null;
+  similarity: string;
+}
+
 export async function findSimilarLessons(
   embedding: number[],
   gradeLevel: string,
@@ -58,7 +67,7 @@ export async function findSimilarLessons(
       `
     );
 
-    return similarLessons.rows.map((row: any) => ({
+    return (similarLessons.rows as unknown as SimilarLessonRow[]).map((row) => ({
       id: row.id,
       title: row.title,
       created_at: row.created_at,
@@ -93,8 +102,8 @@ export async function getRecentLessons(
     .leftJoin(activities, eq(activities.lesson_plan_id, lessonPlans.id))
     .where(
       and(
-        eq(lessonPlans.age_group, gradeLevel as any),
-        eq(lessonPlans.subject, subject as any),
+        sql`${lessonPlans.age_group} = ${gradeLevel}`,
+        sql`${lessonPlans.subject} = ${subject}`,
         eq(lessonPlans.created_by_id, userId)
       )
     )
@@ -137,7 +146,7 @@ export async function insertLessonPlan(
         age_group: lessonPlan.gradeLevel,
         subject: lessonPlan.subject,
         theme: normalizedTheme,
-        embedding: embedding as any,
+        embedding: embedding as unknown,
         created_at: new Date(),
         createdAt: lessonPlan?.createdAt?.toISOString(),
         created_by_id: lessonPlan.created_by_id,

@@ -1,9 +1,31 @@
 import { Curriculum, Source } from "@/app/types/lessonPlan";
 import { getGradeCategory, validActivityTypes } from "./constants";
 
+interface LessonActivity {
+  title: string;
+  type: string;
+}
+
+interface BaseLesson {
+  id: number;
+  title: string;
+  created_at: Date | null;
+  learning_intention: string | null;
+  success_criteria: string[] | null;
+}
+
+interface RecentLesson extends BaseLesson {
+  activities: LessonActivity[];
+}
+
+interface SimilarLesson extends BaseLesson {
+  similarity: number;
+  activities: never[];
+}
+
 interface LessonContext {
-  recentLessons: any[];
-  similarLessons: any[];
+  recentLessons: RecentLesson[];
+  similarLessons: SimilarLesson[];
 }
 
 interface PromptBuilderParams {
@@ -43,7 +65,7 @@ ${
           (lesson, idx) => `
 ${idx + 1}. "${lesson.title}" (${new Date(lesson.created_at!).toLocaleDateString()})
    - Learning Intention: ${lesson.learning_intention || "N/A"}
-   - Activities Used: ${lesson.activities.map((a: any) => `${a.title} (${a.type})`).join(", ") || "N/A"}
+   - Activities Used: ${lesson.activities.map((a: LessonActivity) => `${a.title} (${a.type})`).join(", ") || "N/A"}
    - Success Criteria: ${lesson.success_criteria?.join("; ") || "N/A"}
 `
         )
@@ -55,7 +77,7 @@ ${
   similarLessons.length > 0
     ? `**Similar Lessons (Avoid Repetition):**\n${similarLessons
         .map(
-          (lesson: any, idx: number) => `
+          (lesson: SimilarLesson, idx: number) => `
 ${idx + 1}. "${lesson.title}" (${(lesson.similarity * 100).toFixed(0)}% similar)
    - Learning Intention: ${lesson.learning_intention || "N/A"}
    - Success Criteria: ${lesson.success_criteria?.join("; ") || "N/A"}
