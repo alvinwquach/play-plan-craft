@@ -222,7 +222,7 @@ export function validateActivityTypes(
 
 export function validateStandardsFramework(
   standardsFramework: string | undefined,
-  standards: any[],
+  standards: { code: string; description: string; source?: Source }[],
   curriculum: Curriculum
 ): void {
   const validStandardsFrameworks = getValidStandardsFrameworks(curriculum);

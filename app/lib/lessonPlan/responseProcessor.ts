@@ -5,6 +5,10 @@ import {
   LessonPlan,
   OpenAIResponse,
   Source,
+  SourceMetadata,
+  Standard,
+  DrdpDomain,
+  Supply,
 } from "@/app/types/lessonPlan";
 import { sourceScores, validActivityTypes, getGradeCategory } from "./constants";
 
@@ -26,7 +30,7 @@ interface ProcessResponseParams {
 }
 
 export function processActivitiesWithSources(
-  activities: any[] = [],
+  activities: (Partial<Activity> & { source?: Source })[] = [],
   activityTypes: string[],
   duration: string,
   sources: Source[]
@@ -201,7 +205,10 @@ export function normalizeActivityDurations(
 export function calculateCitationScore(
   activitiesWithSources: Activity[],
   formattedAlternateActivities: AlternateActivityGroup[],
-  lesson: any
+  lesson: Partial<LessonPlan> & {
+    sourceMetadata?: SourceMetadata[];
+    standards?: Standard[];
+  }
 ): number {
   const usedSources = [
     ...new Set(
@@ -210,8 +217,8 @@ export function calculateCitationScore(
         ...formattedAlternateActivities
           .flatMap((group) => group.activities)
           .map((a) => a?.source?.name),
-        ...(lesson.sourceMetadata?.map((s: any) => s.name) ?? []),
-        ...(lesson.standards?.map((s: any) => s?.source?.name) ?? []),
+        ...(lesson.sourceMetadata?.map((s: SourceMetadata) => s.name) ?? []),
+        ...(lesson.standards?.map((s: Standard) => s?.source?.name) ?? []),
       ].filter((name): name is string => !!name)
     ),
   ];
@@ -252,7 +259,7 @@ export function processLessonPlan(params: ProcessResponseParams): LessonPlan {
   const defaultActivityTypes =
     activityTypes.length === 0 ? allowedActivityTypes.slice(0, 2) : activityTypes;
 
-  let activitiesWithSources = processActivitiesWithSources(
+  const activitiesWithSources = processActivitiesWithSources(
     lesson.activities,
     activityTypes,
     duration,
@@ -317,7 +324,7 @@ export function processLessonPlan(params: ProcessResponseParams): LessonPlan {
           ]),
     activities: activitiesWithSources,
     alternateActivities: formattedAlternateActivities,
-    supplies: (lesson.supplies ?? []).map((supply: any) =>
+    supplies: (lesson.supplies ?? []).map((supply: string | Partial<Supply>) =>
       typeof supply === "string"
         ? {
             name: supply,
@@ -345,7 +352,7 @@ export function processLessonPlan(params: ProcessResponseParams): LessonPlan {
     ],
     drdpDomains:
       lesson.drdpDomains && gradeLevel === "PRESCHOOL" && curriculum === "US"
-        ? lesson.drdpDomains.map((domain: any) => ({
+        ? lesson.drdpDomains.map((domain: Partial<DrdpDomain>) => ({
             code: domain.code ?? "UNKNOWN",
             name: domain.name ?? "Unknown Domain",
             description: domain.description ?? "",
